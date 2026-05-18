@@ -1,0 +1,14 @@
+The imported `quick-classic.txt` and `cangjie5.txt` table headers state:
+
+LICENSE = Freely redistributable without restriction
+
+The table also states:
+
+`quick-classic.txt` also states:
+
+Converted from xcin by Roy Chan <roy.chan at debian.org.hk>
+
+The wider `ibus-table-chinese` source package contains files under multiple
+licenses. This directory keeps only `tables/quick/quick-classic.txt`,
+`tables/cangjie/cangjie5.txt`, and this local attribution note for the runtime
+Sucheng and Cangjie tables.

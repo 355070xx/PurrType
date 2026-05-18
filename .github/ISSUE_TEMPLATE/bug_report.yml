@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a reproducible PurrType input method problem.
+title: "[bug] "
+labels:
+  - bug
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: PurrType version or commit SHA.
+      placeholder: "0.1.x or commit SHA"
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Input mode
+      options:
+        - Sucheng
+        - New Sucheng
+        - Cangjie
+        - Pinyin
+        - Mixed or unknown
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "macOS 14.6.1"
+    validations:
+      required: true
+  - type: input
+    id: app
+    attributes:
+      label: Affected app
+      placeholder: "TextEdit, Safari, Notes, Terminal, other"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include exact keys pressed and selected candidate numbers where possible.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy check
+      description: Do not include passwords, private keys, authorization tokens, banking details, IDs, addresses, or full sensitive text. Mask anything sensitive as ***.

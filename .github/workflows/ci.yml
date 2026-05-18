@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "codex/**"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-preflight:
+    name: Release preflight
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6.0.2
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcrun --show-sdk-path
+          clang --version
+          make --version
+
+      - name: Run release preflight
+        run: make release-preflight
+
+      - name: Upload release preflight artifacts
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: purrtype-release-preflight-${{ github.sha }}
+          path: |
+            build/PurrType-*.pkg
+            build/PurrType-*.dmg
+            build/*_audit.md
+            build/typing-simulation-report.md
+            build/legacy_*.tsv
+          if-no-files-found: ignore

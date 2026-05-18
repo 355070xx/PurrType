@@ -1,0 +1,7 @@
+build/
+.build/
+dist/
+*.dSYM/
+.DS_Store
+resources/association_generated.index
+resources/CandidateTables/*.index

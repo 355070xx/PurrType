@@ -1,0 +1,55 @@
+#!/bin/sh
+set -eu
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+export PATH
+
+APP="/Library/Input Methods/PurrTypeIM.app"
+LOCALIZED_WRAPPER="/Library/Input Methods/PurrTypeIM.localized"
+LOCALIZED_APP="/Library/Input Methods/PurrTypeIM.localized/PurrTypeIM.app"
+MISPLACED_APP="/Library/Application Support/PurrType/PurrTypeIM.app"
+MISPLACED_ROOT="/Library/Application Support/PurrType"
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+CONSOLE_USER=$(stat -f %Su /dev/console 2>/dev/null || true)
+CONSOLE_UID=$(stat -f %u /dev/console 2>/dev/null || true)
+
+gc_launchservices() {
+  if [ -x "$LSREGISTER" ]; then
+    "$LSREGISTER" -gc || true
+  fi
+}
+
+if [ ! -d "$APP" ] && [ -d "$LOCALIZED_APP" ]; then
+  mv "$LOCALIZED_APP" "$APP"
+fi
+
+if [ -d "$LOCALIZED_WRAPPER" ] && [ -d "$APP" ]; then
+  if [ -x "$LSREGISTER" ]; then
+    "$LSREGISTER" -u "$LOCALIZED_WRAPPER" || true
+  fi
+  rm -rf "$LOCALIZED_WRAPPER"
+fi
+
+if [ -d "$MISPLACED_APP" ]; then
+  if [ -x "$LSREGISTER" ]; then
+    "$LSREGISTER" -u "$MISPLACED_APP" || true
+  fi
+  rm -rf "$MISPLACED_APP"
+  rmdir "$MISPLACED_ROOT" 2>/dev/null || true
+fi
+
+if [ -d "$APP" ] && [ -x "$LSREGISTER" ]; then
+  "$LSREGISTER" -f "$APP" || true
+fi
+
+if [ -x "$APP/Contents/MacOS/PurrType" ]; then
+  "$APP/Contents/MacOS/PurrType" --register-input-source || true
+fi
+
+gc_launchservices
+
+if [ -n "$CONSOLE_UID" ] && [ "$CONSOLE_USER" != "root" ]; then
+  launchctl asuser "$CONSOLE_UID" pkill -x TextInputMenuAgent || true
+fi
+pkill -x TextInputMenuAgent || true
+
+exit 0
