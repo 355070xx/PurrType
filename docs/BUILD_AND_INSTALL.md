@@ -1,10 +1,19 @@
 # Build And Install
 
-## Normal User Install
+## Install From DMG
 
-Use the packaged installer for normal testing and releases. No Terminal commands are required for this path:
+Use the public DMG download to install PurrType. No Terminal commands are
+required:
 
-1. Open `PurrType-0.1.0.dmg`.
+[Download PurrType 0.1.1 DMG](https://github.com/355070xx/PurrType/releases/download/v0.1.1/PurrType-0.1.1.dmg)
+
+Do not download GitHub's auto-generated `Source code` zip/tar.gz files to
+install PurrType. Those files are source archives, not the installer.
+
+If macOS shows `"Install PurrType.pkg" Not Opened` or `Apple could not verify...`,
+follow the [install guide](INSTALL_GUIDE.md). Do not click `Move to Bin`.
+
+1. Download `PurrType-0.1.1.dmg` from the link above, then open it in Finder.
 2. Double-click `Install PurrType.pkg`.
 3. Complete the macOS Installer flow.
 4. Quit and reopen System Settings if it was already open.
@@ -24,14 +33,14 @@ source permission remains an explicit user action.
 
 ## Supported Runtime Scope
 
-The current runtime supports one macOS-visible `PurrType` input method with four internal modes:
+The current dev runtime supports one macOS-visible `PurrType` input method with four internal modes:
 
 - `Sucheng`
 - `New Sucheng`
 - `Cangjie`
 - `Pinyin`
 
-English is handled by automatic raw English pass-through instead of a separate selectable mode. Future English spelling suggestions are planned only after the current input methods are complete; they must be candidate suggestions, not automatic autocorrect.
+English is handled by automatic raw English pass-through instead of a separate selectable mode. Optional English spelling suggestions use macOS local `NSSpellChecker` and appear only as candidate suggestions, not automatic autocorrect.
 
 ## Requirements
 
@@ -103,7 +112,8 @@ Current tests validate:
 - New Sucheng association-aware generated phrase beam with hashed local ranking.
 - New Sucheng committed custom phrase session learning.
 - URL-like raw token detection.
-- Input behavior regression for mode shortcuts, preferences shortcut, candidate paging, `0` raw-English candidate display, and Shift temporary English.
+- Local English spelling suggestion provider using macOS `NSSpellChecker`.
+- Input behavior regression for mode shortcuts, preferences shortcut, candidate paging, `0` raw-English candidate display, and Shift uppercase English.
 - One-hour equivalent typing simulation from `docs/typing/one_hour_typing_corpus.md`, including Sucheng candidate selection, candidate page turns, mixed English raw text, Cangjie replay, New Sucheng custom phrase session replay, preference toggle behavior, and exact output comparison.
 
 After installing a development or package build, verify that macOS Text Input Sources can see the input method:
@@ -149,11 +159,10 @@ This copies the built bundle to:
 ~/Library/Input Methods/PurrTypeIM.app
 ```
 
-The installer also removes the old prototype bundle if present:
+The installer also removes the old dev prototype bundle if present:
 
 ```text
 ~/Library/Input Methods/PurrTypeInput.app
-~/Library/Input Methods/PurrType.inputmethod
 ```
 
 Then open:
@@ -200,8 +209,6 @@ This removes only PurrType bundles and package receipts owned by this project:
 /Library/Input Methods/PurrTypeIM.app
 /Library/Input Methods/PurrTypeIM.localized
 /Library/Input Methods/PurrTypeInput.app
-/Library/Input Methods/PurrType.app
-/Library/Input Methods/PurrType.inputmethod
 /Library/Application Support/PurrType/PurrTypeIM.app
 ```
 
@@ -220,8 +227,8 @@ make package
 This creates:
 
 ```text
-build/PurrType-0.1.0.pkg
-build/PurrType-0.1.0.dmg
+build/PurrType-0.1.1.pkg
+build/PurrType-0.1.1.dmg
 ```
 
 Before manually installing a test package, run the non-GUI release preflight:
@@ -248,36 +255,42 @@ This expands the package payload and verifies that installed Legal resources,
 runtime upstream license files, acknowledgements, and audit-only resource
 exclusions are correct.
 
-Current packages are unsigned local test artifacts. This is enough for source-first GitHub distribution where users clone the repository and build locally. If you publish prebuilt `.pkg` or `.dmg` files for non-developer users, Developer ID signing and DMG notarization are recommended to avoid Gatekeeper warnings.
+Current packages are unsigned local dev test artifacts. If you publish prebuilt
+`.pkg` or `.dmg` files outside source builds, Developer ID signing and DMG
+notarization are recommended to avoid Gatekeeper warnings.
 
 To generate unsigned release artifacts plus SHA-256 checksums and provenance metadata:
 
 ```sh
 make release-artifacts
-shasum -a 256 -c build/PurrType-0.1.0-checksums.sha256
+(cd build && shasum -a 256 -c PurrType-0.1.1-checksums.sha256)
 ```
 
 This writes:
 
 ```text
-build/PurrType-0.1.0.pkg
-build/Uninstall-PurrType-0.1.0.pkg
-build/PurrType-0.1.0.dmg
-build/PurrType-0.1.0-checksums.sha256
-build/PurrType-0.1.0-provenance.json
+build/PurrType-0.1.1.pkg
+build/Uninstall-PurrType-0.1.1.pkg
+build/PurrType-0.1.1.dmg
+build/PurrType-0.1.1-checksums.sha256
+build/PurrType-0.1.1-provenance.json
 ```
+
+The public checksum file verifies the downloadable DMG.
 
 The DMG root contains:
 
 ```text
 README.txt
+Install Guide.html
 Install PurrType.pkg
 Uninstall PurrType.pkg
 ```
 
-Legal, acknowledgement, and privacy materials are kept in the source repository
-and inside the installed app bundle under `Contents/Resources/Legal`; they are
-not duplicated at the DMG root.
+The DMG also contains a hidden `.install-guide-assets` directory for the
+screenshots used by `Install Guide.html`. Legal, acknowledgement, and privacy
+materials are kept in the source repository and inside the installed app bundle
+under `Contents/Resources/Legal`; they are not duplicated at the DMG root.
 
 For an optional prebuilt binary release, import valid Apple Developer ID certificates into the login keychain and store a notarytool credential profile first:
 
@@ -297,23 +310,23 @@ make release-signed \
 The signed release path is not required for source-only GitHub releases. It fails before modifying artifacts if the Developer ID identities or notarytool profile are missing. A successful signed binary release writes:
 
 ```text
-build/PurrType-0.1.0-signed.pkg
-build/Uninstall-PurrType-0.1.0-signed.pkg
-build/PurrType-0.1.0-signed.dmg
-build/PurrType-0.1.0-signed-checksums.sha256
-build/PurrType-0.1.0-signed-provenance.json
+build/PurrType-0.1.1-signed.pkg
+build/Uninstall-PurrType-0.1.1-signed.pkg
+build/PurrType-0.1.1-signed.dmg
+build/PurrType-0.1.1-signed-checksums.sha256
+build/PurrType-0.1.1-signed-provenance.json
 ```
 
 Verify the signed DMG:
 
 ```sh
-xcrun stapler validate build/PurrType-0.1.0-signed.dmg
-spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.0-signed.dmg
+xcrun stapler validate build/PurrType-0.1.1-signed.dmg
+spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.1-signed.dmg
 ```
 
 Use this path for normal testing:
 
-1. Open `build/PurrType-0.1.0.dmg`.
+1. Open `build/PurrType-0.1.1.dmg`.
 2. Double-click `Install PurrType.pkg`.
 3. Complete the installer.
 4. Quit and reopen System Settings if it was already open.
@@ -367,7 +380,19 @@ The package installs to:
 
 This matches the system-level layout used by traditional macOS Chinese input methods.
 
-The package marks `PurrTypeIM.app` as non-relocatable, replaces the previous app bundle, and removes earlier `PurrTypeIM.localized`, `PurrTypeInput.app`, `PurrType.app`, `PurrType.inputmethod`, and invalid `/Library/Application Support/PurrType/PurrTypeIM.app` installs before copying the system-level app. It also forgets stale PurrType package receipts so old prototype package IDs do not linger. When removing stale local development installs, installer and uninstaller scripts resolve the console user's recorded home directory through macOS user records instead of assuming `/Users/<shortname>`. It registers the single `PurrType` input source with macOS, but does not enable or select it for the console user; users add it manually from Text Input. If System Settings was open during installation, quit and reopen System Settings before checking the list.
+The package marks `PurrTypeIM.app` as non-relocatable, replaces only the
+previous dev app bundle, and removes earlier dev-only paths such as
+`PurrTypeIM.localized`, `PurrTypeInput.app`, and invalid
+`/Library/Application Support/PurrType/PurrTypeIM.app` installs before
+copying the system-level app. It also forgets only the dev package receipt. It
+does not remove `/Library/Input Methods/PurrTypeIM.app`, the public package
+receipt, public preferences, or public learning data. When removing stale local
+development installs, installer and uninstaller scripts resolve the console
+user's recorded home directory through macOS user records instead of assuming
+`/Users/<shortname>`. It registers the single `PurrType` input source with
+macOS, but does not enable or select it for the console user; users add it
+manually from Text Input. If System Settings was open during installation, quit
+and reopen System Settings before checking the list.
 
 ## Uninstall From DMG
 
@@ -387,8 +412,6 @@ The uninstaller removes:
 /Library/Input Methods/PurrTypeIM.app
 /Library/Input Methods/PurrTypeIM.localized
 /Library/Input Methods/PurrTypeInput.app
-/Library/Input Methods/PurrType.app
-/Library/Input Methods/PurrType.inputmethod
 /Library/Application Support/PurrType/PurrTypeIM.app
 ```
 
@@ -436,7 +459,7 @@ Try these after selecting `PurrType`. Sucheng is the default mode on a fresh ins
 | Sucheng: type `setting`, then Space | commits raw English `setting ` without Chinese candidates after it is recognized as English |
 | New Sucheng: type `setting`, then Space | commits raw English `setting ` while still protecting known phrase codes |
 | New Sucheng: type `new`, then Space | commits raw English `new ` instead of generated Chinese phrase candidates |
-| hold Shift and type `Setting-1`, then Space | temporary raw English composition commits `Setting-1 ` |
+| hold Shift and type `SETTING-1`, then Space | uppercase raw English composition commits `SETTING-1 ` |
 | letters then Enter | commit raw English |
 | Escape | cancel current composition |
 | raw English, then Backspace until empty | exits raw English and lets the next input use the current Chinese mode again |
@@ -604,8 +627,8 @@ When enabled, learning is filtered before it is accepted: raw English, numbers, 
 - Sucheng uses the bundled IBus Quick Classic table as the primary fixed order, with verified legacy anchor guards layered on top. It is not a redistributed legacy dictionary file.
 - New Sucheng combines static table order, verified guards, generated phrase seeds, and optional local user learning.
 - New Sucheng phrase composition is seed-based, corpus-generated, association-aware code segmentation, plus optional local committed phrase learning. It is not a full language model yet.
-- English pass-through uses deterministic heuristics, not a full English dictionary.
-- English spelling suggestions are not implemented yet. When added, they should appear only as optional candidate rows and must not automatically replace typed English.
+- English pass-through uses deterministic heuristics, not a bundled full English dictionary.
+- English spelling suggestions depend on macOS `NSSpellChecker` and the user's system spelling dictionary. They appear only as optional candidate rows and do not automatically replace typed English.
 - Pinyin loads a full open dictionary plus local seed ranking. It supports exact pinyin syllable/phrase lookup, but it is still not a predictive language model or fuzzy-pinyin segmenter.
 - The preferences UI is a helper app bundled inside the input-method app because the input method itself runs as a background app. The helper is a normal foreground app with standard app/window menu shortcuts, so it appears in Cmd+Tab while its window is open.
 - English no longer has a separate selectable menu mode; automatic English detection remains conservative because Cangjie, Sucheng, and Pinyin all use overlapping letter sequences.

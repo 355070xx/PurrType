@@ -1,8 +1,5 @@
 #!/bin/sh
 set -eu
-PATH=/usr/bin:/bin:/usr/sbin:/sbin
-export PATH
-
 if [ "$#" -ne 1 ]; then
   echo "Usage: $0 /path/to/output.icns" >&2
   exit 1
@@ -17,15 +14,15 @@ SOURCE_PNG="${PURRTYPE_ICON_SOURCE:-resources/PurrType.png}"
 ICON_CANVAS_SIZE="${PURRTYPE_ICON_CANVAS_SIZE:-1024}"
 ICON_DRAW_SIZE="${PURRTYPE_ICON_DRAW_SIZE:-896}"
 
-rm -rf "$WORK_DIR"
-mkdir -p "$ICONSET"
+/bin/rm -rf "$WORK_DIR"
+/bin/mkdir -p "$ICONSET"
 
 if [ -s "$SOURCE_PNG" ]; then
-  sips -s format png -z "$ICON_DRAW_SIZE" "$ICON_DRAW_SIZE" "$SOURCE_PNG" --out "$SCALED_PNG" >/dev/null
-  python3 scripts/pad-png-alpha.py "$SCALED_PNG" "$BASE_PNG" "$ICON_CANVAS_SIZE" "$ICON_CANVAS_SIZE"
+  /usr/bin/sips -s format png -z "$ICON_DRAW_SIZE" "$ICON_DRAW_SIZE" "$SOURCE_PNG" --out "$SCALED_PNG" >/dev/null
+  /usr/bin/python3 scripts/pad-png-alpha.py "$SCALED_PNG" "$BASE_PNG" "$ICON_CANVAS_SIZE" "$ICON_CANVAS_SIZE"
 else
   BASE_PPM="$WORK_DIR/base.ppm"
-  awk '
+  /usr/bin/awk '
   BEGIN {
     size = 1024
     print "P3"
@@ -61,21 +58,24 @@ else
     }
   }
   ' > "$BASE_PPM"
-  sips -s format png "$BASE_PPM" --out "$BASE_PNG" >/dev/null
+  /usr/bin/sips -s format png "$BASE_PPM" --out "$BASE_PNG" >/dev/null
 fi
 
 test "$ICON_CANVAS_SIZE" = "1024" || (echo "ICON_CANVAS_SIZE must be 1024 for macOS iconsets" >&2; exit 1)
 
-sips -z 16 16 "$BASE_PNG" --out "$ICONSET/icon_16x16.png" >/dev/null
-sips -z 32 32 "$BASE_PNG" --out "$ICONSET/icon_16x16@2x.png" >/dev/null
-sips -z 32 32 "$BASE_PNG" --out "$ICONSET/icon_32x32.png" >/dev/null
-sips -z 64 64 "$BASE_PNG" --out "$ICONSET/icon_32x32@2x.png" >/dev/null
-sips -z 128 128 "$BASE_PNG" --out "$ICONSET/icon_128x128.png" >/dev/null
-sips -z 256 256 "$BASE_PNG" --out "$ICONSET/icon_128x128@2x.png" >/dev/null
-sips -z 256 256 "$BASE_PNG" --out "$ICONSET/icon_256x256.png" >/dev/null
-sips -z 512 512 "$BASE_PNG" --out "$ICONSET/icon_256x256@2x.png" >/dev/null
-sips -z 512 512 "$BASE_PNG" --out "$ICONSET/icon_512x512.png" >/dev/null
-sips -z 1024 1024 "$BASE_PNG" --out "$ICONSET/icon_512x512@2x.png" >/dev/null
+/usr/bin/sips -z 16 16 "$BASE_PNG" --out "$ICONSET/icon_16x16.png" >/dev/null
+/usr/bin/sips -z 32 32 "$BASE_PNG" --out "$ICONSET/icon_16x16@2x.png" >/dev/null
+/usr/bin/sips -z 32 32 "$BASE_PNG" --out "$ICONSET/icon_32x32.png" >/dev/null
+/usr/bin/sips -z 64 64 "$BASE_PNG" --out "$ICONSET/icon_32x32@2x.png" >/dev/null
+/usr/bin/sips -z 128 128 "$BASE_PNG" --out "$ICONSET/icon_128x128.png" >/dev/null
+/usr/bin/sips -z 256 256 "$BASE_PNG" --out "$ICONSET/icon_128x128@2x.png" >/dev/null
+/usr/bin/sips -z 256 256 "$BASE_PNG" --out "$ICONSET/icon_256x256.png" >/dev/null
+/usr/bin/sips -z 512 512 "$BASE_PNG" --out "$ICONSET/icon_256x256@2x.png" >/dev/null
+/usr/bin/sips -z 512 512 "$BASE_PNG" --out "$ICONSET/icon_512x512.png" >/dev/null
+/usr/bin/sips -z 1024 1024 "$BASE_PNG" --out "$ICONSET/icon_512x512@2x.png" >/dev/null
 
-iconutil -c icns "$ICONSET" -o "$OUT"
-rm -rf "$WORK_DIR"
+if ! /usr/bin/iconutil -c icns "$ICONSET" -o "$OUT"; then
+  /bin/sleep 1
+  /usr/bin/iconutil -c icns "$ICONSET" -o "$OUT" || /usr/bin/python3 scripts/write-icns.py "$ICONSET" "$OUT"
+fi
+/bin/rm -rf "$WORK_DIR"

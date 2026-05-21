@@ -711,6 +711,41 @@ static NSString *MKKeyEquivalentForKeyCode(NSInteger keyCode) {
     return [candidatePool subarrayWithRange:NSMakeRange(start, length)];
 }
 
++ (NSUInteger)spellingSuggestionLimitForCandidatePageSize:(NSUInteger)pageSize {
+    NSUInteger effectivePageSize = pageSize > 0 ? pageSize : MKInputBehaviorCandidatePageSize;
+    return effectivePageSize <= 5 ? 2 : 3;
+}
+
++ (NSArray<MKCandidate *> *)candidatePoolByMergingPrimaryCandidates:(NSArray<MKCandidate *> *)primaryCandidates
+                                                spellingCandidates:(NSArray<MKCandidate *> *)spellingCandidates
+                                                          pageSize:(NSUInteger)pageSize {
+    NSArray<MKCandidate *> *safePrimaryCandidates = primaryCandidates ?: @[];
+    NSArray<MKCandidate *> *safeSpellingCandidates = spellingCandidates ?: @[];
+    if (safePrimaryCandidates.count == 0 || safeSpellingCandidates.count == 0) {
+        return safePrimaryCandidates.count == 0 ? safeSpellingCandidates : safePrimaryCandidates;
+    }
+
+    NSUInteger effectivePageSize = pageSize > 0 ? pageSize : MKInputBehaviorCandidatePageSize;
+    NSUInteger spellingLimit = MIN(safeSpellingCandidates.count,
+                                   [self spellingSuggestionLimitForCandidatePageSize:effectivePageSize]);
+    if (spellingLimit == 0) {
+        return safePrimaryCandidates;
+    }
+
+    NSUInteger visiblePrimaryCount = effectivePageSize > spellingLimit ? effectivePageSize - spellingLimit : 1;
+    visiblePrimaryCount = MAX((NSUInteger)1, MIN(visiblePrimaryCount, safePrimaryCandidates.count));
+
+    NSMutableArray<MKCandidate *> *mergedCandidates =
+        [NSMutableArray arrayWithCapacity:safePrimaryCandidates.count + spellingLimit];
+    [mergedCandidates addObjectsFromArray:[safePrimaryCandidates subarrayWithRange:NSMakeRange(0, visiblePrimaryCount)]];
+    [mergedCandidates addObjectsFromArray:[safeSpellingCandidates subarrayWithRange:NSMakeRange(0, spellingLimit)]];
+    if (visiblePrimaryCount < safePrimaryCandidates.count) {
+        NSRange remainingRange = NSMakeRange(visiblePrimaryCount, safePrimaryCandidates.count - visiblePrimaryCount);
+        [mergedCandidates addObjectsFromArray:[safePrimaryCandidates subarrayWithRange:remainingRange]];
+    }
+    return mergedCandidates;
+}
+
 + (NSString *)displayTextForCandidate:(MKCandidate *)candidate index:(NSUInteger)index {
     if (index < MKInputBehaviorCandidatePageSize) {
         return [NSString stringWithFormat:@"%lu %@", (unsigned long)(index + 1), candidate.text];

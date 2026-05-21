@@ -128,6 +128,15 @@
     [self.preferencesStore postPreferencesChangedNotification];
 }
 
+- (BOOL)preferencesSpellingSuggestionsEnabled {
+    return [self.preferencesStore spellingSuggestionsEnabled];
+}
+
+- (void)preferencesSetSpellingSuggestionsEnabled:(BOOL)enabled {
+    [self.preferencesStore setSpellingSuggestionsEnabled:enabled];
+    [self.preferencesStore postPreferencesChangedNotification];
+}
+
 - (BOOL)preferencesSpacePagingEnabled {
     return [self.preferencesStore spacePagingEnabled];
 }

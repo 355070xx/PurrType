@@ -71,15 +71,15 @@ Privacy Lock shortcut 可在 Preferences 改為 double backtick、`Ctrl+Shift+\`
 
 英文 pass-through 不等於永久切換英文模式。完成該 token 後，輸入法應回到正常偵測。
 
-## 臨時英文
+## Shift 大楷英文
 
-需要提供明確方式讓用戶短暫輸入英文：
+需要提供明確方式讓用戶輸入大楷英文：
 
-- 按住 Shift 輸入字母會進入 raw English composition，不顯示中文候選。
+- 按住 Shift 輸入字母會直接輸入大楷英文，不顯示中文候選。
 - Shift 進入 raw English 後，數字與常見 token 字元會跟隨同一個英文 composition，不會突然彈出中文候選。
 - 短英文或單字母撞中速成/倉頡碼時，可按 `0` commit 原文；其他數字鍵仍然只負責中文候選。
 - 不提供獨立 English menu mode；中英混打以 automatic raw English pass-through 處理。
-- temporary English 狀態下，中文候選不應彈出。
+- Shift 大楷英文狀態下，中文候選不應彈出。
 - 按 Escape 或完成 token 後返回原模式。
 
 ## 倉頡
@@ -150,29 +150,32 @@ Privacy Lock shortcut 可在 Preferences 改為 double backtick、`Ctrl+Shift+\`
 - 粵拼是否另列 engine。
 - fuzzy pinyin 是否值得加入。
 
-## Future English Spelling Suggestions
+## English Spelling Suggestions
 
-呢個功能可行，但唔屬於目前已實作輸入模式。設計界線：
+呢個功能屬於本機候選提示，不係獨立輸入模式。它可以在 raw English path 顯示，也可以混入一般中文候選頁，令英文撞中中文碼時不用等到 raw English mode 先見到提示。設計界線：
 
 - spelling suggestions 只顯示為候選，不做 autocorrect。
 - typed word 原文必須一直可以 commit。
 - Space、Enter、punctuation、separator 不應自動替換 typed word。
+- mixed candidate page 仍保留中文主候選優先；spelling suggestions 只佔第一頁末段少量位置。
+- suggestion provider 使用 macOS `NSSpellChecker` documented API。
 - suggestion provider 不應對 URL、email、path、code-like token 出提示。
-- suggestion lookup 應用本機 memory index，不應每個 keypress 讀 disk。
+- suggestion lookup 對同一 token 會 cache，避免每個 keypress 重複查同一字。
 - 若 dictionary 載入失敗，應降級成現有 raw English pass-through。
 
 可測試案例：
 
-- `recieve` 顯示 `receive` suggestion，但 `recieve` 仍可原文 commit。
-- 按 Space 不會自動將 `recieve` 改成 `receive`。
-- `https://recieve.example`、`foo_bar`、`./recieve` 不顯示 spelling suggestion。
+- `speling` 顯示 `spelling` suggestion，但 `speling` 仍可原文 commit。
+- 按 Space 不會自動將 `speling` 改成 `spelling`。
+- 當同一 buffer 有中文候選和 spelling suggestion，第一個中文候選仍排先，suggestion 只用數字選取。
+- `https://speling.example`、`foo_bar`、`./speling` 不顯示 spelling suggestion。
 - Preferences 關閉後完全不顯示 spelling suggestion。
 
 ## 候選 UI
 
 候選項目應包含：
 
-- 候選字、詞、原文英文或 future spelling suggestion。
+- 候選字、詞、原文英文或 spelling suggestion。
 - 選字 key `1` 至 `9`，以及可選 `0` 原文英文候選。
 
 候選 UI 應避免：
@@ -203,6 +206,6 @@ Privacy Lock shortcut 可在 Preferences 改為 double backtick、`Ctrl+Shift+\`
 - New Sucheng generated phrase beam 會把 `hionao` 排成 `我們是`。
 - New Sucheng generated phrase 如本身是引擎可產生的候選，選字後會以 hashed ranking 保留排序；自訂 committed phrase 重開後回復底表。
 - Sucheng / New Sucheng / Cangjie / Pinyin 都會從 association phrase seed 顯示 `候 -> 選`、`排 -> 位`，亦會從 generated association seed 顯示如 `輸 -> 入法` 的多字 suffix。
-- `Ctrl+Shift+1/2/3/4` 模式切換、`Ctrl+Shift+,` preference shortcut、候選翻頁、`0` 原文英文候選、Shift temporary English 都有 `PurrTypeInputBehaviorTests` regression 保護。
+- `Ctrl+Shift+1/2/3/4` 模式切換、`Ctrl+Shift+,` preference shortcut、候選翻頁、`0` 原文英文候選、Shift 大楷英文都有 `PurrTypeInputBehaviorTests` regression 保護。
 - `docs/typing/one_hour_typing_corpus.md` 會由 `PurrTypeTypingSimulationTests` 重複 replay 到一小時等量 keystrokes，並逐字比對輸出。測試亦覆蓋 Cangjie replay、New Sucheng custom phrase session replay、`0` 原文英文候選開關、以及 Space 翻頁開關，防止長時間中英混打、候選翻頁或選字流程出現 silent regression。
 - `make audit-full-bible` 會 replay `docs/typing/full_bible_typing_corpus.md` 全本 CUV Traditional corpus，檢查每個 CJK 字都有 Sucheng reverse code、候選存在、候選頁穩定、以及 `1` 至 `9` label 正確，報告寫入 `build/full_bible_typing_audit.md`。

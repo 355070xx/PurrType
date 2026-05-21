@@ -23,17 +23,12 @@ if [ -d "$INPUT_METHODS_DIR/PurrTypeInput.app" ] && [ -x "$LSREGISTER" ]; then
   "$LSREGISTER" -u "$INPUT_METHODS_DIR/PurrTypeInput.app" || true
 fi
 
-if [ -d "$INPUT_METHODS_DIR/PurrType.app" ] && [ -x "$LSREGISTER" ]; then
-  "$LSREGISTER" -u "$INPUT_METHODS_DIR/PurrType.app" || true
-fi
 if [ -d "$MISPLACED_SYSTEM_APP" ] && [ -x "$LSREGISTER" ]; then
   "$LSREGISTER" -u "$MISPLACED_SYSTEM_APP" || true
 fi
 
 rm -rf "$INPUT_METHODS_DIR/PurrTypeIM.app"
 rm -rf "$INPUT_METHODS_DIR/PurrTypeInput.app"
-rm -rf "$INPUT_METHODS_DIR/PurrType.app"
-rm -rf "$INPUT_METHODS_DIR/PurrType.inputmethod"
 
 gc_launchservices
 

@@ -12,6 +12,10 @@ static MKCandidate *Candidate(NSString *text, NSString *code) {
     return [[MKCandidate alloc] initWithText:text code:code source:@"test" weight:100];
 }
 
+static MKCandidate *CandidateWithSource(NSString *text, NSString *code, NSString *source) {
+    return [[MKCandidate alloc] initWithText:text code:code source:source weight:100];
+}
+
 int main(int argc, const char *argv[]) {
     (void)argc;
     (void)argv;
@@ -143,6 +147,41 @@ int main(int argc, const char *argv[]) {
                                                          rawEnglishCandidateEnabled:NO
                                                                      candidateCount:2], @"preference toggle suppresses 0 candidate");
 
+        NSArray<MKCandidate *> *spellingCandidates = @[
+            CandidateWithSource(@"spelling", @"speling", @"spelling"),
+            CandidateWithSource(@"spieling", @"speling", @"spelling"),
+            CandidateWithSource(@"sperling", @"speling", @"spelling")
+        ];
+        NSArray<MKCandidate *> *compactMerged =
+            [PurrTypeInputBehavior candidatePoolByMergingPrimaryCandidates:[pool subarrayWithRange:NSMakeRange(0, 5)]
+                                                        spellingCandidates:spellingCandidates
+                                                                  pageSize:5];
+        AssertTrue(compactMerged.count == 7, @"compact merge keeps all primary candidates and two spelling suggestions");
+        AssertTrue([compactMerged[0].text isEqualToString:@"字1"] &&
+                   [compactMerged[2].text isEqualToString:@"字3"] &&
+                   [compactMerged[3].text isEqualToString:@"spelling"] &&
+                   [compactMerged[4].text isEqualToString:@"spieling"] &&
+                   [compactMerged[5].text isEqualToString:@"字4"],
+                   @"compact merge makes spelling visible without replacing the first primary candidate");
+        NSArray<MKCandidate *> *wideMerged =
+            [PurrTypeInputBehavior candidatePoolByMergingPrimaryCandidates:[pool subarrayWithRange:NSMakeRange(0, 8)]
+                                                        spellingCandidates:spellingCandidates
+                                                                  pageSize:9];
+        AssertTrue(wideMerged.count == 11, @"wide merge keeps all primary candidates and three spelling suggestions");
+        AssertTrue([wideMerged[5].text isEqualToString:@"字6"] &&
+                   [wideMerged[6].text isEqualToString:@"spelling"] &&
+                   [wideMerged[8].text isEqualToString:@"sperling"] &&
+                   [wideMerged[9].text isEqualToString:@"字7"],
+                   @"wide merge reserves three first-page slots for spelling suggestions");
+        AssertTrue([PurrTypeInputBehavior spellingSuggestionLimitForCandidatePageSize:5] == 2,
+                   @"compact candidate pages reserve two spelling suggestions");
+        AssertTrue([PurrTypeInputBehavior spellingSuggestionLimitForCandidatePageSize:9] == 3,
+                   @"wide candidate pages reserve three spelling suggestions");
+        AssertTrue([PurrTypeInputBehavior candidatePoolByMergingPrimaryCandidates:@[]
+                                                              spellingCandidates:spellingCandidates
+                                                                        pageSize:5].count == 3,
+                   @"spelling-only merge keeps spelling candidates available");
+
         NSArray<NSString *> *commaCandidates = [PurrTypeInputBehavior punctuationCandidateDisplayTextsForString:@","];
         AssertTrue(commaCandidates.count == 3, @"comma opens half-width and Chinese punctuation candidates");
         AssertTrue([commaCandidates[0] isEqualToString:@"1 ,"], @"comma keeps half-width option");
@@ -200,8 +239,8 @@ int main(int argc, const char *argv[]) {
                                                                                 candidateCount:3],
                    @"Escape keeps cancelling pending punctuation");
 
-        AssertTrue([PurrTypeInputBehavior isShiftOnlyLetterInputWithModifiers:NSEventModifierFlagShift], @"Shift-only input enters temporary English");
-        AssertTrue(![PurrTypeInputBehavior isShiftOnlyLetterInputWithModifiers:(NSEventModifierFlagShift | NSEventModifierFlagControl)], @"Control+Shift is not temporary English");
+        AssertTrue([PurrTypeInputBehavior isShiftOnlyLetterInputWithModifiers:NSEventModifierFlagShift], @"Shift-only input enters uppercase English");
+        AssertTrue(![PurrTypeInputBehavior isShiftOnlyLetterInputWithModifiers:(NSEventModifierFlagShift | NSEventModifierFlagControl)], @"Control+Shift is not uppercase English");
         AssertTrue([PurrTypeInputBehavior isAsciiCodeString:@"ABCxyz"], @"ASCII letter buffer is code-like");
         AssertTrue(![PurrTypeInputBehavior isAsciiCodeString:@""], @"empty string is not code-like");
         AssertTrue(![PurrTypeInputBehavior isAsciiCodeString:@"abc1"], @"numbers are not code-like");

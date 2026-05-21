@@ -1,12 +1,7 @@
 # Branch Protection Policy
 
-GitHub branch protection and repository rulesets are currently blocked for this private repository because GitHub returns:
-
-```text
-Upgrade to GitHub Pro or make this repository public to enable this feature.
-```
-
-When the repository plan or visibility supports branch protection, apply these controls to `main`:
+The public repository should protect `main` before accepting outside changes.
+Apply these controls to `main` through branch protection or repository rulesets:
 
 - Require pull requests before merging.
 - Require the `Release preflight` status check from the `CI` workflow.
@@ -16,11 +11,11 @@ When the repository plan or visibility supports branch protection, apply these c
 - Require conversation resolution before merge.
 - Keep direct pushes to `main` disabled except for emergency owner recovery.
 
-Until GitHub enforcement is available, release-candidate branches must stay as draft pull requests until:
+Until GitHub enforcement is enabled, release-candidate branches must stay as draft pull requests until:
 
 - `make release-preflight` passes locally.
 - GitHub Actions `Release preflight` passes on the PR.
 - Manual GUI install and typing smoke tests are recorded in the PR.
 - Checksums and provenance status are recorded in the PR.
 - If prebuilt binary artifacts are published, signing and notarization status is recorded in the PR.
-- Product-facing docs are checked for scope accuracy: current modes are `Sucheng`, `New Sucheng`, `Cangjie`, `Pinyin`, plus automatic raw English pass-through; future English spelling suggestions must be described as candidate-only and not autocorrect.
+- Product-facing docs are checked for scope accuracy: current modes are `Sucheng`, `New Sucheng`, `Cangjie`, `Pinyin`, plus automatic raw English pass-through; English spelling suggestions must be described as candidate-only and not autocorrect.

@@ -62,11 +62,6 @@ remove_path() {
   fi
 }
 
-forget_legacy_receipt() {
-  package_id="$1"
-  pkgutil --forget "$package_id" >/dev/null 2>&1 || true
-}
-
 gc_launchservices() {
   if [ -x "$LSREGISTER" ]; then
     "$LSREGISTER" -gc >/dev/null 2>&1 || true
@@ -86,7 +81,6 @@ for app_path in \
   "/Library/Input Methods/PurrTypeIM.localized/PurrTypeIM.app" \
   "/Library/Input Methods/PurrTypeIM.localized" \
   "/Library/Input Methods/PurrTypeInput.app" \
-  "/Library/Input Methods/PurrType.app" \
   "/Library/Application Support/PurrType/PurrTypeIM.app"
 do
   unregister_app "$app_path"
@@ -94,8 +88,6 @@ done
 
 remove_path "/Library/Input Methods/PurrTypeIM.localized"
 remove_path "/Library/Input Methods/PurrTypeInput.app"
-remove_path "/Library/Input Methods/PurrType.app"
-remove_path "/Library/Input Methods/PurrType.inputmethod"
 remove_path "/Library/Application Support/PurrType/PurrTypeIM.app"
 rmdir "/Library/Application Support/PurrType" 2>/dev/null || true
 
@@ -110,26 +102,14 @@ if [ -n "$USER_HOME" ]; then
   for app_path in \
     "$USER_INPUT_METHODS/PurrTypeIM.localized/PurrTypeIM.app" \
     "$USER_INPUT_METHODS/PurrTypeIM.localized" \
-    "$USER_INPUT_METHODS/PurrTypeInput.app" \
-    "$USER_INPUT_METHODS/PurrType.app"
+    "$USER_INPUT_METHODS/PurrTypeInput.app"
   do
     unregister_app "$app_path"
   done
 
   remove_path "$USER_INPUT_METHODS/PurrTypeIM.localized"
   remove_path "$USER_INPUT_METHODS/PurrTypeInput.app"
-  remove_path "$USER_INPUT_METHODS/PurrType.app"
-  remove_path "$USER_INPUT_METHODS/PurrType.inputmethod"
 fi
-
-for package_id in \
-  org.purrtype.inputmethod.PurrType.pkg \
-  io.github.355070xx.PurrType.pkg \
-  io.github.355070xx.inputmethod.PurrType.pkg \
-  org.purrtype.inputmethod.OpenHK.pkg
-do
-  forget_legacy_receipt "$package_id"
-done
 
 if [ -x "$LSREGISTER" ]; then
   "$LSREGISTER" -u "$APP" >/dev/null 2>&1 || true

@@ -4,6 +4,7 @@ static NSString *const MKUserDefaultEngineModeKey = @"PurrTypeEngineMode";
 static NSString *const MKUserDefaultLearningEnabledKey = @"PurrTypeLearningEnabled";
 static NSString *const MKUserDefaultPrivacyLockEnabledKey = @"PurrTypePrivacyLockEnabled";
 static NSString *const MKUserDefaultRawEnglishCandidateEnabledKey = @"PurrTypeRawEnglishCandidateEnabled";
+static NSString *const MKUserDefaultSpellingSuggestionsEnabledKey = @"PurrTypeSpellingSuggestionsEnabled";
 static NSString *const MKUserDefaultSpacePagingEnabledKey = @"PurrTypeSpacePagingEnabled";
 static NSString *const MKUserDefaultCandidatePageSizeKey = @"PurrTypeCandidatePageSize";
 static NSString *const MKUserDefaultEnabledInputModesKey = @"PurrTypeEnabledInputModes";

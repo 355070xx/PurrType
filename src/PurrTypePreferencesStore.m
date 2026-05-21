@@ -113,6 +113,19 @@
     [self.defaults synchronize];
 }
 
+- (BOOL)spellingSuggestionsEnabled {
+    id savedValue = [self.defaults objectForKey:MKUserDefaultSpellingSuggestionsEnabledKey];
+    if ([savedValue respondsToSelector:@selector(boolValue)]) {
+        return [savedValue boolValue];
+    }
+    return YES;
+}
+
+- (void)setSpellingSuggestionsEnabled:(BOOL)enabled {
+    [self.defaults setBool:enabled forKey:MKUserDefaultSpellingSuggestionsEnabledKey];
+    [self.defaults synchronize];
+}
+
 - (BOOL)spacePagingEnabled {
     id savedValue = [self.defaults objectForKey:MKUserDefaultSpacePagingEnabledKey];
     if ([savedValue respondsToSelector:@selector(boolValue)]) {

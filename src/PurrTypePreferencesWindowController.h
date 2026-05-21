@@ -14,6 +14,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)preferencesSetPrivacyLockEnabled:(BOOL)enabled;
 - (BOOL)preferencesRawEnglishCandidateEnabled;
 - (void)preferencesSetRawEnglishCandidateEnabled:(BOOL)enabled;
+- (BOOL)preferencesSpellingSuggestionsEnabled;
+- (void)preferencesSetSpellingSuggestionsEnabled:(BOOL)enabled;
 - (BOOL)preferencesSpacePagingEnabled;
 - (void)preferencesSetSpacePagingEnabled:(BOOL)enabled;
 - (NSUInteger)preferencesCandidatePageSize;

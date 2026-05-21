@@ -100,8 +100,10 @@
 "English Pass-through" = "英文直通";
 "Show raw English candidate as 0" = "以 0 顯示原文英文候選";
 "Keeps typed letters available when Chinese candidates exist." = "有中文候選時仍可選擇原本輸入字母。";
-"Temporary English with Shift" = "按 Shift 臨時英文";
-"Hold Shift while typing letters." = "輸入字母時按住 Shift。";
+"English spelling suggestions" = "英文串字建議";
+"Uses macOS spell checking locally and never auto-corrects." = "使用 macOS 本機串字檢查，絕不自動更正。";
+"Temporary English with Shift" = "按 Shift 輸入大楷英文";
+"Hold Shift while typing letters." = "輸入英文字母時按住 Shift，會直接輸入大楷英文。";
 "Shift" = "Shift";
 "Protected English" = "受保護英文";
 "URLs, emails, file paths and code-like text stay in English automatically." = "URL、電郵、檔案路徑及類似程式碼的文字會自動保留英文。";

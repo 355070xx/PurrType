@@ -1,6 +1,6 @@
 BUNDLE_NAME := PurrTypeIM.app
 EXECUTABLE_NAME := PurrType
-VERSION := 0.1.0
+VERSION := 0.1.1
 BUNDLE_VERSION := $(shell printf "%s" "$(VERSION)" | awk -F. '{printf "%d", ($$1 * 10000) + ($$2 * 100) + $$3}')
 BUILD_DIR := build
 BUNDLE_DIR := $(BUILD_DIR)/$(BUNDLE_NAME)
@@ -20,6 +20,8 @@ PKG_PATH := $(BUILD_DIR)/PurrType-$(VERSION).pkg
 UNINSTALL_PKG_ID := org.purrtype.inputmethod.PurrTypeUnified.uninstall.pkg
 UNINSTALL_PKG_PATH := $(BUILD_DIR)/Uninstall-PurrType-$(VERSION).pkg
 DMG_PATH := $(BUILD_DIR)/PurrType-$(VERSION).dmg
+INSTALL_GUIDE_DMG_ASSET_DIR := .install-guide-assets
+INSTALL_GUIDE_IMAGES := docs/assets/install-guide/step1-gatekeeper-done.jpg docs/assets/install-guide/step2-open-anyway.jpg docs/assets/install-guide/step3-keyboard-edit.jpg docs/assets/install-guide/step4-click-plus.jpg docs/assets/install-guide/step5-add-purrtype.jpg
 UNSIGNED_RELEASE_PKG_PATH := $(BUILD_DIR)/PurrType-$(VERSION)-unsigned-release.pkg
 UNSIGNED_UNINSTALL_PKG_PATH := $(BUILD_DIR)/Uninstall-PurrType-$(VERSION)-unsigned.pkg
 SIGNED_PKG_PATH := $(BUILD_DIR)/PurrType-$(VERSION)-signed.pkg
@@ -56,15 +58,17 @@ ENGINE_TEST_FRAMEWORKS := -framework Foundation
 ENGINE_SOURCES := src/PurrTypeEngine.m
 INPUT_STATE_SOURCES := src/PurrTypeInputState.m
 INPUT_BEHAVIOR_SOURCES := src/PurrTypeInputBehavior.m
+ENGLISH_SPELL_CHECKER_SOURCES := src/PurrTypeEnglishSpellChecker.m
 CANDIDATE_PANEL_SOURCES := src/PurrTypeCandidatePanel.m
 PREFERENCES_SOURCES := src/PurrTypePreferencesWindowController.m
 PREFERENCES_STORE_SOURCES := src/PurrTypePreferencesStore.m
-APP_SOURCES := src/main.m src/PurrTypeInputController.m src/PurrTypeInputDelegate.m $(ENGINE_SOURCES) $(INPUT_STATE_SOURCES) $(INPUT_BEHAVIOR_SOURCES) $(CANDIDATE_PANEL_SOURCES) $(PREFERENCES_SOURCES) $(PREFERENCES_STORE_SOURCES)
+APP_SOURCES := src/main.m src/PurrTypeInputController.m src/PurrTypeInputDelegate.m $(ENGINE_SOURCES) $(INPUT_STATE_SOURCES) $(INPUT_BEHAVIOR_SOURCES) $(ENGLISH_SPELL_CHECKER_SOURCES) $(CANDIDATE_PANEL_SOURCES) $(PREFERENCES_SOURCES) $(PREFERENCES_STORE_SOURCES)
 PREFERENCES_APP_SOURCES := src/preferences_main.m $(PREFERENCES_SOURCES) $(PREFERENCES_STORE_SOURCES) $(ENGINE_SOURCES) $(INPUT_BEHAVIOR_SOURCES)
 TEST_SOURCES := tests/PurrTypeEngineTests.m $(ENGINE_SOURCES)
 STARTUP_BENCHMARK_SOURCES := tests/PurrTypeEngineStartupBenchmark.m $(ENGINE_SOURCES)
 INPUT_STATE_TEST_SOURCES := tests/PurrTypeInputStateTests.m $(INPUT_STATE_SOURCES)
 INPUT_BEHAVIOR_TEST_SOURCES := tests/PurrTypeInputBehaviorTests.m $(INPUT_BEHAVIOR_SOURCES) $(ENGINE_SOURCES)
+ENGLISH_SPELL_CHECKER_TEST_SOURCES := tests/PurrTypeEnglishSpellCheckerTests.m $(ENGLISH_SPELL_CHECKER_SOURCES)
 CANDIDATE_PANEL_TEST_SOURCES := tests/PurrTypeCandidatePanelTests.m $(CANDIDATE_PANEL_SOURCES)
 TYPING_SIMULATION_TEST_SOURCES := tests/PurrTypeTypingSimulationTests.m $(ENGINE_SOURCES) $(INPUT_BEHAVIOR_SOURCES)
 FULL_BIBLE_AUDIT_SOURCES := tests/PurrTypeFullBibleTypingAudit.m $(ENGINE_SOURCES) $(INPUT_BEHAVIOR_SOURCES)
@@ -109,7 +113,7 @@ build: $(MACOS_DIR)/$(EXECUTABLE_NAME)
 clean-bundle:
 	rm -rf "$(BUNDLE_DIR)"
 
-$(MACOS_DIR)/$(EXECUTABLE_NAME): clean-bundle $(APP_SOURCES) $(PREFERENCES_APP_SOURCES) src/PurrTypeInputState.h src/PurrTypeInputBehavior.h src/PurrTypeCandidatePanel.h src/PurrTypePreferencesWindowController.h src/PurrTypePreferencesStore.h src/PurrTypePreferencesConstants.h resources/Info.plist resources/PurrTypePreferencesInfo.plist resources/Base.lproj/InfoPlist.strings resources/English.lproj/InfoPlist.strings resources/en.lproj/InfoPlist.strings resources/en.lproj/Localizable.strings resources/zh-Hant.lproj/InfoPlist.strings resources/zh-Hant.lproj/Localizable.strings resources/zh_TW.lproj/InfoPlist.strings resources/PurrType.png $(PREFERENCE_COVER_RESOURCES) LICENSE docs/CREDITS.md docs/PRIVACY_POLICY.md docs/LICENSE_AUDIT.md resources/pinyin_seed.tsv resources/sucheng_order_guards.tsv resources/smart_phrases.tsv resources/association_phrases.tsv $(ASSOCIATION_GENERATED_INDEX) $(CANDIDATE_INDEXES) resources/traditional_compatibility.tsv resources/sucheng_first_pages.tsv scripts/generate-icon.sh scripts/pad-png-alpha.py third_party/rime-cangjie/LICENSE third_party/rime-cangjie/AUTHORS third_party/rime-pinyin/LICENSE third_party/rime-pinyin/AUTHORS third_party/mcbopomofo/LICENSE.txt third_party/ibus-table-chinese/LICENSE third_party/ibus-table-chinese/README.md third_party/hkscs/HKSCS2016.json third_party/hkscs/README.md third_party/hkscs/TERMS.md
+$(MACOS_DIR)/$(EXECUTABLE_NAME): clean-bundle $(APP_SOURCES) $(PREFERENCES_APP_SOURCES) src/PurrTypeInputState.h src/PurrTypeInputBehavior.h src/PurrTypeEnglishSpellChecker.h src/PurrTypeCandidatePanel.h src/PurrTypePreferencesWindowController.h src/PurrTypePreferencesStore.h src/PurrTypePreferencesConstants.h resources/Info.plist resources/PurrTypePreferencesInfo.plist resources/Base.lproj/InfoPlist.strings resources/English.lproj/InfoPlist.strings resources/en.lproj/InfoPlist.strings resources/en.lproj/Localizable.strings resources/zh-Hant.lproj/InfoPlist.strings resources/zh-Hant.lproj/Localizable.strings resources/zh_TW.lproj/InfoPlist.strings resources/PurrType.png $(PREFERENCE_COVER_RESOURCES) LICENSE docs/CREDITS.md docs/PRIVACY_POLICY.md docs/LICENSE_AUDIT.md resources/pinyin_seed.tsv resources/sucheng_order_guards.tsv resources/smart_phrases.tsv resources/association_phrases.tsv $(ASSOCIATION_GENERATED_INDEX) $(CANDIDATE_INDEXES) resources/traditional_compatibility.tsv resources/sucheng_first_pages.tsv scripts/generate-icon.sh scripts/pad-png-alpha.py third_party/rime-cangjie/LICENSE third_party/rime-cangjie/AUTHORS third_party/rime-pinyin/LICENSE third_party/rime-pinyin/AUTHORS third_party/mcbopomofo/LICENSE.txt third_party/ibus-table-chinese/LICENSE third_party/ibus-table-chinese/README.md third_party/hkscs/HKSCS2016.json third_party/hkscs/README.md third_party/hkscs/TERMS.md
 	mkdir -p "$(MACOS_DIR)" "$(RESOURCES_DIR)/CandidateTables" "$(RESOURCES_DIR)/RimeCangjie" "$(RESOURCES_DIR)/RimePinyin" "$(RESOURCES_DIR)/IBusTableChinese" "$(RESOURCES_DIR)/HKSCS" "$(RESOURCES_DIR)/Legal" "$(PREFERENCES_MACOS_DIR)" "$(PREFERENCES_CONTENTS_DIR)/Resources" "$(PREFERENCES_CONTENTS_DIR)/Resources/PreferenceCovers"
 	cp resources/Info.plist "$(CONTENTS_DIR)/Info.plist"
 	mkdir -p "$(RESOURCES_DIR)/Base.lproj" "$(RESOURCES_DIR)/English.lproj" "$(RESOURCES_DIR)/en.lproj" "$(RESOURCES_DIR)/zh-Hant.lproj" "$(RESOURCES_DIR)/zh_TW.lproj"
@@ -155,7 +159,7 @@ $(MACOS_DIR)/$(EXECUTABLE_NAME): clean-bundle $(APP_SOURCES) $(PREFERENCES_APP_S
 	codesign --force --sign - "$(BUNDLE_DIR)"
 	if [ -x "$(LSREGISTER)" ] && [ -d "$(BUNDLE_DIR)" ]; then app="$$(cd "$(BUILD_DIR)" && pwd)/$(BUNDLE_NAME)"; "$(LSREGISTER)" -u "$$app" >/dev/null 2>&1 || true; "$(LSREGISTER)" -gc >/dev/null 2>&1 || true; fi
 
-test: $(TEST_SOURCES) $(STARTUP_BENCHMARK_SOURCES) $(INPUT_STATE_TEST_SOURCES) $(INPUT_BEHAVIOR_TEST_SOURCES) $(CANDIDATE_PANEL_TEST_SOURCES) $(TYPING_SIMULATION_TEST_SOURCES) $(PREFERENCES_TEST_SOURCES) $(BUNDLE_TEST_SOURCES) src/PurrTypeInputState.h src/PurrTypeInputBehavior.h src/PurrTypeCandidatePanel.h src/PurrTypePreferencesWindowController.h src/PurrTypePreferencesStore.h docs/typing/one_hour_typing_corpus.md resources/en.lproj/Localizable.strings resources/zh-Hant.lproj/Localizable.strings resources/pinyin_seed.tsv resources/sucheng_order_guards.tsv resources/smart_phrases.tsv resources/association_phrases.tsv $(ASSOCIATION_GENERATED_INDEX) $(CANDIDATE_INDEXES) resources/traditional_compatibility.tsv resources/sucheng_first_pages.tsv third_party/hkscs/HKSCS2016.json
+test: $(TEST_SOURCES) $(STARTUP_BENCHMARK_SOURCES) $(INPUT_STATE_TEST_SOURCES) $(INPUT_BEHAVIOR_TEST_SOURCES) $(ENGLISH_SPELL_CHECKER_TEST_SOURCES) $(CANDIDATE_PANEL_TEST_SOURCES) $(TYPING_SIMULATION_TEST_SOURCES) $(PREFERENCES_TEST_SOURCES) $(BUNDLE_TEST_SOURCES) src/PurrTypeInputState.h src/PurrTypeInputBehavior.h src/PurrTypeEnglishSpellChecker.h src/PurrTypeCandidatePanel.h src/PurrTypePreferencesWindowController.h src/PurrTypePreferencesStore.h docs/typing/one_hour_typing_corpus.md resources/en.lproj/Localizable.strings resources/zh-Hant.lproj/Localizable.strings resources/pinyin_seed.tsv resources/sucheng_order_guards.tsv resources/smart_phrases.tsv resources/association_phrases.tsv $(ASSOCIATION_GENERATED_INDEX) $(CANDIDATE_INDEXES) resources/traditional_compatibility.tsv resources/sucheng_first_pages.tsv third_party/hkscs/HKSCS2016.json
 	mkdir -p "$(BUILD_DIR)"
 	clang $(OBJCFLAGS) $(TEST_SOURCES) $(ENGINE_TEST_FRAMEWORKS) -o "$(BUILD_DIR)/PurrTypeEngineTests"
 	"$(BUILD_DIR)/PurrTypeEngineTests"
@@ -165,6 +169,8 @@ test: $(TEST_SOURCES) $(STARTUP_BENCHMARK_SOURCES) $(INPUT_STATE_TEST_SOURCES) $
 	"$(BUILD_DIR)/PurrTypeInputStateTests"
 	clang $(OBJCFLAGS) $(INPUT_BEHAVIOR_TEST_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeInputBehaviorTests"
 	"$(BUILD_DIR)/PurrTypeInputBehaviorTests"
+	clang $(OBJCFLAGS) $(ENGLISH_SPELL_CHECKER_TEST_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeEnglishSpellCheckerTests"
+	"$(BUILD_DIR)/PurrTypeEnglishSpellCheckerTests"
 	clang $(OBJCFLAGS) $(CANDIDATE_PANEL_TEST_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeCandidatePanelTests"
 	"$(BUILD_DIR)/PurrTypeCandidatePanelTests"
 	clang $(OBJCFLAGS) $(TYPING_SIMULATION_TEST_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeTypingSimulationTests"
@@ -275,15 +281,20 @@ $(UNINSTALL_PKG_PATH): packaging/uninstall-scripts/postinstall
 	pkgbuild --nopayload --identifier "$(UNINSTALL_PKG_ID)" --version "$(VERSION)" --scripts packaging/uninstall-scripts "$(UNINSTALL_PKG_PATH)"
 	@echo "Uninstall package: $(UNINSTALL_PKG_PATH)"
 
-package: build uninstall-package packaging/README.txt packaging/Uninstall-PurrType.command packaging/scripts/preinstall packaging/scripts/postinstall $(COMPONENT_PLIST) LICENSE docs/CREDITS.md docs/PRIVACY_POLICY.md docs/LICENSE_AUDIT.md docs/MANUAL_QA.md
+package: build uninstall-package packaging/README.txt packaging/INSTALL_GUIDE.html $(INSTALL_GUIDE_IMAGES) packaging/Uninstall-PurrType.command packaging/scripts/preinstall packaging/scripts/postinstall $(COMPONENT_PLIST) LICENSE docs/CREDITS.md docs/PRIVACY_POLICY.md docs/LICENSE_AUDIT.md docs/MANUAL_QA.md
 	rm -rf "$(PKGROOT_DIR)" "$(DMGROOT_DIR)" "$(PKG_PATH)" "$(DMG_PATH)"
-	mkdir -p "$(PKGROOT_DIR)/Library/Input Methods" "$(DMGROOT_DIR)"
-	COPYFILE_DISABLE=1 ditto --norsrc "$(BUNDLE_DIR)" "$(PKGROOT_DIR)/Library/Input Methods/$(BUNDLE_NAME)"
-	pkgbuild --root "$(PKGROOT_DIR)" --identifier "$(PKG_ID)" --version "$(VERSION)" --scripts packaging/scripts --component-plist "$(COMPONENT_PLIST)" --install-location "/" "$(PKG_PATH)"
+	mkdir -p "$(PKGROOT_DIR)/Library/Input Methods" "$(DMGROOT_DIR)/$(INSTALL_GUIDE_DMG_ASSET_DIR)"
+	COPYFILE_DISABLE=1 ditto --norsrc --noextattr "$(BUNDLE_DIR)" "$(PKGROOT_DIR)/Library/Input Methods/$(BUNDLE_NAME)"
+	xattr -cr "$(PKGROOT_DIR)" || true
+	xattr -dr com.apple.provenance "$(PKGROOT_DIR)" || true
+	find "$(PKGROOT_DIR)" -name '._*' -exec rm -f {} +
+	COPYFILE_DISABLE=1 pkgbuild --root "$(PKGROOT_DIR)" --identifier "$(PKG_ID)" --version "$(VERSION)" --scripts packaging/scripts --component-plist "$(COMPONENT_PLIST)" --install-location "/" "$(PKG_PATH)"
 	if [ -x "$(LSREGISTER)" ] && [ -d "$(PKGROOT_DIR)/Library/Input Methods/$(BUNDLE_NAME)" ]; then app="$$(cd "$(PKGROOT_DIR)/Library/Input Methods" && pwd)/$(BUNDLE_NAME)"; "$(LSREGISTER)" -u "$$app" >/dev/null 2>&1 || true; "$(LSREGISTER)" -gc >/dev/null 2>&1 || true; fi
 	cp "$(PKG_PATH)" "$(DMGROOT_DIR)/Install PurrType.pkg"
 	cp "$(UNINSTALL_PKG_PATH)" "$(DMGROOT_DIR)/Uninstall PurrType.pkg"
 	cp packaging/README.txt "$(DMGROOT_DIR)/README.txt"
+	cp packaging/INSTALL_GUIDE.html "$(DMGROOT_DIR)/Install Guide.html"
+	cp $(INSTALL_GUIDE_IMAGES) "$(DMGROOT_DIR)/$(INSTALL_GUIDE_DMG_ASSET_DIR)/"
 	hdiutil create -volname "PurrType" -srcfolder "$(DMGROOT_DIR)" -ov -format UDZO "$(DMG_PATH)"
 	if [ -x "$(LSREGISTER)" ]; then for parent in "$(BUILD_DIR)" "$(PKGROOT_DIR)/Library/Input Methods"; do if [ -d "$$parent/$(BUNDLE_NAME)" ]; then app="$$(cd "$$parent" && pwd)/$(BUNDLE_NAME)"; "$(LSREGISTER)" -u "$$app" >/dev/null 2>&1 || true; fi; done; "$(LSREGISTER)" -gc >/dev/null 2>&1 || true; fi
 	@echo "Package: $(PKG_PATH)"
@@ -292,7 +303,7 @@ package: build uninstall-package packaging/README.txt packaging/Uninstall-PurrTy
 release-artifacts: package checksums provenance
 
 checksums: package
-	shasum -a 256 "$(PKG_PATH)" "$(UNINSTALL_PKG_PATH)" "$(DMG_PATH)" > "$(CHECKSUMS_PATH)"
+	cd "$(BUILD_DIR)" && shasum -a 256 "PurrType-$(VERSION).dmg" > "PurrType-$(VERSION)-checksums.sha256"
 	@echo "Checksums: $(CHECKSUMS_PATH)"
 
 provenance: package
@@ -314,8 +325,11 @@ signed-package: build packaging/README.txt packaging/scripts/preinstall packagin
 	codesign --force --timestamp --options runtime --sign "$(DEVELOPER_ID_APPLICATION_IDENTITY)" "$(BUNDLE_DIR)"
 	codesign --verify --deep --strict --verbose=2 "$(BUNDLE_DIR)"
 	mkdir -p "$(PKGROOT_DIR)/Library/Input Methods"
-	COPYFILE_DISABLE=1 ditto --norsrc "$(BUNDLE_DIR)" "$(PKGROOT_DIR)/Library/Input Methods/$(BUNDLE_NAME)"
-	pkgbuild --root "$(PKGROOT_DIR)" --identifier "$(PKG_ID)" --version "$(VERSION)" --scripts packaging/scripts --component-plist "$(COMPONENT_PLIST)" --install-location "/" "$(UNSIGNED_RELEASE_PKG_PATH)"
+	COPYFILE_DISABLE=1 ditto --norsrc --noextattr "$(BUNDLE_DIR)" "$(PKGROOT_DIR)/Library/Input Methods/$(BUNDLE_NAME)"
+	xattr -cr "$(PKGROOT_DIR)" || true
+	xattr -dr com.apple.provenance "$(PKGROOT_DIR)" || true
+	find "$(PKGROOT_DIR)" -name '._*' -exec rm -f {} +
+	COPYFILE_DISABLE=1 pkgbuild --root "$(PKGROOT_DIR)" --identifier "$(PKG_ID)" --version "$(VERSION)" --scripts packaging/scripts --component-plist "$(COMPONENT_PLIST)" --install-location "/" "$(UNSIGNED_RELEASE_PKG_PATH)"
 	productsign --sign "$(DEVELOPER_ID_INSTALLER_IDENTITY)" "$(UNSIGNED_RELEASE_PKG_PATH)" "$(SIGNED_PKG_PATH)"
 	spctl -a -vv -t install "$(SIGNED_PKG_PATH)"
 	@echo "Signed package: $(SIGNED_PKG_PATH)"
@@ -327,12 +341,14 @@ signed-uninstall-package: uninstall-package check-signing-identities
 	spctl -a -vv -t install "$(SIGNED_UNINSTALL_PKG_PATH)"
 	@echo "Signed uninstall package: $(SIGNED_UNINSTALL_PKG_PATH)"
 
-signed-dmg: signed-package signed-uninstall-package packaging/README.txt LICENSE docs/CREDITS.md docs/PRIVACY_POLICY.md docs/LICENSE_AUDIT.md docs/MANUAL_QA.md
+signed-dmg: signed-package signed-uninstall-package packaging/README.txt packaging/INSTALL_GUIDE.html $(INSTALL_GUIDE_IMAGES) LICENSE docs/CREDITS.md docs/PRIVACY_POLICY.md docs/LICENSE_AUDIT.md docs/MANUAL_QA.md
 	rm -rf "$(DMGROOT_DIR)" "$(SIGNED_DMG_PATH)"
-	mkdir -p "$(DMGROOT_DIR)"
+	mkdir -p "$(DMGROOT_DIR)/$(INSTALL_GUIDE_DMG_ASSET_DIR)"
 	cp "$(SIGNED_PKG_PATH)" "$(DMGROOT_DIR)/Install PurrType.pkg"
 	cp "$(SIGNED_UNINSTALL_PKG_PATH)" "$(DMGROOT_DIR)/Uninstall PurrType.pkg"
 	cp packaging/README.txt "$(DMGROOT_DIR)/README.txt"
+	cp packaging/INSTALL_GUIDE.html "$(DMGROOT_DIR)/Install Guide.html"
+	cp $(INSTALL_GUIDE_IMAGES) "$(DMGROOT_DIR)/$(INSTALL_GUIDE_DMG_ASSET_DIR)/"
 	hdiutil create -volname "PurrType" -srcfolder "$(DMGROOT_DIR)" -ov -format UDZO "$(SIGNED_DMG_PATH)"
 	codesign --force --timestamp --sign "$(DEVELOPER_ID_APPLICATION_IDENTITY)" "$(SIGNED_DMG_PATH)"
 	codesign --verify --verbose=2 "$(SIGNED_DMG_PATH)"
@@ -349,7 +365,7 @@ notarize-dmg: signed-dmg check-notary-profile
 release-signed: notarize-dmg signed-checksums signed-provenance
 
 signed-checksums: notarize-dmg
-	shasum -a 256 "$(SIGNED_PKG_PATH)" "$(SIGNED_UNINSTALL_PKG_PATH)" "$(SIGNED_DMG_PATH)" > "$(SIGNED_CHECKSUMS_PATH)"
+	cd "$(BUILD_DIR)" && shasum -a 256 "PurrType-$(VERSION)-signed.dmg" > "PurrType-$(VERSION)-signed-checksums.sha256"
 	@echo "Signed checksums: $(SIGNED_CHECKSUMS_PATH)"
 
 signed-provenance: notarize-dmg
@@ -357,6 +373,7 @@ signed-provenance: notarize-dmg
 	@echo "Signed provenance: $(SIGNED_PROVENANCE_PATH)"
 
 package-smoke: package
+	test -z "$$(find "$(PKGROOT_DIR)" -name '._*' -print -quit)"
 	rm -rf "$(PACKAGE_SMOKE_DIR)"
 	mkdir -p "$(PACKAGE_SMOKE_DIR)"
 	pkgutil --expand-full "$(PKG_PATH)" "$(PACKAGE_SMOKE_DIR)/expanded"
@@ -415,7 +432,6 @@ package-smoke: package
 	test ! -e "$(PACKAGE_SMOKE_APP)/Contents/Resources/CINTables"
 	test ! -e "$(PACKAGE_SMOKE_APP)/Contents/Resources/ranking_overrides.tsv"
 	test ! -e "$(PACKAGE_SMOKE_APP)/Contents/Resources/legacy_sucheng_overrides.tsv"
-	! pkgutil --payload-files "$(PKG_PATH)" | grep -F '/._'
 	test "$$(/usr/libexec/PlistBuddy -c 'Print :TISInputSourceID' "$(PACKAGE_SMOKE_APP)/Contents/Info.plist")" = "$(PURRTYPE_TIS_ID)"
 	test "$$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$(PACKAGE_SMOKE_APP)/Contents/Info.plist")" = "PurrType.icns"
 	test "$$(/usr/libexec/PlistBuddy -c 'Print :tsInputMethodIconFileKey' "$(PACKAGE_SMOKE_APP)/Contents/Info.plist")" = "PurrType.icns"
@@ -429,6 +445,12 @@ package-smoke: package
 	test -s "$(DMGROOT_DIR)/Install PurrType.pkg"
 	test -s "$(DMGROOT_DIR)/Uninstall PurrType.pkg"
 	test -s "$(DMGROOT_DIR)/README.txt"
+	test -s "$(DMGROOT_DIR)/Install Guide.html"
+	test -s "$(DMGROOT_DIR)/$(INSTALL_GUIDE_DMG_ASSET_DIR)/step1-gatekeeper-done.jpg"
+	test -s "$(DMGROOT_DIR)/$(INSTALL_GUIDE_DMG_ASSET_DIR)/step2-open-anyway.jpg"
+	test -s "$(DMGROOT_DIR)/$(INSTALL_GUIDE_DMG_ASSET_DIR)/step3-keyboard-edit.jpg"
+	test -s "$(DMGROOT_DIR)/$(INSTALL_GUIDE_DMG_ASSET_DIR)/step4-click-plus.jpg"
+	test -s "$(DMGROOT_DIR)/$(INSTALL_GUIDE_DMG_ASSET_DIR)/step5-add-purrtype.jpg"
 	test ! -e "$(DMGROOT_DIR)/LICENSE.txt"
 	test ! -e "$(DMGROOT_DIR)/ACKNOWLEDGEMENTS.md"
 	test ! -e "$(DMGROOT_DIR)/CREDITS.md"

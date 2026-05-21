@@ -100,8 +100,10 @@
 "English Pass-through" = "English Pass-through";
 "Show raw English candidate as 0" = "Show raw English candidate as 0";
 "Keeps typed letters available when Chinese candidates exist." = "Keeps typed letters available when Chinese candidates exist.";
-"Temporary English with Shift" = "Temporary English with Shift";
-"Hold Shift while typing letters." = "Hold Shift while typing letters.";
+"English spelling suggestions" = "English spelling suggestions";
+"Uses macOS spell checking locally and never auto-corrects." = "Uses macOS spell checking locally and never auto-corrects.";
+"Temporary English with Shift" = "Uppercase English with Shift";
+"Hold Shift while typing letters." = "Hold Shift while typing letters to enter uppercase English.";
 "Shift" = "Shift";
 "Protected English" = "Protected English";
 "URLs, emails, file paths and code-like text stay in English automatically." = "URLs, emails, file paths and code-like text stay in English automatically.";

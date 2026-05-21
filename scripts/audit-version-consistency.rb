@@ -48,10 +48,10 @@ release_text_paths = [
 ]
 
 release_text_paths.each do |path|
-  read_repo(path).scan(/PurrType-([0-9]+\.[0-9]+\.[0-9]+)/).flatten.uniq.each do |found_version|
+  read_repo(path).scan(/PurrType(?:Dev)?-([0-9]+\.[0-9]+\.[0-9]+)/).flatten.uniq.each do |found_version|
     next if found_version == version
 
-    errors << "#{path}: references PurrType-#{found_version}, expected PurrType-#{version}"
+    errors << "#{path}: references PurrType/PurrType artifact #{found_version}, expected #{version}"
   end
 end
 

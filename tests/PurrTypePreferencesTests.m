@@ -23,6 +23,7 @@ static void AssertTrue(BOOL condition, NSString *message) {
 @property(nonatomic, assign) BOOL learningEnabled;
 @property(nonatomic, assign) BOOL privacyLockEnabled;
 @property(nonatomic, assign) BOOL rawEnglishCandidateEnabled;
+@property(nonatomic, assign) BOOL spellingSuggestionsEnabled;
 @property(nonatomic, assign) BOOL spacePagingEnabled;
 @property(nonatomic, assign) NSUInteger candidatePageSize;
 @property(nonatomic, copy) NSArray<NSString *> *enabledInputModes;
@@ -35,6 +36,7 @@ static void AssertTrue(BOOL condition, NSString *message) {
 @property(nonatomic, assign) NSUInteger switchInputModeShortcutChangeCount;
 @property(nonatomic, assign) NSUInteger modeShortcutChangeCount;
 @property(nonatomic, assign) NSUInteger rawEnglishChangeCount;
+@property(nonatomic, assign) NSUInteger spellingSuggestionsChangeCount;
 @property(nonatomic, assign) NSUInteger spacePagingChangeCount;
 @property(nonatomic, assign) NSUInteger candidatePageSizeChangeCount;
 @property(nonatomic, assign) NSUInteger enabledInputModesChangeCount;
@@ -47,6 +49,7 @@ static void AssertTrue(BOOL condition, NSString *message) {
     if (self) {
         _mode = MKInputModeSucheng;
         _rawEnglishCandidateEnabled = YES;
+        _spellingSuggestionsEnabled = YES;
         _spacePagingEnabled = YES;
         _candidatePageSize = 9;
         _enabledInputModes = [PurrTypeInputBehavior defaultEnabledInputModes];
@@ -95,6 +98,15 @@ static void AssertTrue(BOOL condition, NSString *message) {
 - (void)preferencesSetRawEnglishCandidateEnabled:(BOOL)enabled {
     self.rawEnglishCandidateEnabled = enabled;
     self.rawEnglishChangeCount += 1;
+}
+
+- (BOOL)preferencesSpellingSuggestionsEnabled {
+    return self.spellingSuggestionsEnabled;
+}
+
+- (void)preferencesSetSpellingSuggestionsEnabled:(BOOL)enabled {
+    self.spellingSuggestionsEnabled = enabled;
+    self.spellingSuggestionsChangeCount += 1;
 }
 
 - (BOOL)preferencesSpacePagingEnabled {
@@ -641,10 +653,13 @@ int main(int argc, const char *argv[]) {
                    typingScrollView.documentView == typingDocumentView,
                    @"Typing setting changes do not rebuild the scroll view");
         NSArray<NSControl *> *typingEnabledSwitches = EnabledSwitches(rootView);
-        AssertTrue(typingEnabledSwitches.count == 1, @"Typing tab only exposes one behavior-backed switch");
+        AssertTrue(typingEnabledSwitches.count == 2, @"Typing tab exposes raw-English and spelling suggestion switches");
         NSControl *rawSwitch = typingEnabledSwitches[0];
         SetSwitchStateAndSend(rawSwitch, NSControlStateValueOff);
         AssertTrue(!delegate.rawEnglishCandidateEnabled && delegate.rawEnglishChangeCount == 1, @"raw-English candidate switch updates delegate");
+        NSControl *spellingSwitch = typingEnabledSwitches[1];
+        SetSwitchStateAndSend(spellingSwitch, NSControlStateValueOff);
+        AssertTrue(!delegate.spellingSuggestionsEnabled && delegate.spellingSuggestionsChangeCount == 1, @"spelling suggestion switch updates delegate");
         AssertTrue(LabelWithTextHasMinimumHeight(rootView, @"組字", 24.0), @"Typing tab keeps Composition title fully visible");
         AssertTrue(CardsHaveUsableFrames(rootView), @"Typing tab has visible card frames");
         AssertTrue(RightPaneHasNoHorizontalOverflow(rootView), @"Typing tab does not overflow horizontally");

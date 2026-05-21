@@ -184,7 +184,7 @@ After selecting `PurrType`, test:
 - Terminal: shell-like tokens such as `foo_bar` and `./path` stay raw English.
 - System Settings: one `PurrType` input source appears under Text Input; the PurrType menu switches internal modes.
 - Pinyin: `ni` then `1` commits a Traditional Chinese candidate such as `你`.
-- English: misspelled words are not auto-corrected; future spelling suggestions, when implemented, should only appear as optional candidates.
+- English: misspelled words are not auto-corrected; spelling suggestions only appear as optional candidates when enabled.
 
 ## Release Artifact Checks
 
@@ -192,7 +192,7 @@ Unsigned local artifacts:
 
 ```sh
 make release-artifacts
-shasum -a 256 -c build/PurrType-0.1.0-checksums.sha256
+(cd build && shasum -a 256 -c PurrType-0.1.1-checksums.sha256)
 ```
 
 Source-first GitHub releases do not require Developer ID signing. Signed and notarized prebuilt binary artifacts require Developer ID identities and a notarytool keychain profile:
@@ -207,6 +207,6 @@ make release-signed \
 Verify the stapled signed DMG:
 
 ```sh
-xcrun stapler validate build/PurrType-0.1.0-signed.dmg
-spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.0-signed.dmg
+xcrun stapler validate build/PurrType-0.1.1-signed.dmg
+spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.1-signed.dmg
 ```

@@ -59,14 +59,11 @@ unregister_app "/Library/Input Methods/PurrTypeIM.app"
 unregister_app "/Library/Input Methods/PurrTypeIM.localized/PurrTypeIM.app"
 unregister_app "/Library/Input Methods/PurrTypeIM.localized"
 unregister_app "/Library/Input Methods/PurrTypeInput.app"
-unregister_app "/Library/Input Methods/PurrType.app"
 unregister_app "/Library/Application Support/PurrType/PurrTypeIM.app"
 
 remove_path "/Library/Input Methods/PurrTypeIM.app"
 remove_path "/Library/Input Methods/PurrTypeIM.localized"
 remove_path "/Library/Input Methods/PurrTypeInput.app"
-remove_path "/Library/Input Methods/PurrType.app"
-remove_path "/Library/Input Methods/PurrType.inputmethod"
 remove_path "/Library/Application Support/PurrType/PurrTypeIM.app"
 rmdir "/Library/Application Support/PurrType" 2>/dev/null || true
 
@@ -82,21 +79,14 @@ if [ -n "$USER_HOME" ]; then
   unregister_app "$USER_INPUT_METHODS/PurrTypeIM.localized/PurrTypeIM.app"
   unregister_app "$USER_INPUT_METHODS/PurrTypeIM.localized"
   unregister_app "$USER_INPUT_METHODS/PurrTypeInput.app"
-  unregister_app "$USER_INPUT_METHODS/PurrType.app"
 
   remove_path "$USER_INPUT_METHODS/PurrTypeIM.app"
   remove_path "$USER_INPUT_METHODS/PurrTypeIM.localized"
   remove_path "$USER_INPUT_METHODS/PurrTypeInput.app"
-  remove_path "$USER_INPUT_METHODS/PurrType.app"
-  remove_path "$USER_INPUT_METHODS/PurrType.inputmethod"
 fi
 
 for package_id in \
-  org.purrtype.inputmethod.PurrTypeUnified.pkg \
-  org.purrtype.inputmethod.PurrType.pkg \
-  io.github.355070xx.PurrType.pkg \
-  io.github.355070xx.inputmethod.PurrType.pkg \
-  org.purrtype.inputmethod.OpenHK.pkg
+  org.purrtype.inputmethod.PurrTypeUnified.pkg
 do
   pkgutil --forget "$package_id" >/dev/null 2>&1 || true
 done

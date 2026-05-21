@@ -7,7 +7,7 @@ static CGFloat const MKPreferencesWindowWidth = 540.0;
 static CGFloat const MKPreferencesWindowHeight = 720.0;
 static CGFloat const MKPreferencesMinimumWindowWidth = 520.0;
 static CGFloat const MKPreferencesMinimumWindowHeight = 620.0;
-static CGFloat const MKPreferencesSidebarWidth = 150.0;
+static CGFloat const MKPreferencesSidebarWidth = 180.0;
 static CGFloat const MKPreferencesSidebarTitleInset = 20.0;
 static CGFloat const MKPreferencesSidebarTitleTrailingInset = 8.0;
 static CGFloat const MKPreferencesSidebarHeaderIconSize = 40.0;
@@ -657,6 +657,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
 @property(nonatomic, strong) MKPreferencesSwitchControl *learningSwitch;
 @property(nonatomic, strong) MKPreferencesSwitchControl *privacyLockSwitch;
 @property(nonatomic, strong) MKPreferencesSwitchControl *rawEnglishCandidateSwitch;
+@property(nonatomic, strong) MKPreferencesSwitchControl *spellingSuggestionsSwitch;
 @property(nonatomic, strong) MKPreferencesSegmentedControl *candidatePageSizeSegmentedControl;
 @property(nonatomic, strong) MKPreferencesSegmentedControl *preferencesLanguageSegmentedControl;
 @property(nonatomic, strong) NSTextField *learningStatusField;
@@ -1606,7 +1607,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     NSTextField *titleLabel = nil;
     MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"English Pass-through"]
                                                          symbol:@"globe"
-                                                         height:210
+                                                         height:260
                                                      titleLabel:&titleLabel];
     NSStackView *stack = [self bodyStackInCard:card belowTitle:titleLabel];
     self.rawEnglishCandidateSwitch = [self switchControlWithState:[self.preferencesDelegate preferencesRawEnglishCandidateEnabled]
@@ -1615,6 +1616,12 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
                                                  detail:[self localizedString:@"Keeps typed letters available when Chinese candidates exist."]
                                                 control:self.rawEnglishCandidateSwitch
                                                 enabled:YES]];
+    self.spellingSuggestionsSwitch = [self switchControlWithState:[self.preferencesDelegate preferencesSpellingSuggestionsEnabled]
+                                                           action:@selector(spellingSuggestionsSwitchChanged:)];
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"English spelling suggestions"]
+                                                detail:[self localizedString:@"Uses macOS spell checking locally and never auto-corrects."]
+                                               control:self.spellingSuggestionsSwitch
+                                               enabled:YES]];
     [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Temporary English with Shift"]
                                                 detail:[self localizedString:@"Hold Shift while typing letters."]
                                                 control:[self readOnlyChipWithText:[self localizedString:@"Shift"]]
@@ -2282,6 +2289,10 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
 
 - (void)rawEnglishCandidateSwitchChanged:(MKPreferencesSwitchControl *)sender {
     [self.preferencesDelegate preferencesSetRawEnglishCandidateEnabled:(sender.state == NSControlStateValueOn)];
+}
+
+- (void)spellingSuggestionsSwitchChanged:(MKPreferencesSwitchControl *)sender {
+    [self.preferencesDelegate preferencesSetSpellingSuggestionsEnabled:(sender.state == NSControlStateValueOn)];
 }
 
 - (void)spaceKeySegmentChanged:(MKPreferencesSegmentedControl *)sender {

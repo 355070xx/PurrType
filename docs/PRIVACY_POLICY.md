@@ -8,7 +8,7 @@ New Sucheng learning are designed to run on the user's Mac.
 
 ## Scope
 
-This policy covers the open-source PurrType input method bundle,
+This policy covers the PurrType input method bundle,
 `PurrTypePreferences.app`, the packaged installer and uninstaller scripts, the
 release DMG materials, and the bundled runtime dictionary/table data in this
 repository.
@@ -31,9 +31,10 @@ The current app does not implement telemetry, analytics, cloud sync, remote
 spell checking, remote AI suggestions, ads, or account login.
 
 The installer and uninstaller do not contact remote services. They use local
-macOS tools to copy or remove PurrType app bundles, register or unregister the
-input source, refresh Launch Services where available, and forget PurrType
-package receipts.
+macOS tools to copy or remove PurrType app bundles, register or unregister
+the input source, refresh Launch Services where available, and forget PurrType
+Dev package receipts. Dev installers and uninstallers do not remove the public
+`/Library/Input Methods/PurrTypeIM.app` bundle.
 
 ## Data Processed Locally
 
@@ -143,8 +144,8 @@ The release DMG also includes `Uninstall PurrType.pkg`. It removes PurrType app
 bundles and package receipts. It preserves local PurrType preferences and
 learning data.
 
-By default, uninstall paths remove PurrType app bundles, stale legacy app
-bundles, Launch Services registrations, and package receipts only. User
+By default, uninstall paths remove PurrType app bundles, dev-only stale app
+bundles, Launch Services registrations, and dev package receipts only. User
 preferences and New Sucheng learning data are preserved unless the user
 intentionally runs the source-tree purge command:
 
@@ -159,10 +160,10 @@ Manual deletion paths for local data are:
 ~/Library/Preferences/org.purrtype.inputmethod.PurrTypeUnified.plist
 ```
 
-## Future Features
+## English Spelling Suggestions
 
-Future English spelling suggestions must remain local-only candidate
-suggestions. They must not autocorrect, secretly replace typed English, or send
+English spelling suggestions use the local macOS spell checker and remain
+candidate-only. They do not autocorrect, secretly replace typed English, or send
 typed text to a remote service.
 
 Cloud sync, remote AI suggestion, and account-based telemetry are out of scope

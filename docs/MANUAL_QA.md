@@ -15,14 +15,14 @@ sh -n scripts/install-local.sh scripts/uninstall-local.sh scripts/uninstall-syst
   packaging/scripts/preinstall packaging/scripts/postinstall \
   packaging/uninstall-scripts/postinstall packaging/Uninstall-PurrType.command
 make release-preflight
-shasum -a 256 -c build/PurrType-0.1.0-checksums.sha256
+(cd build && shasum -a 256 -c PurrType-0.1.1-checksums.sha256)
 ```
 
 For signed releases, also run:
 
 ```sh
-xcrun stapler validate build/PurrType-0.1.0-signed.dmg
-spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.0-signed.dmg
+xcrun stapler validate build/PurrType-0.1.1-signed.dmg
+spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.1-signed.dmg
 ```
 
 Expected result:
@@ -42,7 +42,7 @@ Expected result:
 
 Install from the DMG:
 
-1. Open `build/PurrType-0.1.0.dmg`.
+1. Open `build/PurrType-0.1.1.dmg`.
 2. Confirm only `README.txt`, `Install PurrType.pkg`, and
    `Uninstall PurrType.pkg` are present at the DMG root.
 3. Double-click `Install PurrType.pkg`.
@@ -59,11 +59,14 @@ Expected result:
   `Cangjie`, and `Pinyin`
 - installer registers PurrType with macOS, but does not enable or select it;
   the user adds it manually from Text Input
+- an existing public install at `/Library/Input Methods/PurrTypeIM.app` remains
+  present if it was installed before this test
+- public package receipts and public preferences are not removed
 - installer resolves the console user's home directory through macOS user
   records when removing stale local development installs, instead of assuming
   the home directory is always `/Users/<shortname>`
-- stale `PurrTypeIM.localized`, `PurrTypeInput.app`, and `PurrType.app`
-  installs are removed
+- stale `PurrTypeIM.localized` and `PurrTypeInput.app` installs are
+  removed
 - stale `/Library/Application Support/PurrType/PurrTypeIM.app` installs are
   removed
 
@@ -81,6 +84,8 @@ Expected result:
   the console user
 - PurrType package receipts are forgotten
 - user preferences and learning data are preserved
+- an existing public install at `/Library/Input Methods/PurrTypeIM.app` remains
+  present
 - custom-home users are handled through the console user's recorded home path,
   not a hard-coded `/Users/<shortname>` path
 
@@ -132,7 +137,7 @@ mode before running the typing cases.
 | association | in Sucheng, New Sucheng, Cangjie, and Pinyin, commit `你` | association candidates start with `好` |
 | raw English | type `setting`, press Space | commits `setting ` |
 | short raw candidate | type a short token with Chinese candidates, press `0` | commits original letters |
-| temporary English | hold Shift and type `Setting-1`, press Space | commits `Setting-1 ` |
+| uppercase English | hold Shift and type `SETTING-1`, press Space | commits `SETTING-1 ` |
 | paging | produce more than one page, press Space/Tab/PageDown | moves forward one page when enabled |
 | reverse paging | press Shift+Tab/PageUp/Left Arrow | moves back one page |
 | cancel | type letters, press Escape | clears composition and hides candidates |

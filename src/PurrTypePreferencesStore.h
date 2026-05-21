@@ -22,6 +22,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)setPrivacyLockEnabled:(BOOL)enabled;
 - (BOOL)rawEnglishCandidateEnabled;
 - (void)setRawEnglishCandidateEnabled:(BOOL)enabled;
+- (BOOL)spellingSuggestionsEnabled;
+- (void)setSpellingSuggestionsEnabled:(BOOL)enabled;
 - (BOOL)spacePagingEnabled;
 - (void)setSpacePagingEnabled:(BOOL)enabled;
 - (NSUInteger)candidatePageSize;

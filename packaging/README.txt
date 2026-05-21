@@ -11,14 +11,19 @@ Install:
 
 No Terminal commands are required to install from this DMG.
 
+If macOS says "Install PurrType.pkg" Not Opened or "Apple could not verify",
+click Done. Do not click Move to Bin. Then open Install Guide.html in this DMG
+and follow the pictures. The guide includes Traditional Chinese and English
+tabs.
+
 To remove PurrType:
 
 1. Double-click Uninstall PurrType.pkg.
 2. Complete the macOS Installer flow.
 3. Quit and reopen System Settings.
 
-The uninstaller removes PurrType app bundles and package receipts. It preserves
-local PurrType preferences and New Sucheng learning data.
+The uninstaller removes only PurrType app bundles and package receipts. It
+preserves local PurrType preferences and New Sucheng learning data.
 
 After selecting PurrType from the macOS input menu, the default mode is Sucheng.
 Use the PurrType menu, mode shortcuts, or PurrType Preferences to switch between
@@ -31,7 +36,7 @@ Candidate keys:
   Chinese candidates.
 - Space, Tab, Right Arrow, or PageDown moves to the next candidate page.
 - Left Arrow, Shift+Tab, or PageUp moves to the previous candidate page.
-- Hold Shift while typing letters for temporary raw English.
+- Hold Shift while typing letters for uppercase English.
 - Ctrl+Shift+, opens or refocuses PurrType Preferences.
 
 The installer places PurrType at:

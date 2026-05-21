@@ -2,6 +2,7 @@
 #import "PurrTypeEngine.h"
 #import "PurrTypeInputBehavior.h"
 #import "PurrTypeInputState.h"
+#import "PurrTypeEnglishSpellChecker.h"
 #import "PurrTypeCandidatePanel.h"
 #import "PurrTypePreferencesWindowController.h"
 #import "PurrTypePreferencesConstants.h"
@@ -109,6 +110,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 @property(nonatomic, assign) NSUInteger candidatePageIndex;
 @property(nonatomic, assign) NSUInteger candidateUpdateSerial;
 @property(nonatomic, assign) BOOL rawEnglishCandidateEnabled;
+@property(nonatomic, assign) BOOL spellingSuggestionsEnabled;
 @property(nonatomic, assign) BOOL spacePagingEnabled;
 @property(nonatomic, assign) BOOL privacyLockEnabled;
 @property(nonatomic, assign) NSUInteger candidatePageSize;
@@ -120,6 +122,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 @property(nonatomic, weak) id lastInputClient;
 @property(nonatomic, assign) BOOL pendingLearningReset;
 @property(nonatomic, strong) NSTimer *secureInputMonitorTimer;
+@property(nonatomic, strong) PurrTypeEnglishSpellChecker *englishSpellChecker;
 
 - (void)warmUpEngineInBackground;
 - (PurrTypeEngine *)engineForInput;
@@ -149,6 +152,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 - (void)applyEffectiveLearningState;
 - (void)resetLearningStateForPreferenceRequest;
 - (void)setRawEnglishCandidateEnabled:(BOOL)enabled;
+- (void)setSpellingSuggestionsEnabled:(BOOL)enabled;
 - (void)setSpacePagingEnabled:(BOOL)enabled;
 - (void)setCandidatePageSize:(NSUInteger)pageSize;
 - (void)setSwitchInputModeShortcut:(NSString *)shortcutSpec;
@@ -188,6 +192,11 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 - (void)clearPunctuationCandidates;
 - (void)setCandidatePool:(NSArray<MKCandidate *> *)candidates resetPage:(BOOL)resetPage;
 - (void)updateCurrentCandidatePage;
+- (NSArray<MKCandidate *> *)spellingSuggestionCandidatesForCurrentBuffer;
+- (NSArray<MKCandidate *> *)spellingSuggestionCandidatesForCurrentBufferWithLimit:(NSUInteger)limit;
+- (BOOL)hasSpellingSuggestionCandidates;
+- (BOOL)firstCurrentCandidateIsSpellingSuggestion;
+- (void)refreshRawEnglishSuggestionsResetPage:(BOOL)resetPage;
 - (void)beginCandidateAnchorSessionForClient:(id)sender;
 - (void)scheduleCandidatePanelUpdate;
 - (void)updateCandidatePanel;
@@ -220,6 +229,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
         _engineMode = [_preferences engineMode];
         _privacyLockEnabled = [_preferences privacyLockEnabled];
         _rawEnglishCandidateEnabled = [_preferences rawEnglishCandidateEnabled];
+        _spellingSuggestionsEnabled = [_preferences spellingSuggestionsEnabled];
         _spacePagingEnabled = [_preferences spacePagingEnabled];
         _candidatePageSize = [_preferences candidatePageSize];
         _switchInputModeShortcut = [_preferences switchInputModeShortcut];
@@ -227,6 +237,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
         _modeShortcutsByMode = [_preferences modeShortcutsByMode];
         _lastPrivacyLockBacktickTime = 0;
         _pendingLearningReset = [_preferences hasPendingLearningReset];
+        _englishSpellChecker = [PurrTypeEnglishSpellChecker sharedChecker];
         _candidatePanel = [[PurrTypeCandidatePanel alloc] init];
         _candidatePanel.delegate = self;
         [[NSDistributedNotificationCenter defaultCenter] addObserver:self
@@ -444,7 +455,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
         PurrTypeEngine *engine = [self engineForInput];
         if ([engine prefersRawEnglishForInput:self.inputState.buffer mode:self.engineMode]) {
             self.inputState.rawEnglishModeActive = YES;
-            [self setCandidatePool:@[] resetPage:YES];
+            [self refreshRawEnglishSuggestionsResetPage:YES];
             [self updateComposition];
             return YES;
         }
@@ -455,7 +466,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
         }
 
         self.inputState.rawEnglishModeActive = YES;
-        [self setCandidatePool:@[] resetPage:YES];
+        [self refreshRawEnglishSuggestionsResetPage:YES];
         [self updateComposition];
         return YES;
     }
@@ -725,16 +736,31 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
         return NO;
     }
 
-    NSString *text = nil;
+    if (self.inputState.rawEnglishModeActive) {
+        NSString *text = [self.inputState.buffer copy];
+        if (appendText.length > 0) {
+            text = [text stringByAppendingString:appendText];
+        }
+        [self commitText:text client:sender resetFirst:YES showAssociations:NO];
+        return YES;
+    }
+
     BOOL usingCandidate = self.currentCandidates.count > 0;
     if (usingCandidate) {
+        if ([self firstCurrentCandidateIsSpellingSuggestion]) {
+            NSString *text = [self.inputState.buffer copy];
+            if (appendText.length > 0) {
+                text = [text stringByAppendingString:appendText];
+            }
+            [self commitText:text client:sender resetFirst:YES showAssociations:NO];
+            return YES;
+        }
         NSString *candidateAppendText = appendOnlyWhenRaw ? @"" : appendText;
         [self commitCandidate:self.currentCandidates.firstObject client:sender appendText:candidateAppendText];
         return YES;
-    } else {
-        text = [self.inputState.buffer copy];
     }
 
+    NSString *text = [self.inputState.buffer copy];
     if (appendText.length > 0) {
         text = [text stringByAppendingString:appendText];
     }
@@ -769,13 +795,22 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 - (void)refreshCandidates {
     if (self.inputState.rawEnglishModeActive) {
         self.inputState.associationModeActive = NO;
-        [self setCandidatePool:@[] resetPage:YES];
+        [self refreshRawEnglishSuggestionsResetPage:YES];
         return;
     }
 
     self.inputState.associationModeActive = NO;
     PurrTypeEngine *engine = [self engineForInput];
-    [self setCandidatePool:[engine candidatesForInput:self.inputState.buffer limit:MKCandidateFetchLimit mode:self.engineMode] resetPage:YES];
+    NSArray<MKCandidate *> *primaryCandidates =
+        [engine candidatesForInput:self.inputState.buffer limit:MKCandidateFetchLimit mode:self.engineMode];
+    NSArray<MKCandidate *> *spellingCandidates =
+        [self spellingSuggestionCandidatesForCurrentBufferWithLimit:
+            [PurrTypeInputBehavior spellingSuggestionLimitForCandidatePageSize:self.candidatePageSize]];
+    NSArray<MKCandidate *> *candidatePool =
+        [PurrTypeInputBehavior candidatePoolByMergingPrimaryCandidates:primaryCandidates
+                                                   spellingCandidates:spellingCandidates
+                                                             pageSize:self.candidatePageSize];
+    [self setCandidatePool:candidatePool resetPage:YES];
 }
 
 - (BOOL)isSupportedEngineMode:(NSString *)mode {
@@ -993,6 +1028,19 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     [self updateComposition];
 }
 
+- (void)setSpellingSuggestionsEnabled:(BOOL)enabled {
+    _spellingSuggestionsEnabled = enabled;
+    [self.preferences setSpellingSuggestionsEnabled:enabled];
+    if (self.inputState.buffer.length > 0) {
+        if (self.inputState.rawEnglishModeActive) {
+            [self refreshRawEnglishSuggestionsResetPage:YES];
+        } else {
+            [self refreshCandidates];
+        }
+    }
+    [self updateComposition];
+}
+
 - (void)setSpacePagingEnabled:(BOOL)enabled {
     _spacePagingEnabled = enabled;
     [self.preferences setSpacePagingEnabled:enabled];
@@ -1097,6 +1145,19 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
             [self updateComposition];
         }
 
+        BOOL nextSpellingSuggestionsEnabled = [self.preferences spellingSuggestionsEnabled];
+        if (self.spellingSuggestionsEnabled != nextSpellingSuggestionsEnabled) {
+            _spellingSuggestionsEnabled = nextSpellingSuggestionsEnabled;
+            if (self.inputState.buffer.length > 0) {
+                if (self.inputState.rawEnglishModeActive) {
+                    [self refreshRawEnglishSuggestionsResetPage:YES];
+                } else {
+                    [self refreshCandidates];
+                }
+            }
+            [self updateComposition];
+        }
+
         _spacePagingEnabled = [self.preferences spacePagingEnabled];
         NSUInteger nextCandidatePageSize = [self.preferences candidatePageSize];
         if (self.candidatePageSize != nextCandidatePageSize) {
@@ -1156,6 +1217,14 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 
 - (void)preferencesSetRawEnglishCandidateEnabled:(BOOL)enabled {
     [self setRawEnglishCandidateEnabled:enabled];
+}
+
+- (BOOL)preferencesSpellingSuggestionsEnabled {
+    return self.spellingSuggestionsEnabled;
+}
+
+- (void)preferencesSetSpellingSuggestionsEnabled:(BOOL)enabled {
+    [self setSpellingSuggestionsEnabled:enabled];
 }
 
 - (BOOL)preferencesSpacePagingEnabled {
@@ -1310,6 +1379,10 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 }
 
 - (BOOL)handleCandidatePageKey:(NSInteger)keyCode modifiers:(NSUInteger)flags {
+    if ([self hasSpellingSuggestionCandidates]) {
+        return NO;
+    }
+
     NSInteger offset = [PurrTypeInputBehavior candidatePageOffsetForKeyCode:keyCode
                                                                      modifiers:flags
                                                                 candidateCount:self.candidatePool.count
@@ -1354,9 +1427,59 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     self.candidatePageIndex = pageIndex;
 }
 
+- (NSArray<MKCandidate *> *)spellingSuggestionCandidatesForCurrentBuffer {
+    return [self spellingSuggestionCandidatesForCurrentBufferWithLimit:self.candidatePageSize];
+}
+
+- (NSArray<MKCandidate *> *)spellingSuggestionCandidatesForCurrentBufferWithLimit:(NSUInteger)limit {
+    if (!self.spellingSuggestionsEnabled || limit == 0) {
+        return @[];
+    }
+
+    NSArray<NSString *> *suggestions = [self.englishSpellChecker suggestionsForToken:self.inputState.buffer ?: @""
+                                                                               limit:limit];
+    NSMutableArray<MKCandidate *> *candidates = [NSMutableArray arrayWithCapacity:suggestions.count];
+    for (NSString *suggestion in suggestions) {
+        [candidates addObject:[[MKCandidate alloc] initWithText:suggestion
+                                                           code:self.inputState.buffer ?: @""
+                                                         source:MKSpellingCandidateSource
+                                                         weight:100]];
+    }
+    return candidates;
+}
+
+- (BOOL)hasSpellingSuggestionCandidates {
+    if (self.currentCandidates.count == 0) {
+        return NO;
+    }
+    for (MKCandidate *candidate in self.currentCandidates) {
+        if (![candidate.source isEqualToString:MKSpellingCandidateSource]) {
+            return NO;
+        }
+    }
+    return YES;
+}
+
+- (BOOL)firstCurrentCandidateIsSpellingSuggestion {
+    MKCandidate *candidate = self.currentCandidates.firstObject;
+    return [candidate.source isEqualToString:MKSpellingCandidateSource];
+}
+
+- (void)refreshRawEnglishSuggestionsResetPage:(BOOL)resetPage {
+    [self setCandidatePool:[self spellingSuggestionCandidatesForCurrentBuffer] resetPage:resetPage];
+}
+
 - (NSArray<NSString *> *)candidateTexts {
     if (self.punctuationCandidateTexts.count > 0) {
         return self.punctuationCandidateTexts;
+    }
+
+    if ([self hasSpellingSuggestionCandidates]) {
+        return [PurrTypeInputBehavior displayTextsForCandidates:self.currentCandidates
+                                                        buffer:self.inputState.buffer ?: @""
+                                          rawEnglishModeActive:NO
+                                         associationModeActive:NO
+                                   rawEnglishCandidateEnabled:YES];
     }
 
     return [PurrTypeInputBehavior displayTextsForCandidates:self.currentCandidates
@@ -1447,6 +1570,17 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 }
 
 - (void)commitCandidate:(MKCandidate *)candidate client:(id)sender appendText:(NSString *)appendText {
+    if ([candidate.source isEqualToString:MKSpellingCandidateSource]) {
+        NSString *text = candidate.text ?: @"";
+        if (appendText.length > 0) {
+            text = [text stringByAppendingString:appendText];
+        }
+        [self commitText:text client:sender resetFirst:YES showAssociations:NO];
+        self.lastCommittedCandidateText = nil;
+        [self resetRecentCommittedText];
+        return;
+    }
+
     PurrTypeEngine *engine = [self engineForInput];
     [engine recordSelectionForCandidate:candidate previousText:self.lastCommittedCandidateText mode:self.engineMode];
     [engine recordCommittedCandidateText:candidate.text code:candidate.code mode:self.engineMode];
@@ -1474,7 +1608,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 
 - (void)appendRawEnglishText:(NSString *)string {
     [self.inputState appendRawEnglishText:string ?: @""];
-    [self setCandidatePool:@[] resetPage:YES];
+    [self refreshRawEnglishSuggestionsResetPage:YES];
     [self updateComposition];
 }
 
@@ -1617,6 +1751,13 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     }
 
     if (self.currentCandidates.count > 0) {
+        if ([self firstCurrentCandidateIsSpellingSuggestion]) {
+            [self commitText:[self.inputState.buffer copy] client:sender resetFirst:YES showAssociations:NO];
+            self.lastCommittedCandidateText = nil;
+            [self resetRecentCommittedText];
+            return;
+        }
+
         MKCandidate *candidate = self.currentCandidates.firstObject;
         PurrTypeEngine *engine = [self engineForInput];
         [engine recordSelectionForCandidate:candidate previousText:self.lastCommittedCandidateText mode:self.engineMode];
@@ -1750,6 +1891,13 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 }
 
 - (BOOL)shouldShowRawEnglishCandidate {
+    if ([self hasSpellingSuggestionCandidates]) {
+        return [PurrTypeInputBehavior shouldShowRawEnglishCandidateForBuffer:self.inputState.buffer ?: @""
+                                                        rawEnglishModeActive:NO
+                                                        associationModeActive:NO
+                                                   rawEnglishCandidateEnabled:YES
+                                                               candidateCount:self.currentCandidates.count];
+    }
     return [PurrTypeInputBehavior shouldShowRawEnglishCandidateForBuffer:self.inputState.buffer ?: @""
                                                        rawEnglishModeActive:self.inputState.rawEnglishModeActive
                                                       associationModeActive:self.inputState.associationModeActive

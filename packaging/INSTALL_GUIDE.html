@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PurrType Install Guide</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.45; }
+    body { margin: 0; background: Canvas; color: CanvasText; }
+    main { width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: 32px 0 56px; }
+    h1 { font-size: 34px; margin: 0 0 12px; }
+    h2 { font-size: 24px; margin: 34px 0 10px; }
+    p, li { font-size: 17px; }
+    .notice { border: 1px solid #f0c36a; background: #fff7df; color: #3f2d00; border-radius: 10px; padding: 14px 16px; margin: 18px 0; }
+    .tabs { display: flex; gap: 8px; border-bottom: 1px solid color-mix(in srgb, CanvasText 20%, transparent); margin: 24px 0 6px; }
+    .tab-button { appearance: none; border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); border-bottom: 0; border-radius: 10px 10px 0 0; background: color-mix(in srgb, Canvas 88%, CanvasText 12%); color: CanvasText; cursor: pointer; font: inherit; font-size: 16px; font-weight: 700; padding: 10px 16px; }
+    .tab-button[aria-selected="true"] { background: Canvas; border-color: color-mix(in srgb, CanvasText 38%, transparent); }
+    .tab-panel[hidden] { display: none; }
+    .panel { border: 1px solid color-mix(in srgb, CanvasText 16%, transparent); border-radius: 12px; padding: 14px; margin: 14px 0 20px; background: color-mix(in srgb, Canvas 92%, CanvasText 8%); }
+    img { display: block; width: 100%; height: auto; border-radius: 10px; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    @media (prefers-color-scheme: dark) { .notice { background: #2e2612; color: #ffe4a3; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>PurrType Install Guide</h1>
+    <p>Choose a language below. Use this guide if macOS blocks <code>Install PurrType.pkg</code> with a malware verification warning.</p>
+
+    <div class="tabs" role="tablist" aria-label="Guide language">
+      <button class="tab-button" type="button" role="tab" id="tab-zh" aria-controls="panel-zh" aria-selected="true">繁體中文</button>
+      <button class="tab-button" type="button" role="tab" id="tab-en" aria-controls="panel-en" aria-selected="false">English</button>
+    </div>
+
+    <section class="tab-panel" role="tabpanel" id="panel-zh" aria-labelledby="tab-zh" lang="zh-Hant">
+      <div class="notice">只在你確認 DMG 來自 PurrType 官方 GitHub release 時繼續安裝。不要安裝來歷不明的 package。</div>
+
+      <h2>1. 打開 DMG 並啟動安裝程式</h2>
+      <p>用 Finder 打開 DMG，然後 double-click <code>Install PurrType.pkg</code>。如果 macOS 顯示 <code>"Install PurrType.pkg" Not Opened</code>，請按 <strong>Done</strong>。不要按 <strong>Move to Bin</strong>。</p>
+      <div class="panel">
+        <img src=".install-guide-assets/step1-gatekeeper-done.jpg" alt="macOS Gatekeeper 警告畫面，Done 按鈕被標示">
+      </div>
+
+      <h2>2. 在 Privacy &amp; Security 按 Open Anyway</h2>
+      <p>打開 <strong>System Settings &gt; Privacy &amp; Security</strong>，捲到 Security 位置，然後在 <code>Install PurrType.pkg</code> 旁邊按 <strong>Open Anyway</strong>。macOS 可能會要求你輸入 Mac 密碼或使用 Touch ID，確認後完成 Installer 流程。</p>
+      <div class="panel">
+        <img src=".install-guide-assets/step2-open-anyway.jpg" alt="Privacy and Security 畫面中 Open Anyway 按鈕被標示">
+      </div>
+
+      <h2>3. 打開 Keyboard 的 Text Input 設定</h2>
+      <p>安裝完成後，如果 System Settings 已經開住，先 quit 再開返。打開 <strong>System Settings &gt; Keyboard</strong>，在 <strong>Text Input</strong> 位置按 <strong>Edit...</strong>。</p>
+      <div class="panel">
+        <img src=".install-guide-assets/step3-keyboard-edit.jpg" alt="Keyboard 設定畫面中 Text Input 的 Edit 按鈕被標示">
+      </div>
+
+      <h2>4. 新增輸入來源</h2>
+      <p>在 <strong>All Input Sources</strong> 視窗左下角按 <strong>+</strong>。</p>
+      <div class="panel">
+        <img src=".install-guide-assets/step4-click-plus.jpg" alt="Input Sources 視窗中左下角加號按鈕被標示">
+      </div>
+
+      <h2>5. 加入 PurrType</h2>
+      <p>選擇 <strong>Chinese, Traditional</strong>，再選 <strong>PurrType</strong>，然後按 <strong>Add</strong>。回到 Input Sources 視窗後按 <strong>Done</strong>。</p>
+      <div class="panel">
+        <img src=".install-guide-assets/step5-add-purrtype.jpg" alt="新增輸入來源畫面中 PurrType 和 Add 按鈕被標示">
+      </div>
+
+      <p>PurrType 之後會出現在 macOS input menu。</p>
+
+      <h2>移除 PurrType</h2>
+      <p>重新打開同一個 DMG，double-click <code>Uninstall PurrType.pkg</code>。</p>
+    </section>
+
+    <section class="tab-panel" role="tabpanel" id="panel-en" aria-labelledby="tab-en" lang="en" hidden>
+      <div class="notice">Only continue if this DMG came from the official PurrType GitHub release. Do not install packages downloaded from unknown links.</div>
+
+      <h2>1. Open The DMG And Start The Installer</h2>
+      <p>Open the DMG in Finder, then double-click <code>Install PurrType.pkg</code>. If macOS says <code>"Install PurrType.pkg" Not Opened</code>, click <strong>Done</strong>. Do not click <strong>Move to Bin</strong>.</p>
+      <div class="panel">
+        <img src=".install-guide-assets/step1-gatekeeper-done.jpg" alt="Gatekeeper warning showing Install PurrType.pkg Not Opened with Done highlighted">
+      </div>
+
+      <h2>2. Open Anyway</h2>
+      <p>Open <strong>System Settings &gt; Privacy &amp; Security</strong>, scroll to the Security section, then click <strong>Open Anyway</strong> for <code>Install PurrType.pkg</code>. Confirm with your Mac password or Touch ID, then complete the Installer flow.</p>
+      <div class="panel">
+        <img src=".install-guide-assets/step2-open-anyway.jpg" alt="Privacy and Security showing Open Anyway for Install PurrType.pkg">
+      </div>
+
+      <h2>3. Open Keyboard Text Input</h2>
+      <p>After installation, quit and reopen System Settings if it was already open. Open <strong>System Settings &gt; Keyboard</strong>, then click <strong>Edit...</strong> in the <strong>Text Input</strong> section.</p>
+      <div class="panel">
+        <img src=".install-guide-assets/step3-keyboard-edit.jpg" alt="Keyboard settings showing the Text Input Edit button">
+      </div>
+
+      <h2>4. Click Add Input Source</h2>
+      <p>In <strong>All Input Sources</strong>, click the <strong>+</strong> button at the bottom-left.</p>
+      <div class="panel">
+        <img src=".install-guide-assets/step4-click-plus.jpg" alt="Input Sources window showing the plus button">
+      </div>
+
+      <h2>5. Add PurrType</h2>
+      <p>Select <strong>Chinese, Traditional</strong>, choose <strong>PurrType</strong>, then click <strong>Add</strong>. Click <strong>Done</strong> when you return to the Input Sources window.</p>
+      <div class="panel">
+        <img src=".install-guide-assets/step5-add-purrtype.jpg" alt="Input source browser showing PurrType and Add button">
+      </div>
+
+      <p>PurrType is now available from the macOS input menu.</p>
+
+      <h2>Remove PurrType</h2>
+      <p>Open this DMG again and double-click <code>Uninstall PurrType.pkg</code>.</p>
+    </section>
+  </main>
+
+  <script>
+    const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+    const panels = Array.from(document.querySelectorAll('[role="tabpanel"]'));
+
+    function activateTab(tab) {
+      for (const currentTab of tabs) {
+        currentTab.setAttribute('aria-selected', String(currentTab === tab));
+      }
+      for (const panel of panels) {
+        panel.hidden = panel.id !== tab.getAttribute('aria-controls');
+      }
+    }
+
+    for (const tab of tabs) {
+      tab.addEventListener('click', () => activateTab(tab));
+    }
+  </script>
+</body>
+</html>

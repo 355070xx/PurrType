@@ -54,6 +54,10 @@ NS_ASSUME_NONNULL_BEGIN
 + (NSArray<MKCandidate *> *)candidatePageFromPool:(NSArray<MKCandidate *> *)candidatePool
                                        pageIndex:(NSUInteger *)pageIndex
                                         pageSize:(NSUInteger)pageSize;
++ (NSUInteger)spellingSuggestionLimitForCandidatePageSize:(NSUInteger)pageSize;
++ (NSArray<MKCandidate *> *)candidatePoolByMergingPrimaryCandidates:(NSArray<MKCandidate *> *)primaryCandidates
+                                                spellingCandidates:(NSArray<MKCandidate *> *)spellingCandidates
+                                                          pageSize:(NSUInteger)pageSize;
 + (NSString *)displayTextForCandidate:(MKCandidate *)candidate index:(NSUInteger)index;
 + (NSArray<NSString *> *)displayTextsForCandidates:(NSArray<MKCandidate *> *)candidates
                                             buffer:(NSString *)buffer

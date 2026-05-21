@@ -19,7 +19,7 @@ Current release posture:
   bundled
 - prebuilt public binary: include bundled Legal resources, checksums,
   provenance, and third-party license files; use signed/notarized artifacts for
-  non-developer users
+  distribution outside source builds
 
 This is an engineering audit, not legal advice.
 
@@ -57,17 +57,19 @@ Manager, Homebrew vendored libraries, or other package-manager dependencies.
 
 ## Installer And Uninstaller Materials
 
-The release DMG root should stay focused on the normal user flow:
+The release DMG root should stay focused on the direct install flow:
 
 ```text
 README.txt
+Install Guide.html
 Install PurrType.pkg
 Uninstall PurrType.pkg
 ```
 
 The installer and uninstaller scripts remove only PurrType app bundles,
-Launch Services registrations, and matching package receipts by
-default. `Uninstall PurrType.pkg` preserves PurrType preferences and New
+Launch Services registrations, and matching dev package receipts by
+default. They must not remove the public `/Library/Input Methods/PurrTypeIM.app`
+bundle or public package receipt. `Uninstall PurrType.pkg` preserves PurrType preferences and New
 Sucheng learning data. The source-tree `packaging/Uninstall-PurrType.command`
 keeps the explicit `--purge-user-data` path for developer QA.
 

@@ -2,7 +2,7 @@
 
 ## Product Direction
 
-PurrType 先做好現有輸入法，而唔擴散到更多輸入模式。當 `Sucheng`、`New Sucheng`、`Cangjie`、`Pinyin` 同 English pass-through 都達到完整、穩定、可測試之後，先再加入英文 spelling suggestions。
+PurrType 先做好現有輸入法，而唔擴散到更多輸入模式。`Sucheng`、`New Sucheng`、`Cangjie`、`Pinyin`、English pass-through 同本機 spelling suggestions 都應保持低延遲、可測試、可關閉。
 
 英文 spelling suggestions 的原則：
 
@@ -67,7 +67,7 @@ PurrType 先做好現有輸入法，而唔擴散到更多輸入模式。當 `Suc
 
 - 保持 automatic raw English pass-through。
 - URL、email、path、code-like token 不被中文候選打斷。
-- Shift temporary English 穩定。
+- Shift 大楷英文穩定。
 - 短英文撞中中文候選時提供 `0` raw-English candidate。
 
 完成標準：
@@ -114,10 +114,11 @@ PurrType 先做好現有輸入法，而唔擴散到更多輸入模式。當 `Suc
 
 目標：
 
-- 加入本機英文 spelling suggestion engine。
+- 使用 macOS `NSSpellChecker` 加入本機英文 spelling suggestion engine。
 - 將 suggestion 當候選提示，不當 autocorrect。
 - 保留 typed word 原文 commit 路徑。
 - 避免干擾 raw English pass-through、URL、email、path、code-like token。
+- 不 bundle 或抽取 Apple dictionary 資料。
 
 完成標準：
 
@@ -125,7 +126,9 @@ PurrType 先做好現有輸入法，而唔擴散到更多輸入模式。當 `Suc
 - 沒有 suggestion 時完全不影響現有英文 pass-through。
 - Space / Enter / punctuation 不會自動替換 typed word。
 - 測試覆蓋 misspelling suggestion、原文 commit、URL/email/path/code suppression、disable preference。
-- suggestion lookup 不在 keypress hot path 做同步 disk I/O。
+- repeated suggestion lookup 對同一 token 會 cache；provider 失敗時降級 raw English pass-through。
+- Advanced Dictionary Manager、per-app policy、technical/legal/medical/developer word packs 留作後續 slice。
+
 
 ## Backlog
 
