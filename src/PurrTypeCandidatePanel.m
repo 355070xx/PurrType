@@ -19,6 +19,7 @@ static const CGFloat MKCandidatePanelCaretVerticalGap = 4.0;
 @interface MKCandidatePanelView : NSView
 @property(nonatomic, copy) NSArray<NSString *> *candidateTexts;
 @property(nonatomic, copy) NSString *pageIndicatorText;
+@property(nonatomic, assign) NSUInteger selectedIndex;
 @property(nonatomic, copy) void (^selectionHandler)(NSPoint point);
 @end
 
@@ -78,7 +79,7 @@ static const CGFloat MKCandidatePanelCaretVerticalGap = 4.0;
                                     y,
                                     NSWidth(bounds) - MKCandidatePanelHorizontalInset * 2.0,
                                     MKCandidatePanelRowHeight);
-        BOOL selected = (index == 0);
+        BOOL selected = (index == self.selectedIndex);
         if (selected) {
             NSBezierPath *selection = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(rowRect, 0.0, 1.0)
                                                                       xRadius:10.0
@@ -171,7 +172,9 @@ static const CGFloat MKCandidatePanelCaretVerticalGap = 4.0;
               nearClient:client
     anchorCharacterIndex:anchorCharacterIndex
                pageIndex:0
-               pageCount:0];
+               pageCount:0
+      usePreservedAnchor:NO
+           selectedIndex:0];
 }
 
 - (void)showCandidates:(NSArray<NSString *> *)candidateTexts
@@ -184,7 +187,8 @@ static const CGFloat MKCandidatePanelCaretVerticalGap = 4.0;
     anchorCharacterIndex:anchorCharacterIndex
                pageIndex:pageIndex
                pageCount:pageCount
-      usePreservedAnchor:NO];
+      usePreservedAnchor:NO
+           selectedIndex:0];
 }
 
 - (void)showCandidates:(NSArray<NSString *> *)candidateTexts
@@ -198,7 +202,29 @@ static const CGFloat MKCandidatePanelCaretVerticalGap = 4.0;
         return;
     }
 
+    [self showCandidates:candidateTexts
+              nearClient:client
+    anchorCharacterIndex:anchorCharacterIndex
+               pageIndex:pageIndex
+               pageCount:pageCount
+      usePreservedAnchor:usePreservedAnchor
+           selectedIndex:0];
+}
+
+- (void)showCandidates:(NSArray<NSString *> *)candidateTexts
+            nearClient:(id)client
+  anchorCharacterIndex:(NSNumber *)anchorCharacterIndex
+             pageIndex:(NSUInteger)pageIndex
+             pageCount:(NSUInteger)pageCount
+    usePreservedAnchor:(BOOL)usePreservedAnchor
+         selectedIndex:(NSUInteger)selectedIndex {
+    if (candidateTexts.count == 0) {
+        [self hide];
+        return;
+    }
+
     self.panelView.candidateTexts = [candidateTexts copy];
+    self.panelView.selectedIndex = selectedIndex < candidateTexts.count ? selectedIndex : 0;
     NSString *pageIndicatorText = pageCount > 1 ? [NSString stringWithFormat:@"%lu/%lu",
                                                    (unsigned long)(pageIndex + 1),
                                                    (unsigned long)pageCount] : @"";

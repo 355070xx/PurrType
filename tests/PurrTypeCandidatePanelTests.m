@@ -147,6 +147,11 @@ static NSRect CandidatePanelFrame(PurrTypeCandidatePanel *panel) {
     return window.frame;
 }
 
+static NSUInteger CandidatePanelSelectedIndex(PurrTypeCandidatePanel *panel) {
+    NSView *panelView = [panel valueForKey:@"panelView"];
+    return [[panelView valueForKey:@"selectedIndex"] unsignedIntegerValue];
+}
+
 static NSScreen *TestScreenForRect(NSRect rect) {
     NSPoint point = NSMakePoint(NSMidX(rect), NSMidY(rect));
     for (NSScreen *screen in [NSScreen screens]) {
@@ -204,6 +209,10 @@ int main(int argc, const char *argv[]) {
         [panel showCandidates:rows nearClient:client anchorCharacterIndex:@1 pageIndex:1 pageCount:5];
         AssertTrue([panel candidateTextAtPanelPoint:NSMakePoint(20, 14)] == nil, @"hit testing ignores the page-count header");
         AssertTrue([[panel candidateTextAtPanelPoint:NSMakePoint(20, 18 + 14)] isEqualToString:@"0 of"], @"hit testing selects row 0 below the page-count header");
+        [panel showCandidates:rows nearClient:client anchorCharacterIndex:@1 pageIndex:1 pageCount:5 usePreservedAnchor:NO selectedIndex:3];
+        AssertTrue(CandidatePanelSelectedIndex(panel) == 3, @"custom panel exposes the selected candidate row to drawing");
+        [panel showCandidates:rows nearClient:client anchorCharacterIndex:@1 pageIndex:1 pageCount:5 usePreservedAnchor:NO selectedIndex:99];
+        AssertTrue(CandidatePanelSelectedIndex(panel) == 0, @"custom panel falls back to the first row for invalid selected indexes");
 
         client.lineHeightAnchorEnabled = NO;
         [panel beginAnchorSessionForClient:client];

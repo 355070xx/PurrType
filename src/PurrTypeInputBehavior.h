@@ -49,6 +49,14 @@ NS_ASSUME_NONNULL_BEGIN
 + (NSInteger)candidatePageOffsetForSelector:(SEL)selector
                              candidateCount:(NSUInteger)candidateCount
                           candidatePageSize:(NSUInteger)candidatePageSize;
++ (NSInteger)candidateSelectionOffsetForKeyCode:(NSInteger)keyCode
+                                      modifiers:(NSUInteger)flags
+                                 candidateCount:(NSUInteger)candidateCount;
++ (NSInteger)candidateSelectionOffsetForSelector:(SEL)selector
+                                  candidateCount:(NSUInteger)candidateCount;
++ (NSUInteger)candidateSelectionIndexFromIndex:(NSUInteger)selectedIndex
+                                        offset:(NSInteger)offset
+                                candidateCount:(NSUInteger)candidateCount;
 + (NSArray<MKCandidate *> *)candidatePageFromPool:(NSArray<MKCandidate *> *)candidatePool
                                        pageIndex:(NSUInteger *)pageIndex;
 + (NSArray<MKCandidate *> *)candidatePageFromPool:(NSArray<MKCandidate *> *)candidatePool

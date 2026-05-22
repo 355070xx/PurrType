@@ -142,6 +142,7 @@ Privacy Lock shortcut 可在 Preferences 改為 double backtick、`Ctrl+Shift+\`
 - 支援繁體輸出。
 - 使用 `resources/pinyin_seed.tsv` 保護常用排序。
 - 使用 Rime Luna Pinyin dictionary 補足完整 open dictionary coverage。
+- 組字時 Up / Down 可移動目前高亮候選，Space commit 高亮候選；不改候選排序。
 - 英文 word 和拼音 syllable 衝突時，候選 UI 應清楚但不阻塞英文輸入。
 
 待定：

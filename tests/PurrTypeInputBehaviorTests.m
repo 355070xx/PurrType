@@ -96,6 +96,15 @@ int main(int argc, const char *argv[]) {
         AssertTrue([PurrTypeInputBehavior candidatePageOffsetForKeyCode:124 modifiers:0 candidateCount:10 spacePagingEnabled:YES] == 1, @"Right Arrow pages forward");
         AssertTrue([PurrTypeInputBehavior candidatePageOffsetForKeyCode:123 modifiers:0 candidateCount:10 spacePagingEnabled:YES] == -1, @"Left Arrow pages back");
         AssertTrue([PurrTypeInputBehavior candidatePageOffsetForKeyCode:49 modifiers:0 candidateCount:9 spacePagingEnabled:YES] == 0, @"single candidate page does not page");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionOffsetForKeyCode:125 modifiers:0 candidateCount:3] == 1, @"Down Arrow selects next visible candidate");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionOffsetForKeyCode:126 modifiers:0 candidateCount:3] == -1, @"Up Arrow selects previous visible candidate");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionOffsetForKeyCode:125 modifiers:NSEventModifierFlagCommand candidateCount:3] == 0, @"modified Down Arrow is left to the app");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionOffsetForKeyCode:125 modifiers:0 candidateCount:0] == 0, @"candidate selection keys require visible candidates");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionOffsetForSelector:@selector(moveDown:) candidateCount:3] == 1, @"moveDown selector selects next visible candidate");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionOffsetForSelector:@selector(moveUp:) candidateCount:3] == -1, @"moveUp selector selects previous visible candidate");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionIndexFromIndex:0 offset:-1 candidateCount:3] == 0, @"candidate selection clamps at the first row");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionIndexFromIndex:0 offset:1 candidateCount:3] == 1, @"candidate selection advances by one row");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionIndexFromIndex:2 offset:1 candidateCount:3] == 2, @"candidate selection clamps at the last row");
         AssertTrue([PurrTypeInputBehavior candidatePageOffsetForSelector:@selector(moveRight:) candidateCount:10 candidatePageSize:9] == 1, @"moveRight selector pages forward");
         AssertTrue([PurrTypeInputBehavior candidatePageOffsetForSelector:@selector(moveLeft:) candidateCount:10 candidatePageSize:9] == -1, @"moveLeft selector pages back");
         AssertTrue([PurrTypeInputBehavior candidatePageOffsetForSelector:@selector(moveRight:) candidateCount:5 candidatePageSize:5] == 0, @"single compact selector page does not page");

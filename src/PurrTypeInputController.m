@@ -108,6 +108,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 @property(nonatomic, copy) NSString *engineMode;
 @property(nonatomic, copy) NSString *lastCommittedCandidateText;
 @property(nonatomic, assign) NSUInteger candidatePageIndex;
+@property(nonatomic, assign) NSUInteger selectedCandidateIndex;
 @property(nonatomic, assign) NSUInteger candidateUpdateSerial;
 @property(nonatomic, assign) BOOL rawEnglishCandidateEnabled;
 @property(nonatomic, assign) BOOL spellingSuggestionsEnabled;
@@ -172,6 +173,12 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 - (void)switchToNextEngineMode;
 - (BOOL)handlePrivacyLockShortcutForString:(NSString *)string key:(NSInteger)keyCode modifiers:(NSUInteger)flags client:(id)sender;
 - (BOOL)handleCandidatePageKey:(NSInteger)keyCode modifiers:(NSUInteger)flags;
+- (BOOL)handlePinyinCandidateSelectionKey:(NSInteger)keyCode modifiers:(NSUInteger)flags;
+- (BOOL)handlePinyinCandidateSelectionSelector:(SEL)selector;
+- (BOOL)shouldUsePinyinCandidateSelection;
+- (NSUInteger)candidateIndexForCurrentCommit;
+- (void)clampSelectedCandidateIndex;
+- (NSUInteger)candidatePanelSelectedIndexForCandidateTexts:(NSArray<NSString *> *)candidateTexts;
 - (BOOL)changeCandidatePageByOffset:(NSInteger)offset;
 - (void)commitCandidate:(MKCandidate *)candidate client:(id)sender appendText:(NSString *)appendText;
 - (void)resetRecentCommittedText;
@@ -223,6 +230,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
         _currentCandidates = @[];
         _punctuationCandidateTexts = @[];
         _punctuationAnchorText = @"";
+        _selectedCandidateIndex = 0;
         _candidateUpdateSerial = 0;
         _preferences = [PurrTypePreferencesStore sharedStore];
         _enabledInputModes = [_preferences enabledInputModes];
@@ -387,6 +395,16 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
         }
     }
 
+    if (hasKeyEvent && [self handlePinyinCandidateSelectionKey:keyCode modifiers:flags]) {
+        return YES;
+    }
+
+    if (((hasKeyEvent && keyCode == MKKeyCodeSpace) || fallbackSpace) &&
+        [self shouldUsePinyinCandidateSelection]) {
+        [self commitCandidateAtIndex:[self candidateIndexForCurrentCommit] client:sender];
+        return YES;
+    }
+
     if (hasKeyEvent && [self handleCandidatePageKey:keyCode modifiers:flags]) {
         return YES;
     }
@@ -486,6 +504,10 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
         return NO;
     }
 
+    if ([self handlePinyinCandidateSelectionSelector:selector]) {
+        return YES;
+    }
+
     NSInteger pageOffset = [PurrTypeInputBehavior candidatePageOffsetForSelector:selector
                                                                      candidateCount:self.candidatePool.count
                                                                   candidatePageSize:self.candidatePageSize];
@@ -545,6 +567,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     [self addDisabledMenuItemWithTitle:candidateKeyTitle toMenu:menu];
     [self addDisabledMenuItemWithTitle:self.spacePagingEnabled ? @"Space / Tab / Right / PageDown: Next Page" : @"Tab / Right / PageDown: Next Page" toMenu:menu];
     [self addDisabledMenuItemWithTitle:@"Left / Shift+Tab / PageUp: Previous Page" toMenu:menu];
+    [self addDisabledMenuItemWithTitle:@"Pinyin: Up / Down Select, Space Commit" toMenu:menu];
     [menu addItem:[NSMenuItem separatorItem]];
 
     [self addDisabledMenuItemWithTitle:[self learningStatusTitle] toMenu:menu];
@@ -755,8 +778,9 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
             [self commitText:text client:sender resetFirst:YES showAssociations:NO];
             return YES;
         }
+        NSUInteger candidateIndex = [self candidateIndexForCurrentCommit];
         NSString *candidateAppendText = appendOnlyWhenRaw ? @"" : appendText;
-        [self commitCandidate:self.currentCandidates.firstObject client:sender appendText:candidateAppendText];
+        [self commitCandidate:self.currentCandidates[candidateIndex] client:sender appendText:candidateAppendText];
         return YES;
     }
 
@@ -1391,6 +1415,88 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     return offset != 0 && [self changeCandidatePageByOffset:offset];
 }
 
+- (BOOL)handlePinyinCandidateSelectionKey:(NSInteger)keyCode modifiers:(NSUInteger)flags {
+    if (![self shouldUsePinyinCandidateSelection]) {
+        return NO;
+    }
+
+    NSInteger offset = [PurrTypeInputBehavior candidateSelectionOffsetForKeyCode:keyCode
+                                                                      modifiers:flags
+                                                                 candidateCount:self.currentCandidates.count];
+    if (offset == 0) {
+        return NO;
+    }
+
+    NSUInteger nextIndex = [PurrTypeInputBehavior candidateSelectionIndexFromIndex:self.selectedCandidateIndex
+                                                                            offset:offset
+                                                                    candidateCount:self.currentCandidates.count];
+    if (nextIndex != self.selectedCandidateIndex) {
+        self.selectedCandidateIndex = nextIndex;
+        [self updateCandidatePanel];
+    }
+    return YES;
+}
+
+- (BOOL)handlePinyinCandidateSelectionSelector:(SEL)selector {
+    if (![self shouldUsePinyinCandidateSelection]) {
+        return NO;
+    }
+
+    NSInteger offset = [PurrTypeInputBehavior candidateSelectionOffsetForSelector:selector
+                                                                  candidateCount:self.currentCandidates.count];
+    if (offset == 0) {
+        return NO;
+    }
+
+    NSUInteger nextIndex = [PurrTypeInputBehavior candidateSelectionIndexFromIndex:self.selectedCandidateIndex
+                                                                            offset:offset
+                                                                    candidateCount:self.currentCandidates.count];
+    if (nextIndex != self.selectedCandidateIndex) {
+        self.selectedCandidateIndex = nextIndex;
+        [self updateCandidatePanel];
+    }
+    return YES;
+}
+
+- (BOOL)shouldUsePinyinCandidateSelection {
+    return [self.engineMode isEqualToString:MKInputModePinyin] &&
+           self.inputState.buffer.length > 0 &&
+           !self.inputState.rawEnglishModeActive &&
+           !self.inputState.associationModeActive &&
+           self.punctuationCandidateTexts.count == 0 &&
+           self.currentCandidates.count > 0 &&
+           ![self hasSpellingSuggestionCandidates];
+}
+
+- (NSUInteger)candidateIndexForCurrentCommit {
+    if (![self shouldUsePinyinCandidateSelection]) {
+        return 0;
+    }
+    return self.selectedCandidateIndex < self.currentCandidates.count ? self.selectedCandidateIndex : 0;
+}
+
+- (void)clampSelectedCandidateIndex {
+    if (self.currentCandidates.count == 0) {
+        self.selectedCandidateIndex = 0;
+        return;
+    }
+    if (self.selectedCandidateIndex >= self.currentCandidates.count) {
+        self.selectedCandidateIndex = self.currentCandidates.count - 1;
+    }
+}
+
+- (NSUInteger)candidatePanelSelectedIndexForCandidateTexts:(NSArray<NSString *> *)candidateTexts {
+    if (![self shouldUsePinyinCandidateSelection]) {
+        return 0;
+    }
+
+    NSUInteger displayIndex = [self candidateIndexForCurrentCommit];
+    if ([self shouldShowRawEnglishCandidate]) {
+        displayIndex += 1;
+    }
+    return displayIndex < candidateTexts.count ? displayIndex : 0;
+}
+
 - (BOOL)changeCandidatePageByOffset:(NSInteger)offset {
     NSUInteger pageSize = self.candidatePageSize;
     if (self.candidatePool.count <= pageSize) {
@@ -1406,6 +1512,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     }
 
     self.candidatePageIndex = (NSUInteger)nextPage;
+    self.selectedCandidateIndex = 0;
     [self updateCurrentCandidatePage];
     [self updateCandidatePanel];
     return YES;
@@ -1415,6 +1522,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     self.candidatePool = candidates ?: @[];
     if (resetPage) {
         self.candidatePageIndex = 0;
+        self.selectedCandidateIndex = 0;
     }
     [self updateCurrentCandidatePage];
 }
@@ -1425,6 +1533,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
                                                                    pageIndex:&pageIndex
                                                                     pageSize:self.candidatePageSize];
     self.candidatePageIndex = pageIndex;
+    [self clampSelectedCandidateIndex];
 }
 
 - (NSArray<MKCandidate *> *)spellingSuggestionCandidatesForCurrentBuffer {
@@ -1529,6 +1638,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     self.punctuationCandidateTexts = @[];
     self.punctuationAnchorText = @"";
     self.candidatePageIndex = 0;
+    self.selectedCandidateIndex = 0;
     self.candidateUpdateSerial += 1;
     [self.candidatePanel hide];
     if (!preserveAnchor) {
@@ -1543,6 +1653,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     self.punctuationCandidateTexts = @[];
     self.punctuationAnchorText = @"";
     self.candidatePageIndex = 0;
+    self.selectedCandidateIndex = 0;
     self.candidateUpdateSerial += 1;
     [self.candidatePanel hide];
     [self.candidatePanel clearAnchorSession];
@@ -1667,6 +1778,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     self.punctuationCandidateTexts = @[];
     self.punctuationAnchorText = @"";
     self.candidatePageIndex = 0;
+    self.selectedCandidateIndex = 0;
     self.candidateUpdateSerial += 1;
     [self resetRecentCommittedText];
     [self.candidatePanel hide];
@@ -1751,14 +1863,15 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     }
 
     if (self.currentCandidates.count > 0) {
-        if ([self firstCurrentCandidateIsSpellingSuggestion]) {
+        NSUInteger candidateIndex = [self candidateIndexForCurrentCommit];
+        MKCandidate *candidate = self.currentCandidates[candidateIndex];
+        if ([candidate.source isEqualToString:MKSpellingCandidateSource]) {
             [self commitText:[self.inputState.buffer copy] client:sender resetFirst:YES showAssociations:NO];
             self.lastCommittedCandidateText = nil;
             [self resetRecentCommittedText];
             return;
         }
 
-        MKCandidate *candidate = self.currentCandidates.firstObject;
         PurrTypeEngine *engine = [self engineForInput];
         [engine recordSelectionForCandidate:candidate previousText:self.lastCommittedCandidateText mode:self.engineMode];
         [engine recordCommittedCandidateText:candidate.text code:candidate.code mode:self.engineMode];
@@ -1850,7 +1963,8 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
                         anchorCharacterIndex:[self candidatePanelAnchorCharacterIndex]
                                    pageIndex:self.candidatePageIndex
                                    pageCount:pageCount
-                         usePreservedAnchor:usePreservedAnchor];
+                         usePreservedAnchor:usePreservedAnchor
+                              selectedIndex:[self candidatePanelSelectedIndexForCandidateTexts:candidateTexts]];
     } else {
         [self.candidatePanel hide];
     }

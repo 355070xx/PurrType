@@ -448,6 +448,12 @@ int main(int argc, const char *argv[]) {
         NSRange punctuationRange = [inputTextSection rangeOfString:@"showPunctuationCandidatesForString"];
         AssertTrue(rawContinuationRange.location != NSNotFound && punctuationRange.location != NSNotFound && rawContinuationRange.location < punctuationRange.location,
                    @"raw English continuation is handled before punctuation candidates");
+        NSRange pinyinSpaceCommitRange = [inputTextSection rangeOfString:@"[self commitCandidateAtIndex:[self candidateIndexForCurrentCommit] client:sender]"];
+        NSRange candidatePageKeyRange = [inputTextSection rangeOfString:@"handleCandidatePageKey"];
+        AssertTrue(pinyinSpaceCommitRange.location != NSNotFound &&
+                   candidatePageKeyRange.location != NSNotFound &&
+                   pinyinSpaceCommitRange.location < candidatePageKeyRange.location,
+                   @"Pinyin Space commits the highlighted candidate before Space can page candidates");
         NSString *scheduleCandidatePanelUpdateSection = SubstringBetween(controller,
                                                                          @"- (void)scheduleCandidatePanelUpdate {",
                                                                          @"- (void)updateCandidatePanel {");
@@ -462,6 +468,12 @@ int main(int argc, const char *argv[]) {
                    @"punctuation candidates use the same active marked character index as text candidates");
         AssertTrue([controller containsString:@"commitPunctuationCandidateText"], @"input controller commits selected punctuation");
         AssertTrue([controller containsString:@"shouldAutoCommitDefaultPunctuationForInputString"], @"input controller auto-commits default punctuation when typing continues without alternate selection");
+        AssertTrue([controller containsString:@"handlePinyinCandidateSelectionKey"] &&
+                   [controller containsString:@"handlePinyinCandidateSelectionSelector"] &&
+                   [controller containsString:@"candidatePanelSelectedIndexForCandidateTexts"],
+                   @"input controller supports Pinyin Up/Down candidate selection and panel highlighting");
+        AssertTrue([controller containsString:@"selectedIndex:[self candidatePanelSelectedIndexForCandidateTexts:candidateTexts]"],
+                   @"candidate panel receives the active selected row from the input controller");
 
         NSString *inputBehavior = FileTextAtPath([root stringByAppendingPathComponent:@"src/PurrTypeInputBehavior.m"]);
         AssertTrue([inputBehavior containsString:@"MKInputBehaviorKeyCodeComma = 43"], @"preferences shortcut uses comma key");

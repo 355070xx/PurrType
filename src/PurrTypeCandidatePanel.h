@@ -25,6 +25,13 @@
              pageIndex:(NSUInteger)pageIndex
              pageCount:(NSUInteger)pageCount
     usePreservedAnchor:(BOOL)usePreservedAnchor;
+- (void)showCandidates:(NSArray<NSString *> *)candidateTexts
+            nearClient:(id)client
+  anchorCharacterIndex:(NSNumber *)anchorCharacterIndex
+             pageIndex:(NSUInteger)pageIndex
+             pageCount:(NSUInteger)pageCount
+    usePreservedAnchor:(BOOL)usePreservedAnchor
+         selectedIndex:(NSUInteger)selectedIndex;
 - (void)beginAnchorSessionForClient:(id)client;
 - (void)clearAnchorSession;
 - (void)hide;

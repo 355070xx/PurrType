@@ -3,6 +3,7 @@
 ## 0.1.1
 
 - Adds local English spelling suggestions using macOS `NSSpellChecker`, shown only as optional candidates without autocorrect or online lookup; suggestions can appear in raw English and mixed Chinese candidate pages.
+- Refreshes Pinyin candidate handling so Up/Down changes the highlighted candidate and Space commits that highlighted candidate.
 
 ## 0.1.0
 
