@@ -1,5 +1,6 @@
 #import "PurrTypeInputBehavior.h"
 #import <AppKit/AppKit.h>
+#import "PurrTypePreferencesConstants.h"
 
 static const NSInteger MKInputBehaviorKeyCodeComma = 43;
 static const NSInteger MKInputBehaviorKeyCodeBackslash = 42;
@@ -14,6 +15,9 @@ static const NSInteger MKInputBehaviorKeyCodePageUp = 116;
 static const NSInteger MKInputBehaviorKeyCodePageDown = 121;
 static const NSInteger MKInputBehaviorKeyCodeLeftArrow = 123;
 static const NSInteger MKInputBehaviorKeyCodeRightArrow = 124;
+static const NSInteger MKInputBehaviorKeyCodeDownArrow = 125;
+static const NSInteger MKInputBehaviorKeyCodeUpArrow = 126;
+static const NSUInteger MKInputBehaviorSelectionModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagControl | NSEventModifierFlagOption;
 static const NSUInteger MKInputBehaviorModeShortcutModifierMask = NSEventModifierFlagControl | NSEventModifierFlagShift;
 static const NSUInteger MKInputBehaviorPreferencesShortcutModifierMask = NSEventModifierFlagControl | NSEventModifierFlagShift;
 static const NSUInteger MKInputBehaviorCandidatePageSize = 9;
@@ -681,6 +685,61 @@ static NSString *MKKeyEquivalentForKeyCode(NSInteger keyCode) {
     return 0;
 }
 
++ (NSInteger)candidateSelectionOffsetForKeyCode:(NSInteger)keyCode
+                                      modifiers:(NSUInteger)flags
+                                 candidateCount:(NSUInteger)candidateCount {
+    if (candidateCount == 0 || (flags & MKInputBehaviorSelectionModifierMask) != 0) {
+        return 0;
+    }
+
+    if (keyCode == MKInputBehaviorKeyCodeDownArrow) {
+        return 1;
+    }
+
+    if (keyCode == MKInputBehaviorKeyCodeUpArrow) {
+        return -1;
+    }
+
+    return 0;
+}
+
++ (NSInteger)candidateSelectionOffsetForSelector:(SEL)selector
+                                  candidateCount:(NSUInteger)candidateCount {
+    if (candidateCount == 0) {
+        return 0;
+    }
+
+    if (selector == @selector(moveDown:) ||
+        selector == @selector(scrollLineDown:)) {
+        return 1;
+    }
+
+    if (selector == @selector(moveUp:) ||
+        selector == @selector(scrollLineUp:)) {
+        return -1;
+    }
+
+    return 0;
+}
+
++ (NSUInteger)candidateSelectionIndexFromIndex:(NSUInteger)selectedIndex
+                                        offset:(NSInteger)offset
+                                candidateCount:(NSUInteger)candidateCount {
+    if (candidateCount == 0) {
+        return 0;
+    }
+
+    NSInteger clampedIndex = selectedIndex < candidateCount ? (NSInteger)selectedIndex : 0;
+    NSInteger nextIndex = clampedIndex + offset;
+    if (nextIndex < 0) {
+        return 0;
+    }
+    if ((NSUInteger)nextIndex >= candidateCount) {
+        return candidateCount - 1;
+    }
+    return (NSUInteger)nextIndex;
+}
+
 + (NSArray<MKCandidate *> *)candidatePageFromPool:(NSArray<MKCandidate *> *)candidatePool
                                        pageIndex:(NSUInteger *)pageIndex {
     return [self candidatePageFromPool:candidatePool pageIndex:pageIndex pageSize:MKInputBehaviorCandidatePageSize];
@@ -758,19 +817,39 @@ static NSString *MKKeyEquivalentForKeyCode(NSInteger keyCode) {
                               rawEnglishModeActive:(BOOL)rawEnglishModeActive
                              associationModeActive:(BOOL)associationModeActive
                        rawEnglishCandidateEnabled:(BOOL)rawEnglishCandidateEnabled {
+    return [self displayTextsForCandidates:candidates
+                                    buffer:buffer
+                      rawEnglishModeActive:rawEnglishModeActive
+                     associationModeActive:associationModeActive
+               rawEnglishCandidateEnabled:rawEnglishCandidateEnabled
+              rawEnglishCandidatePosition:MKRawEnglishCandidatePositionLeading];
+}
+
++ (NSArray<NSString *> *)displayTextsForCandidates:(NSArray<MKCandidate *> *)candidates
+                                            buffer:(NSString *)buffer
+                              rawEnglishModeActive:(BOOL)rawEnglishModeActive
+                             associationModeActive:(BOOL)associationModeActive
+                       rawEnglishCandidateEnabled:(BOOL)rawEnglishCandidateEnabled
+                      rawEnglishCandidatePosition:(NSString *)rawEnglishCandidatePosition {
     NSMutableArray<NSString *> *candidateTexts = [NSMutableArray arrayWithCapacity:candidates.count + 1];
-    if ([self shouldShowRawEnglishCandidateForBuffer:buffer
-                              rawEnglishModeActive:rawEnglishModeActive
-                              associationModeActive:associationModeActive
-                         rawEnglishCandidateEnabled:rawEnglishCandidateEnabled
-                                     candidateCount:candidates.count]) {
-        [candidateTexts addObject:[self rawEnglishCandidateDisplayTextForBuffer:buffer]];
+    BOOL showsRawEnglish = [self shouldShowRawEnglishCandidateForBuffer:buffer
+                                                   rawEnglishModeActive:rawEnglishModeActive
+                                                  associationModeActive:associationModeActive
+                                             rawEnglishCandidateEnabled:rawEnglishCandidateEnabled
+                                                         candidateCount:candidates.count];
+    BOOL placesRawEnglishLast = [rawEnglishCandidatePosition isEqualToString:MKRawEnglishCandidatePositionTrailing];
+    NSString *rawEnglishCandidate = showsRawEnglish ? [self rawEnglishCandidateDisplayTextForBuffer:buffer] : @"";
+    if (showsRawEnglish && !placesRawEnglishLast) {
+        [candidateTexts addObject:rawEnglishCandidate];
     }
 
     NSUInteger index = 0;
     for (MKCandidate *candidate in candidates) {
         [candidateTexts addObject:[self displayTextForCandidate:candidate index:index]];
         index += 1;
+    }
+    if (showsRawEnglish && placesRawEnglishLast) {
+        [candidateTexts addObject:rawEnglishCandidate];
     }
     return candidateTexts;
 }

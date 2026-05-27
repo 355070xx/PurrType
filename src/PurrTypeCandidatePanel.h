@@ -9,6 +9,9 @@
 @interface PurrTypeCandidatePanel : NSObject
 
 @property(nonatomic, weak) id<PurrTypeCandidatePanelDelegate> delegate;
+@property(nonatomic, copy) NSString *orientation;
+@property(nonatomic, assign) CGFloat candidateFontSize;
+@property(nonatomic, copy) NSString *highlightColor;
 
 - (void)showCandidates:(NSArray<NSString *> *)candidateTexts nearClient:(id)client;
 - (void)showCandidates:(NSArray<NSString *> *)candidateTexts
@@ -25,6 +28,13 @@
              pageIndex:(NSUInteger)pageIndex
              pageCount:(NSUInteger)pageCount
     usePreservedAnchor:(BOOL)usePreservedAnchor;
+- (void)showCandidates:(NSArray<NSString *> *)candidateTexts
+            nearClient:(id)client
+  anchorCharacterIndex:(NSNumber *)anchorCharacterIndex
+             pageIndex:(NSUInteger)pageIndex
+             pageCount:(NSUInteger)pageCount
+    usePreservedAnchor:(BOOL)usePreservedAnchor
+         selectedIndex:(NSUInteger)selectedIndex;
 - (void)beginAnchorSessionForClient:(id)client;
 - (void)clearAnchorSession;
 - (void)hide;

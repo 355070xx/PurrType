@@ -22,6 +22,7 @@ PurrType does not require network access for:
 
 - Chinese candidate lookup
 - English pass-through handling
+- Quick Phrases
 - association candidates
 - New Sucheng local ranking
 - Privacy Lock
@@ -33,8 +34,8 @@ spell checking, remote AI suggestions, ads, or account login.
 The installer and uninstaller do not contact remote services. They use local
 macOS tools to copy or remove PurrType app bundles, register or unregister
 the input source, refresh Launch Services where available, and forget PurrType
-Dev package receipts. Dev installers and uninstallers do not remove the public
-`/Library/Input Methods/PurrTypeIM.app` bundle.
+package receipts. The uninstaller is scoped to PurrType's installed bundle and
+does not remove user-created Quick Phrases or learning data.
 
 ## Data Processed Locally
 
@@ -53,7 +54,8 @@ browser DOM, web forms, or password fields.
 
 ## Data Stored On Disk
 
-PurrType stores only app settings and optional local learning state.
+PurrType stores only app settings, optional local learning state, and user-created
+Quick Phrases.
 
 Preferences are stored through macOS user defaults under:
 
@@ -62,8 +64,8 @@ org.purrtype.inputmethod.PurrTypeUnified
 ```
 
 These preferences can include the selected internal mode, page size, shortcut
-choices, language preference, raw-English candidate preference, Space paging
-preference, Privacy Lock state, and whether New Sucheng learning is enabled.
+choices, language preference, raw-English candidate preference and position,
+Space paging preference, Privacy Lock state, and whether New Sucheng learning is enabled.
 `PurrTypePreferences.app` uses the same defaults suite so the input method and
 preferences window see one shared settings state.
 
@@ -80,6 +82,16 @@ learned phrases, raw English, passwords, or original input text.
 
 Committed custom phrase learning is session-only. It is kept in memory and is
 not written to disk.
+
+If the user creates Quick Phrases, PurrType stores them at:
+
+```text
+~/Library/Application Support/PurrType/quick-phrases.json
+```
+
+That file contains the short code and replacement text the user entered. Basic
+backup/restore and TXT import/export operate on this local Quick Phrases data
+only. They do not include other settings or unknown payloads.
 
 The macOS Installer may create or update local package receipts under macOS'
 standard receipt database. These receipts identify installed package IDs and are
@@ -144,8 +156,8 @@ The release DMG also includes `Uninstall PurrType.pkg`. It removes PurrType app
 bundles and package receipts. It preserves local PurrType preferences and
 learning data.
 
-By default, uninstall paths remove PurrType app bundles, dev-only stale app
-bundles, Launch Services registrations, and dev package receipts only. User
+By default, uninstall paths remove PurrType app bundles, legacy prototype app
+bundles, Launch Services registrations, and matching package receipts only. User
 preferences and New Sucheng learning data are preserved unless the user
 intentionally runs the source-tree purge command:
 

@@ -29,7 +29,7 @@
 
 1. 顯示候選字列表。
 2. 預設候選排序由 engine source score、reviewed guards 和 mode-specific ranking 決定。
-3. 每頁顯示 5 或 9 個中文候選，並在候選文字前顯示相應數字；如 buffer 可當英文原文，列表另顯示 `0 <buffer>`。
+3. 每頁顯示 5 或 9 個中文候選，並在候選文字前顯示相應數字；如 buffer 可當英文原文，列表另顯示 `0 <buffer>`，位置可由 Preferences 設為頭位或尾位。
 4. 多於一頁時，候選窗顯示 `1/4` 形式的頁數。
 5. 用戶選擇候選後清空 composition buffer，commit text 到目前 app。
 
@@ -66,7 +66,7 @@ Privacy Lock shortcut 可在 Preferences 改為 double backtick、`Ctrl+Shift+\`
 - New Sucheng 對常見英文 token 會 suppress generated phrase candidates；learned phrase 或明確 seed phrase 仍然優先保護。
 - 沒有任何中文 engine 回傳候選時，會保留 raw English composition 直到 Space、Enter、Escape 或 Backspace 清空。
 - raw English composition 內可繼續輸入 printable ASCII punctuation/symbols，避免 email、URL、path、code token 或英文句子中途彈出中文符號候選。
-- 有中文候選但用戶其實想輸入原英文字母時，候選列表會提供 `0 <typed text>`；按 `0` 直接提交原文，不改動中文候選位置。
+- 有中文候選但用戶其實想輸入原英文字母時，候選列表會提供 `0 <typed text>`；按 `0` 直接提交原文，不改動中文候選位置。Preferences 可設定 `0` 顯示在中文候選前或後。
 - raw English composition 用 Backspace 刪到空字串後，必須退出 raw English 狀態，下一個輸入重新按當前 engine 判斷。
 
 英文 pass-through 不等於永久切換英文模式。完成該 token 後，輸入法應回到正常偵測。
@@ -140,8 +140,11 @@ Privacy Lock shortcut 可在 Preferences 改為 double backtick、`Ctrl+Shift+\`
 - 支援無聲調拼音。
 - 支援常見 exact pinyin syllable / phrase lookup。
 - 支援繁體輸出。
-- 使用 `resources/pinyin_seed.tsv` 保護常用排序。
+- 使用 build-time `resources/pinyin_seed.tsv` 保護常用排序。
+- 使用 build-time `resources/pinyin_phrases.tsv` 補常用繁中 phrase。
 - 使用 Rime Luna Pinyin dictionary 補足完整 open dictionary coverage。
+- 組字時 Up / Down 可移動目前高亮候選，Space commit 高亮候選；不改候選排序。
+- runtime 只讀 compiled `resources/CandidateTables/pinyin.index`，不依賴 raw TSV/YAML。
 - 英文 word 和拼音 syllable 衝突時，候選 UI 應清楚但不阻塞英文輸入。
 
 待定：
@@ -158,6 +161,18 @@ Privacy Lock shortcut 可在 Preferences 改為 double backtick、`Ctrl+Shift+\`
 - typed word 原文必須一直可以 commit。
 - Space、Enter、punctuation、separator 不應自動替換 typed word。
 - mixed candidate page 仍保留中文主候選優先；spelling suggestions 只佔第一頁末段少量位置。
+
+## Quick Phrases
+
+快速短語係本機自訂短碼。設計界線：
+
+- 短碼必須以 `;` 開頭，例如 `;email`。
+- `;` 在 idle 時仍然先顯示標點候選；如果下一個字元係英文字母、數字、`_` 或 `-`，PurrType 會將組字轉成快速短語短碼。
+- 用戶儲存 `;email` 後，輸入完整 `;email` 會顯示對應 replacement 候選；沒有儲存的短碼只會保持 raw English composition，不會靠預設字表硬估。
+- replacement 只接受單行文字，避免候選窗顯示多行內容或破壞 layout。
+- 快速短語儲存在 `~/Library/Application Support/PurrType/quick-phrases.json`。
+- Preferences 的 TXT import/export 使用 `;trigger<TAB>replacement`，方便用戶用普通文字編輯器修改。
+- Basic backup/restore 只處理本機快速短語資料，不包含其他設定或未知 payload。
 - suggestion provider 使用 macOS `NSSpellChecker` documented API。
 - suggestion provider 不應對 URL、email、path、code-like token 出提示。
 - suggestion lookup 對同一 token 會 cache，避免每個 keypress 重複查同一字。

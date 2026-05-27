@@ -49,6 +49,14 @@ NS_ASSUME_NONNULL_BEGIN
 + (NSInteger)candidatePageOffsetForSelector:(SEL)selector
                              candidateCount:(NSUInteger)candidateCount
                           candidatePageSize:(NSUInteger)candidatePageSize;
++ (NSInteger)candidateSelectionOffsetForKeyCode:(NSInteger)keyCode
+                                      modifiers:(NSUInteger)flags
+                                 candidateCount:(NSUInteger)candidateCount;
++ (NSInteger)candidateSelectionOffsetForSelector:(SEL)selector
+                                  candidateCount:(NSUInteger)candidateCount;
++ (NSUInteger)candidateSelectionIndexFromIndex:(NSUInteger)selectedIndex
+                                        offset:(NSInteger)offset
+                                candidateCount:(NSUInteger)candidateCount;
 + (NSArray<MKCandidate *> *)candidatePageFromPool:(NSArray<MKCandidate *> *)candidatePool
                                        pageIndex:(NSUInteger *)pageIndex;
 + (NSArray<MKCandidate *> *)candidatePageFromPool:(NSArray<MKCandidate *> *)candidatePool
@@ -61,9 +69,15 @@ NS_ASSUME_NONNULL_BEGIN
 + (NSString *)displayTextForCandidate:(MKCandidate *)candidate index:(NSUInteger)index;
 + (NSArray<NSString *> *)displayTextsForCandidates:(NSArray<MKCandidate *> *)candidates
                                             buffer:(NSString *)buffer
-                         rawEnglishModeActive:(BOOL)rawEnglishModeActive
-                         associationModeActive:(BOOL)associationModeActive
-                    rawEnglishCandidateEnabled:(BOOL)rawEnglishCandidateEnabled;
+                              rawEnglishModeActive:(BOOL)rawEnglishModeActive
+                             associationModeActive:(BOOL)associationModeActive
+                       rawEnglishCandidateEnabled:(BOOL)rawEnglishCandidateEnabled;
++ (NSArray<NSString *> *)displayTextsForCandidates:(NSArray<MKCandidate *> *)candidates
+                                            buffer:(NSString *)buffer
+                              rawEnglishModeActive:(BOOL)rawEnglishModeActive
+                             associationModeActive:(BOOL)associationModeActive
+                       rawEnglishCandidateEnabled:(BOOL)rawEnglishCandidateEnabled
+                      rawEnglishCandidatePosition:(NSString *)rawEnglishCandidatePosition;
 + (BOOL)shouldShowRawEnglishCandidateForBuffer:(NSString *)buffer
                        rawEnglishModeActive:(BOOL)rawEnglishModeActive
                        associationModeActive:(BOOL)associationModeActive

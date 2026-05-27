@@ -3,6 +3,7 @@
 #import "PurrTypeInputBehavior.h"
 #import "PurrTypeInputState.h"
 #import "PurrTypeEnglishSpellChecker.h"
+#import "PurrTypeQuickPhraseStore.h"
 #import "PurrTypeCandidatePanel.h"
 #import "PurrTypePreferencesWindowController.h"
 #import "PurrTypePreferencesConstants.h"
@@ -26,6 +27,7 @@ static NSInteger const MKModeMenuTagSucheng = 1002;
 static NSInteger const MKModeMenuTagPinyin = 1003;
 static NSInteger const MKModeMenuTagSmartSucheng = 1004;
 static NSString *const MKInputSourceUnified = @"org.purrtype.inputmethod.PurrTypeUnified";
+static NSString *const MKQuickPhraseCandidateSource = @"quickPhrase";
 
 static BOOL MKFrontmostApplicationMayOwnSecureTextInputPrompt(void) {
     NSString *bundleIdentifier = [NSWorkspace sharedWorkspace].frontmostApplication.bundleIdentifier ?: @"";
@@ -105,14 +107,20 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 @property(nonatomic, strong) PurrTypeCandidatePanel *candidatePanel;
 @property(nonatomic, strong) PurrTypeEngine *engine;
 @property(nonatomic, strong) PurrTypePreferencesStore *preferences;
+@property(nonatomic, strong) PurrTypeQuickPhraseStore *quickPhraseStore;
 @property(nonatomic, copy) NSString *engineMode;
 @property(nonatomic, copy) NSString *lastCommittedCandidateText;
 @property(nonatomic, assign) NSUInteger candidatePageIndex;
+@property(nonatomic, assign) NSUInteger selectedCandidateIndex;
 @property(nonatomic, assign) NSUInteger candidateUpdateSerial;
 @property(nonatomic, assign) BOOL rawEnglishCandidateEnabled;
+@property(nonatomic, copy) NSString *rawEnglishCandidatePosition;
 @property(nonatomic, assign) BOOL spellingSuggestionsEnabled;
 @property(nonatomic, assign) BOOL spacePagingEnabled;
 @property(nonatomic, assign) BOOL privacyLockEnabled;
+@property(nonatomic, assign) BOOL associationCandidatesEnabled;
+@property(nonatomic, assign) BOOL associationContinuationEnabled;
+@property(nonatomic, assign) BOOL clearReadingOnCompositionFailureEnabled;
 @property(nonatomic, assign) NSUInteger candidatePageSize;
 @property(nonatomic, copy) NSArray<NSString *> *enabledInputModes;
 @property(nonatomic, copy) NSString *switchInputModeShortcut;
@@ -130,6 +138,8 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 - (BOOL)isSupportedEngineMode:(NSString *)mode;
 - (BOOL)isEnabledEngineMode:(NSString *)mode;
 - (void)refreshEnabledInputModesFromDefaults;
+- (BOOL)applyEffectiveInputModeSettings;
+- (void)applyCandidatePanelPreferences;
 - (void)setEnabledInputModes:(NSArray<NSString *> *)enabledInputModes;
 - (void)switchToEngineMode:(NSString *)mode;
 - (void)switchToEngineMode:(NSString *)mode updateClientInputMode:(BOOL)updateClientInputMode client:(id)sender;
@@ -152,9 +162,16 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 - (void)applyEffectiveLearningState;
 - (void)resetLearningStateForPreferenceRequest;
 - (void)setRawEnglishCandidateEnabled:(BOOL)enabled;
+- (void)setRawEnglishCandidatePosition:(NSString *)position;
 - (void)setSpellingSuggestionsEnabled:(BOOL)enabled;
 - (void)setSpacePagingEnabled:(BOOL)enabled;
 - (void)setCandidatePageSize:(NSUInteger)pageSize;
+- (void)setCandidatePanelOrientation:(NSString *)orientation;
+- (void)setCandidatePanelFontSize:(CGFloat)fontSize;
+- (void)setCandidatePanelHighlightColor:(NSString *)highlightColor;
+- (void)setAssociationCandidatesEnabled:(BOOL)enabled;
+- (void)setAssociationContinuationEnabled:(BOOL)enabled;
+- (void)setClearReadingOnCompositionFailureEnabled:(BOOL)enabled forMode:(NSString *)mode;
 - (void)setSwitchInputModeShortcut:(NSString *)shortcutSpec;
 - (void)setPrivacyLockShortcut:(NSString *)shortcutSpec;
 - (void)setModeShortcut:(NSString *)shortcutSpec forMode:(NSString *)mode;
@@ -172,6 +189,12 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 - (void)switchToNextEngineMode;
 - (BOOL)handlePrivacyLockShortcutForString:(NSString *)string key:(NSInteger)keyCode modifiers:(NSUInteger)flags client:(id)sender;
 - (BOOL)handleCandidatePageKey:(NSInteger)keyCode modifiers:(NSUInteger)flags;
+- (BOOL)handlePinyinCandidateSelectionKey:(NSInteger)keyCode modifiers:(NSUInteger)flags;
+- (BOOL)handlePinyinCandidateSelectionSelector:(SEL)selector;
+- (BOOL)shouldUsePinyinCandidateSelection;
+- (NSUInteger)candidateIndexForCurrentCommit;
+- (void)clampSelectedCandidateIndex;
+- (NSUInteger)candidatePanelSelectedIndexForCandidateTexts:(NSArray<NSString *> *)candidateTexts;
 - (BOOL)changeCandidatePageByOffset:(NSInteger)offset;
 - (void)commitCandidate:(MKCandidate *)candidate client:(id)sender appendText:(NSString *)appendText;
 - (void)resetRecentCommittedText;
@@ -187,6 +210,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 - (BOOL)showPunctuationCandidatesForString:(NSString *)string client:(id)sender;
 - (BOOL)commitPunctuationCandidateIfSelectionKey:(NSString *)string client:(id)sender;
 - (BOOL)commitPunctuationCandidateText:(NSString *)displayText client:(id)sender;
+- (BOOL)convertSemicolonPunctuationToQuickPhraseWithString:(NSString *)string client:(id)sender;
 - (void)commitCurrentCompositionWithoutAssociationsForClient:(id)sender;
 - (void)updatePunctuationCompositionForClient:(id)sender;
 - (void)clearPunctuationCandidates;
@@ -194,7 +218,9 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 - (void)updateCurrentCandidatePage;
 - (NSArray<MKCandidate *> *)spellingSuggestionCandidatesForCurrentBuffer;
 - (NSArray<MKCandidate *> *)spellingSuggestionCandidatesForCurrentBufferWithLimit:(NSUInteger)limit;
+- (NSArray<MKCandidate *> *)quickPhraseCandidatesForCurrentBuffer;
 - (BOOL)hasSpellingSuggestionCandidates;
+- (BOOL)firstCurrentCandidateIsQuickPhrase;
 - (BOOL)firstCurrentCandidateIsSpellingSuggestion;
 - (void)refreshRawEnglishSuggestionsResetPage:(BOOL)resetPage;
 - (void)beginCandidateAnchorSessionForClient:(id)sender;
@@ -223,15 +249,21 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
         _currentCandidates = @[];
         _punctuationCandidateTexts = @[];
         _punctuationAnchorText = @"";
+        _selectedCandidateIndex = 0;
         _candidateUpdateSerial = 0;
         _preferences = [PurrTypePreferencesStore sharedStore];
+        _quickPhraseStore = [PurrTypeQuickPhraseStore defaultStore];
         _enabledInputModes = [_preferences enabledInputModes];
         _engineMode = [_preferences engineMode];
         _privacyLockEnabled = [_preferences privacyLockEnabled];
         _rawEnglishCandidateEnabled = [_preferences rawEnglishCandidateEnabled];
+        _rawEnglishCandidatePosition = [_preferences rawEnglishCandidatePosition];
         _spellingSuggestionsEnabled = [_preferences spellingSuggestionsEnabled];
-        _spacePagingEnabled = [_preferences spacePagingEnabled];
-        _candidatePageSize = [_preferences candidatePageSize];
+        _spacePagingEnabled = [_preferences effectiveSpacePagingEnabledForMode:_engineMode];
+        _candidatePageSize = [_preferences effectiveCandidatePageSizeForMode:_engineMode];
+        _associationCandidatesEnabled = [_preferences associationCandidatesEnabled];
+        _associationContinuationEnabled = [_preferences associationContinuationEnabled];
+        _clearReadingOnCompositionFailureEnabled = [_preferences clearReadingOnCompositionFailureEnabledForMode:_engineMode];
         _switchInputModeShortcut = [_preferences switchInputModeShortcut];
         _privacyLockShortcut = [_preferences privacyLockShortcut];
         _modeShortcutsByMode = [_preferences modeShortcutsByMode];
@@ -240,6 +272,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
         _englishSpellChecker = [PurrTypeEnglishSpellChecker sharedChecker];
         _candidatePanel = [[PurrTypeCandidatePanel alloc] init];
         _candidatePanel.delegate = self;
+        [self applyCandidatePanelPreferences];
         [[NSDistributedNotificationCenter defaultCenter] addObserver:self
                                                             selector:@selector(handlePreferencesChanged:)
                                                                 name:MKPreferencesDidChangeNotification
@@ -362,6 +395,9 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     BOOL fallbackSpace = !hasKeyEvent && [string isEqualToString:@" "];
 
     if (self.punctuationCandidateTexts.count > 0) {
+        if ([self convertSemicolonPunctuationToQuickPhraseWithString:string client:sender]) {
+            return YES;
+        }
         if (hasKeyEvent && (keyCode == MKKeyCodeEscape || keyCode == MKKeyCodeDelete)) {
             [self clearPunctuationCandidates];
             return YES;
@@ -385,6 +421,16 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
         } else {
             [self clearPunctuationCandidates];
         }
+    }
+
+    if (hasKeyEvent && [self handlePinyinCandidateSelectionKey:keyCode modifiers:flags]) {
+        return YES;
+    }
+
+    if (((hasKeyEvent && keyCode == MKKeyCodeSpace) || fallbackSpace) &&
+        [self shouldUsePinyinCandidateSelection]) {
+        [self commitCandidateAtIndex:[self candidateIndexForCurrentCommit] client:sender];
+        return YES;
     }
 
     if (hasKeyEvent && [self handleCandidatePageKey:keyCode modifiers:flags]) {
@@ -453,6 +499,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
         [self refreshCandidates];
 
         PurrTypeEngine *engine = [self engineForInput];
+        BOOL hasCandidatesOrPrefixes = [engine hasCandidatesOrPrefixesForInput:self.inputState.buffer mode:self.engineMode];
         if ([engine prefersRawEnglishForInput:self.inputState.buffer mode:self.engineMode]) {
             self.inputState.rawEnglishModeActive = YES;
             [self refreshRawEnglishSuggestionsResetPage:YES];
@@ -460,7 +507,16 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
             return YES;
         }
 
-        if ([engine hasCandidatesOrPrefixesForInput:self.inputState.buffer mode:self.engineMode]) {
+        if (hasCandidatesOrPrefixes) {
+            [self updateComposition];
+            return YES;
+        }
+
+        BOOL shouldKeepFailedCompositionAsEnglish =
+            self.candidatePool.count > 0 ||
+            [engine looksLikeRawEnglishInput:self.inputState.buffer mode:self.engineMode];
+        if (self.clearReadingOnCompositionFailureEnabled && !shouldKeepFailedCompositionAsEnglish) {
+            [self resetComposition];
             [self updateComposition];
             return YES;
         }
@@ -484,6 +540,10 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     if ([self isSecureTextInputActive]) {
         [self bypassForSecureTextInput];
         return NO;
+    }
+
+    if ([self handlePinyinCandidateSelectionSelector:selector]) {
+        return YES;
     }
 
     NSInteger pageOffset = [PurrTypeInputBehavior candidatePageOffsetForSelector:selector
@@ -545,6 +605,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     [self addDisabledMenuItemWithTitle:candidateKeyTitle toMenu:menu];
     [self addDisabledMenuItemWithTitle:self.spacePagingEnabled ? @"Space / Tab / Right / PageDown: Next Page" : @"Tab / Right / PageDown: Next Page" toMenu:menu];
     [self addDisabledMenuItemWithTitle:@"Left / Shift+Tab / PageUp: Previous Page" toMenu:menu];
+    [self addDisabledMenuItemWithTitle:@"Pinyin: Up / Down Select, Space Commit" toMenu:menu];
     [menu addItem:[NSMenuItem separatorItem]];
 
     [self addDisabledMenuItemWithTitle:[self learningStatusTitle] toMenu:menu];
@@ -723,6 +784,11 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
         return NO;
     }
 
+    if ([self firstCurrentCandidateIsQuickPhrase]) {
+        [self commitCandidateAtIndex:0 client:sender];
+        return YES;
+    }
+
     [self commitText:[self.inputState.buffer copy] client:sender resetFirst:NO showAssociations:NO];
     return YES;
 }
@@ -737,6 +803,10 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     }
 
     if (self.inputState.rawEnglishModeActive) {
+        if ([self firstCurrentCandidateIsQuickPhrase]) {
+            [self commitCandidate:self.currentCandidates.firstObject client:sender appendText:appendText ?: @""];
+            return YES;
+        }
         NSString *text = [self.inputState.buffer copy];
         if (appendText.length > 0) {
             text = [text stringByAppendingString:appendText];
@@ -747,7 +817,9 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 
     BOOL usingCandidate = self.currentCandidates.count > 0;
     if (usingCandidate) {
-        if ([self firstCurrentCandidateIsSpellingSuggestion]) {
+        NSUInteger candidateIndex = [self candidateIndexForCurrentCommit];
+        MKCandidate *candidate = self.currentCandidates[candidateIndex];
+        if ([candidate.source isEqualToString:MKSpellingCandidateSource]) {
             NSString *text = [self.inputState.buffer copy];
             if (appendText.length > 0) {
                 text = [text stringByAppendingString:appendText];
@@ -756,7 +828,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
             return YES;
         }
         NSString *candidateAppendText = appendOnlyWhenRaw ? @"" : appendText;
-        [self commitCandidate:self.currentCandidates.firstObject client:sender appendText:candidateAppendText];
+        [self commitCandidate:candidate client:sender appendText:candidateAppendText];
         return YES;
     }
 
@@ -834,10 +906,40 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 
     if (![self.engineMode isEqualToString:nextMode]) {
         self.engineMode = nextMode;
+        [self applyEffectiveInputModeSettings];
         [self resetRecentCommittedText];
         [self resetComposition];
         [self updateComposition];
     }
+}
+
+- (BOOL)applyEffectiveInputModeSettings {
+    BOOL changed = NO;
+    BOOL nextSpacePagingEnabled = [self.preferences effectiveSpacePagingEnabledForMode:self.engineMode];
+    if (self.spacePagingEnabled != nextSpacePagingEnabled) {
+        _spacePagingEnabled = nextSpacePagingEnabled;
+        changed = YES;
+    }
+
+    NSUInteger nextCandidatePageSize = [self.preferences effectiveCandidatePageSizeForMode:self.engineMode];
+    if (self.candidatePageSize != nextCandidatePageSize) {
+        _candidatePageSize = nextCandidatePageSize;
+        changed = YES;
+    }
+
+    BOOL nextClearReadingOnCompositionFailureEnabled =
+        [self.preferences clearReadingOnCompositionFailureEnabledForMode:self.engineMode];
+    if (self.clearReadingOnCompositionFailureEnabled != nextClearReadingOnCompositionFailureEnabled) {
+        _clearReadingOnCompositionFailureEnabled = nextClearReadingOnCompositionFailureEnabled;
+        changed = YES;
+    }
+    return changed;
+}
+
+- (void)applyCandidatePanelPreferences {
+    self.candidatePanel.orientation = [self.preferences candidatePanelOrientation];
+    self.candidatePanel.candidateFontSize = [self.preferences candidatePanelFontSize];
+    self.candidatePanel.highlightColor = [self.preferences candidatePanelHighlightColor];
 }
 
 - (void)setEnabledInputModes:(NSArray<NSString *> *)enabledInputModes {
@@ -848,6 +950,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     if (![self isEnabledEngineMode:self.engineMode]) {
         NSString *fallbackMode = [self.preferences engineMode];
         self.engineMode = fallbackMode;
+        [self applyEffectiveInputModeSettings];
         [self resetRecentCommittedText];
         [self resetComposition];
         [self updateComposition];
@@ -870,6 +973,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 
     self.engineMode = mode;
     [self.preferences setEngineMode:mode];
+    [self applyEffectiveInputModeSettings];
     [self resetRecentCommittedText];
     [self resetComposition];
     [self updateComposition];
@@ -1028,6 +1132,15 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     [self updateComposition];
 }
 
+- (void)setRawEnglishCandidatePosition:(NSString *)position {
+    NSString *normalizedPosition = [position isEqualToString:MKRawEnglishCandidatePositionTrailing] ?
+        MKRawEnglishCandidatePositionTrailing : MKRawEnglishCandidatePositionLeading;
+    _rawEnglishCandidatePosition = normalizedPosition;
+    [self.preferences setRawEnglishCandidatePosition:normalizedPosition];
+    [self setCandidatePool:self.candidatePool resetPage:NO];
+    [self updateComposition];
+}
+
 - (void)setSpellingSuggestionsEnabled:(BOOL)enabled {
     _spellingSuggestionsEnabled = enabled;
     [self.preferences setSpellingSuggestionsEnabled:enabled];
@@ -1042,8 +1155,8 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 }
 
 - (void)setSpacePagingEnabled:(BOOL)enabled {
-    _spacePagingEnabled = enabled;
     [self.preferences setSpacePagingEnabled:enabled];
+    [self applyEffectiveInputModeSettings];
 }
 
 - (void)setCandidatePageSize:(NSUInteger)pageSize {
@@ -1051,10 +1164,48 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
         pageSize = [PurrTypeInputBehavior candidatePageSize];
     }
 
-    _candidatePageSize = pageSize;
     [self.preferences setCandidatePageSize:pageSize];
+    [self applyEffectiveInputModeSettings];
     [self setCandidatePool:self.candidatePool resetPage:NO];
     [self updateComposition];
+}
+
+- (void)setCandidatePanelOrientation:(NSString *)orientation {
+    [self.preferences setCandidatePanelOrientation:orientation];
+    [self applyCandidatePanelPreferences];
+    [self updateCandidatePanel];
+}
+
+- (void)setCandidatePanelFontSize:(CGFloat)fontSize {
+    [self.preferences setCandidatePanelFontSize:fontSize];
+    [self applyCandidatePanelPreferences];
+    [self updateCandidatePanel];
+}
+
+- (void)setCandidatePanelHighlightColor:(NSString *)highlightColor {
+    [self.preferences setCandidatePanelHighlightColor:highlightColor];
+    [self applyCandidatePanelPreferences];
+    [self updateCandidatePanel];
+}
+
+- (void)setAssociationCandidatesEnabled:(BOOL)enabled {
+    _associationCandidatesEnabled = enabled;
+    [self.preferences setAssociationCandidatesEnabled:enabled];
+    if (!enabled && self.inputState.associationModeActive) {
+        [self clearAssociations];
+    }
+}
+
+- (void)setAssociationContinuationEnabled:(BOOL)enabled {
+    _associationContinuationEnabled = enabled;
+    [self.preferences setAssociationContinuationEnabled:enabled];
+}
+
+- (void)setClearReadingOnCompositionFailureEnabled:(BOOL)enabled forMode:(NSString *)mode {
+    [self.preferences setClearReadingOnCompositionFailureEnabled:enabled forMode:mode];
+    if ([mode isEqualToString:self.engineMode]) {
+        _clearReadingOnCompositionFailureEnabled = enabled;
+    }
 }
 
 - (void)setSwitchInputModeShortcut:(NSString *)shortcutSpec {
@@ -1117,6 +1268,14 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         BOOL shouldResetLearning = [notification.userInfo[MKPreferencesResetLearningKey] boolValue] ||
                                    [self.preferences hasPendingLearningReset];
+        BOOL quickPhrasesChanged = [notification.userInfo[MKPreferencesQuickPhrasesChangedKey] boolValue];
+        if (quickPhrasesChanged) {
+            [self.quickPhraseStore loadWithError:nil];
+            if (self.inputState.rawEnglishModeActive && self.inputState.buffer.length > 0) {
+                [self refreshRawEnglishSuggestionsResetPage:YES];
+                [self updateComposition];
+            }
+        }
         NSArray<NSString *> *nextEnabledInputModes = [self.preferences enabledInputModes];
         if (![self.enabledInputModes isEqualToArray:nextEnabledInputModes]) {
             _enabledInputModes = [nextEnabledInputModes copy];
@@ -1145,6 +1304,13 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
             [self updateComposition];
         }
 
+        NSString *nextRawEnglishCandidatePosition = [self.preferences rawEnglishCandidatePosition];
+        if (![self.rawEnglishCandidatePosition isEqualToString:nextRawEnglishCandidatePosition]) {
+            _rawEnglishCandidatePosition = nextRawEnglishCandidatePosition;
+            [self setCandidatePool:self.candidatePool resetPage:NO];
+            [self updateComposition];
+        }
+
         BOOL nextSpellingSuggestionsEnabled = [self.preferences spellingSuggestionsEnabled];
         if (self.spellingSuggestionsEnabled != nextSpellingSuggestionsEnabled) {
             _spellingSuggestionsEnabled = nextSpellingSuggestionsEnabled;
@@ -1158,11 +1324,32 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
             [self updateComposition];
         }
 
-        _spacePagingEnabled = [self.preferences spacePagingEnabled];
-        NSUInteger nextCandidatePageSize = [self.preferences candidatePageSize];
-        if (self.candidatePageSize != nextCandidatePageSize) {
-            _candidatePageSize = nextCandidatePageSize;
-            [self setCandidatePool:self.candidatePool resetPage:NO];
+        BOOL inputModeSettingsChanged = [self applyEffectiveInputModeSettings];
+        [self applyCandidatePanelPreferences];
+
+        BOOL nextAssociationCandidatesEnabled = [self.preferences associationCandidatesEnabled];
+        BOOL nextAssociationContinuationEnabled = [self.preferences associationContinuationEnabled];
+        BOOL associationSettingsChanged =
+            self.associationCandidatesEnabled != nextAssociationCandidatesEnabled ||
+            self.associationContinuationEnabled != nextAssociationContinuationEnabled;
+        if (associationSettingsChanged) {
+            _associationCandidatesEnabled = nextAssociationCandidatesEnabled;
+            _associationContinuationEnabled = nextAssociationContinuationEnabled;
+            if (!self.associationCandidatesEnabled && self.inputState.associationModeActive) {
+                [self clearAssociations];
+            }
+        }
+
+        if (inputModeSettingsChanged) {
+            if (self.inputState.buffer.length > 0) {
+                if (self.inputState.rawEnglishModeActive) {
+                    [self refreshRawEnglishSuggestionsResetPage:YES];
+                } else {
+                    [self refreshCandidates];
+                }
+            } else {
+                [self setCandidatePool:self.candidatePool resetPage:NO];
+            }
             [self updateComposition];
         }
 
@@ -1219,6 +1406,14 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     [self setRawEnglishCandidateEnabled:enabled];
 }
 
+- (NSString *)preferencesRawEnglishCandidatePosition {
+    return self.rawEnglishCandidatePosition ?: MKRawEnglishCandidatePositionLeading;
+}
+
+- (void)preferencesSetRawEnglishCandidatePosition:(NSString *)position {
+    [self setRawEnglishCandidatePosition:position];
+}
+
 - (BOOL)preferencesSpellingSuggestionsEnabled {
     return self.spellingSuggestionsEnabled;
 }
@@ -1228,7 +1423,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 }
 
 - (BOOL)preferencesSpacePagingEnabled {
-    return self.spacePagingEnabled;
+    return [self.preferences spacePagingEnabled];
 }
 
 - (void)preferencesSetSpacePagingEnabled:(BOOL)enabled {
@@ -1236,11 +1431,107 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 }
 
 - (NSUInteger)preferencesCandidatePageSize {
-    return self.candidatePageSize;
+    return [self.preferences candidatePageSize];
 }
 
 - (void)preferencesSetCandidatePageSize:(NSUInteger)pageSize {
     [self setCandidatePageSize:pageSize];
+}
+
+- (NSString *)preferencesCandidatePanelOrientation {
+    return [self.preferences candidatePanelOrientation];
+}
+
+- (void)preferencesSetCandidatePanelOrientation:(NSString *)orientation {
+    [self setCandidatePanelOrientation:orientation];
+}
+
+- (CGFloat)preferencesCandidatePanelFontSize {
+    return [self.preferences candidatePanelFontSize];
+}
+
+- (void)preferencesSetCandidatePanelFontSize:(CGFloat)fontSize {
+    [self setCandidatePanelFontSize:fontSize];
+}
+
+- (NSString *)preferencesCandidatePanelHighlightColor {
+    return [self.preferences candidatePanelHighlightColor];
+}
+
+- (void)preferencesSetCandidatePanelHighlightColor:(NSString *)highlightColor {
+    [self setCandidatePanelHighlightColor:highlightColor];
+}
+
+- (BOOL)preferencesAssociationCandidatesEnabled {
+    return self.associationCandidatesEnabled;
+}
+
+- (void)preferencesSetAssociationCandidatesEnabled:(BOOL)enabled {
+    [self setAssociationCandidatesEnabled:enabled];
+}
+
+- (BOOL)preferencesAssociationContinuationEnabled {
+    return self.associationContinuationEnabled;
+}
+
+- (void)preferencesSetAssociationContinuationEnabled:(BOOL)enabled {
+    [self setAssociationContinuationEnabled:enabled];
+}
+
+- (NSUInteger)preferencesCandidatePageSizeOverrideForMode:(NSString *)mode {
+    return [self.preferences candidatePageSizeOverrideForMode:mode];
+}
+
+- (void)preferencesSetCandidatePageSizeOverride:(NSUInteger)pageSize forMode:(NSString *)mode {
+    [self.preferences setCandidatePageSizeOverride:pageSize forMode:mode];
+    if ([mode isEqualToString:self.engineMode] && [self applyEffectiveInputModeSettings]) {
+        [self setCandidatePool:self.candidatePool resetPage:NO];
+        [self updateComposition];
+    }
+}
+
+- (NSString *)preferencesSpaceKeyOverrideForMode:(NSString *)mode {
+    return [self.preferences spaceKeyOverrideForMode:mode];
+}
+
+- (void)preferencesSetSpaceKeyOverride:(NSString *)overrideValue forMode:(NSString *)mode {
+    [self.preferences setSpaceKeyOverride:overrideValue forMode:mode];
+    if ([mode isEqualToString:self.engineMode]) {
+        [self applyEffectiveInputModeSettings];
+    }
+}
+
+- (BOOL)preferencesClearReadingOnCompositionFailureEnabledForMode:(NSString *)mode {
+    return [self.preferences clearReadingOnCompositionFailureEnabledForMode:mode];
+}
+
+- (void)preferencesSetClearReadingOnCompositionFailureEnabled:(BOOL)enabled forMode:(NSString *)mode {
+    [self setClearReadingOnCompositionFailureEnabled:enabled forMode:mode];
+    if ([mode isEqualToString:self.engineMode] && self.inputState.buffer.length > 0) {
+        if (self.inputState.rawEnglishModeActive) {
+            [self refreshRawEnglishSuggestionsResetPage:YES];
+        } else {
+            [self refreshCandidates];
+        }
+        [self updateComposition];
+    }
+}
+
+- (void)preferencesResetOverridesForMode:(NSString *)mode {
+    [self.preferences resetOverridesForMode:mode];
+    if ([mode isEqualToString:self.engineMode]) {
+        BOOL inputModeSettingsChanged = [self applyEffectiveInputModeSettings];
+        if (inputModeSettingsChanged || self.inputState.buffer.length > 0) {
+            if (self.inputState.rawEnglishModeActive) {
+                [self refreshRawEnglishSuggestionsResetPage:YES];
+            } else if (self.inputState.buffer.length > 0) {
+                [self refreshCandidates];
+            } else {
+                [self setCandidatePool:self.candidatePool resetPage:NO];
+            }
+            [self updateComposition];
+        }
+    }
 }
 
 - (NSArray<NSString *> *)preferencesEnabledInputModes {
@@ -1391,6 +1682,89 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     return offset != 0 && [self changeCandidatePageByOffset:offset];
 }
 
+- (BOOL)handlePinyinCandidateSelectionKey:(NSInteger)keyCode modifiers:(NSUInteger)flags {
+    if (![self shouldUsePinyinCandidateSelection]) {
+        return NO;
+    }
+
+    NSInteger offset = [PurrTypeInputBehavior candidateSelectionOffsetForKeyCode:keyCode
+                                                                      modifiers:flags
+                                                                 candidateCount:self.currentCandidates.count];
+    if (offset == 0) {
+        return NO;
+    }
+
+    NSUInteger nextIndex = [PurrTypeInputBehavior candidateSelectionIndexFromIndex:self.selectedCandidateIndex
+                                                                            offset:offset
+                                                                    candidateCount:self.currentCandidates.count];
+    if (nextIndex != self.selectedCandidateIndex) {
+        self.selectedCandidateIndex = nextIndex;
+        [self updateCandidatePanel];
+    }
+    return YES;
+}
+
+- (BOOL)handlePinyinCandidateSelectionSelector:(SEL)selector {
+    if (![self shouldUsePinyinCandidateSelection]) {
+        return NO;
+    }
+
+    NSInteger offset = [PurrTypeInputBehavior candidateSelectionOffsetForSelector:selector
+                                                                  candidateCount:self.currentCandidates.count];
+    if (offset == 0) {
+        return NO;
+    }
+
+    NSUInteger nextIndex = [PurrTypeInputBehavior candidateSelectionIndexFromIndex:self.selectedCandidateIndex
+                                                                            offset:offset
+                                                                    candidateCount:self.currentCandidates.count];
+    if (nextIndex != self.selectedCandidateIndex) {
+        self.selectedCandidateIndex = nextIndex;
+        [self updateCandidatePanel];
+    }
+    return YES;
+}
+
+- (BOOL)shouldUsePinyinCandidateSelection {
+    return [self.engineMode isEqualToString:MKInputModePinyin] &&
+           self.inputState.buffer.length > 0 &&
+           !self.inputState.rawEnglishModeActive &&
+           !self.inputState.associationModeActive &&
+           self.punctuationCandidateTexts.count == 0 &&
+           self.currentCandidates.count > 0 &&
+           ![self hasSpellingSuggestionCandidates];
+}
+
+- (NSUInteger)candidateIndexForCurrentCommit {
+    if (![self shouldUsePinyinCandidateSelection]) {
+        return 0;
+    }
+    return self.selectedCandidateIndex < self.currentCandidates.count ? self.selectedCandidateIndex : 0;
+}
+
+- (void)clampSelectedCandidateIndex {
+    if (self.currentCandidates.count == 0) {
+        self.selectedCandidateIndex = 0;
+        return;
+    }
+    if (self.selectedCandidateIndex >= self.currentCandidates.count) {
+        self.selectedCandidateIndex = self.currentCandidates.count - 1;
+    }
+}
+
+- (NSUInteger)candidatePanelSelectedIndexForCandidateTexts:(NSArray<NSString *> *)candidateTexts {
+    if (![self shouldUsePinyinCandidateSelection]) {
+        return 0;
+    }
+
+    NSUInteger displayIndex = [self candidateIndexForCurrentCommit];
+    if ([self shouldShowRawEnglishCandidate] &&
+        ![self.rawEnglishCandidatePosition isEqualToString:MKRawEnglishCandidatePositionTrailing]) {
+        displayIndex += 1;
+    }
+    return displayIndex < candidateTexts.count ? displayIndex : 0;
+}
+
 - (BOOL)changeCandidatePageByOffset:(NSInteger)offset {
     NSUInteger pageSize = self.candidatePageSize;
     if (self.candidatePool.count <= pageSize) {
@@ -1406,6 +1780,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     }
 
     self.candidatePageIndex = (NSUInteger)nextPage;
+    self.selectedCandidateIndex = 0;
     [self updateCurrentCandidatePage];
     [self updateCandidatePanel];
     return YES;
@@ -1415,6 +1790,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     self.candidatePool = candidates ?: @[];
     if (resetPage) {
         self.candidatePageIndex = 0;
+        self.selectedCandidateIndex = 0;
     }
     [self updateCurrentCandidatePage];
 }
@@ -1425,6 +1801,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
                                                                    pageIndex:&pageIndex
                                                                     pageSize:self.candidatePageSize];
     self.candidatePageIndex = pageIndex;
+    [self clampSelectedCandidateIndex];
 }
 
 - (NSArray<MKCandidate *> *)spellingSuggestionCandidatesForCurrentBuffer {
@@ -1448,6 +1825,30 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     return candidates;
 }
 
+- (NSArray<MKCandidate *> *)quickPhraseCandidatesForCurrentBuffer {
+    NSString *trigger = self.inputState.buffer ?: @"";
+    if (![PurrTypeQuickPhraseStore isValidTrigger:trigger]) {
+        return @[];
+    }
+
+    [self.quickPhraseStore reloadIfChangedWithError:nil];
+    NSArray<PurrTypeQuickPhraseEntry *> *entries = [self.quickPhraseStore enabledEntriesForTrigger:trigger];
+    if (entries.count == 0) {
+        return @[];
+    }
+
+    NSMutableArray<MKCandidate *> *candidates = [NSMutableArray arrayWithCapacity:entries.count];
+    NSInteger weight = 1000;
+    for (PurrTypeQuickPhraseEntry *entry in entries) {
+        [candidates addObject:[[MKCandidate alloc] initWithText:entry.replacement
+                                                           code:entry.normalizedTrigger
+                                                         source:MKQuickPhraseCandidateSource
+                                                         weight:weight]];
+        weight -= 1;
+    }
+    return candidates;
+}
+
 - (BOOL)hasSpellingSuggestionCandidates {
     if (self.currentCandidates.count == 0) {
         return NO;
@@ -1460,13 +1861,20 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     return YES;
 }
 
+- (BOOL)firstCurrentCandidateIsQuickPhrase {
+    MKCandidate *candidate = self.currentCandidates.firstObject;
+    return [candidate.source isEqualToString:MKQuickPhraseCandidateSource];
+}
+
 - (BOOL)firstCurrentCandidateIsSpellingSuggestion {
     MKCandidate *candidate = self.currentCandidates.firstObject;
     return [candidate.source isEqualToString:MKSpellingCandidateSource];
 }
 
 - (void)refreshRawEnglishSuggestionsResetPage:(BOOL)resetPage {
-    [self setCandidatePool:[self spellingSuggestionCandidatesForCurrentBuffer] resetPage:resetPage];
+    NSArray<MKCandidate *> *quickPhraseCandidates = [self quickPhraseCandidatesForCurrentBuffer];
+    [self setCandidatePool:(quickPhraseCandidates.count > 0 ? quickPhraseCandidates : [self spellingSuggestionCandidatesForCurrentBuffer])
+                 resetPage:resetPage];
 }
 
 - (NSArray<NSString *> *)candidateTexts {
@@ -1479,14 +1887,16 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
                                                         buffer:self.inputState.buffer ?: @""
                                           rawEnglishModeActive:NO
                                          associationModeActive:NO
-                                   rawEnglishCandidateEnabled:YES];
+                                   rawEnglishCandidateEnabled:YES
+                                  rawEnglishCandidatePosition:self.rawEnglishCandidatePosition];
     }
 
     return [PurrTypeInputBehavior displayTextsForCandidates:self.currentCandidates
-                                                        buffer:self.inputState.buffer ?: @""
-                                          rawEnglishModeActive:self.inputState.rawEnglishModeActive
-                                         associationModeActive:self.inputState.associationModeActive
-                                   rawEnglishCandidateEnabled:self.rawEnglishCandidateEnabled];
+                                                    buffer:self.inputState.buffer ?: @""
+                                      rawEnglishModeActive:self.inputState.rawEnglishModeActive
+                                     associationModeActive:self.inputState.associationModeActive
+                               rawEnglishCandidateEnabled:self.rawEnglishCandidateEnabled
+                              rawEnglishCandidatePosition:self.rawEnglishCandidatePosition];
 }
 
 - (void)commitText:(NSString *)text client:(id)sender resetFirst:(BOOL)resetFirst {
@@ -1529,6 +1939,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     self.punctuationCandidateTexts = @[];
     self.punctuationAnchorText = @"";
     self.candidatePageIndex = 0;
+    self.selectedCandidateIndex = 0;
     self.candidateUpdateSerial += 1;
     [self.candidatePanel hide];
     if (!preserveAnchor) {
@@ -1543,6 +1954,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     self.punctuationCandidateTexts = @[];
     self.punctuationAnchorText = @"";
     self.candidatePageIndex = 0;
+    self.selectedCandidateIndex = 0;
     self.candidateUpdateSerial += 1;
     [self.candidatePanel hide];
     [self.candidatePanel clearAnchorSession];
@@ -1570,6 +1982,17 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 }
 
 - (void)commitCandidate:(MKCandidate *)candidate client:(id)sender appendText:(NSString *)appendText {
+    if ([candidate.source isEqualToString:MKQuickPhraseCandidateSource]) {
+        NSString *text = candidate.text ?: @"";
+        if (appendText.length > 0) {
+            text = [text stringByAppendingString:appendText];
+        }
+        [self commitText:text client:sender resetFirst:YES showAssociations:NO];
+        self.lastCommittedCandidateText = nil;
+        [self resetRecentCommittedText];
+        return;
+    }
+
     if ([candidate.source isEqualToString:MKSpellingCandidateSource]) {
         NSString *text = candidate.text ?: @"";
         if (appendText.length > 0) {
@@ -1586,7 +2009,11 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     [engine recordCommittedCandidateText:candidate.text code:candidate.code mode:self.engineMode];
 
     NSString *text = candidate.text;
-    BOOL shouldShowAssociations = appendText.length == 0 && ![self privacyLockPausesLearningContextForMode:self.engineMode];
+    BOOL isAssociationCandidate = self.inputState.associationModeActive;
+    BOOL shouldShowAssociations = appendText.length == 0 &&
+                                  self.associationCandidatesEnabled &&
+                                  (!isAssociationCandidate || self.associationContinuationEnabled) &&
+                                  ![self privacyLockPausesLearningContextForMode:self.engineMode];
     if (appendText.length > 0) {
         text = [text stringByAppendingString:appendText];
     }
@@ -1667,6 +2094,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     self.punctuationCandidateTexts = @[];
     self.punctuationAnchorText = @"";
     self.candidatePageIndex = 0;
+    self.selectedCandidateIndex = 0;
     self.candidateUpdateSerial += 1;
     [self resetRecentCommittedText];
     [self.candidatePanel hide];
@@ -1745,20 +2173,45 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     return YES;
 }
 
+- (BOOL)convertSemicolonPunctuationToQuickPhraseWithString:(NSString *)string client:(id)sender {
+    if (![self.punctuationAnchorText isEqualToString:@";"] ||
+        ![PurrTypeQuickPhraseStore isTriggerContinuationString:string]) {
+        return NO;
+    }
+
+    id target = sender ?: [self activeInputClient];
+    self.punctuationCandidateTexts = @[];
+    self.punctuationAnchorText = @"";
+    self.candidateUpdateSerial += 1;
+    [self.inputState resetComposition];
+    [self.inputState appendRawEnglishText:@";"];
+    [self.inputState appendRawEnglishText:string ?: @""];
+    [self refreshRawEnglishSuggestionsResetPage:YES];
+    [self beginCandidateAnchorSessionForClient:target];
+    [self updateComposition];
+    return YES;
+}
+
 - (void)commitCurrentCompositionWithoutAssociationsForClient:(id)sender {
     if (self.inputState.buffer.length == 0) {
         return;
     }
 
     if (self.currentCandidates.count > 0) {
-        if ([self firstCurrentCandidateIsSpellingSuggestion]) {
+        NSUInteger candidateIndex = [self candidateIndexForCurrentCommit];
+        MKCandidate *candidate = self.currentCandidates[candidateIndex];
+        if ([candidate.source isEqualToString:MKQuickPhraseCandidateSource]) {
+            [self commitCandidateAtIndex:candidateIndex client:sender];
+            return;
+        }
+
+        if ([candidate.source isEqualToString:MKSpellingCandidateSource]) {
             [self commitText:[self.inputState.buffer copy] client:sender resetFirst:YES showAssociations:NO];
             self.lastCommittedCandidateText = nil;
             [self resetRecentCommittedText];
             return;
         }
 
-        MKCandidate *candidate = self.currentCandidates.firstObject;
         PurrTypeEngine *engine = [self engineForInput];
         [engine recordSelectionForCandidate:candidate previousText:self.lastCommittedCandidateText mode:self.engineMode];
         [engine recordCommittedCandidateText:candidate.text code:candidate.code mode:self.engineMode];
@@ -1786,6 +2239,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     BOOL hadMarkedPunctuation = self.punctuationAnchorText.length > 0;
     self.punctuationCandidateTexts = @[];
     self.punctuationAnchorText = @"";
+    self.selectedCandidateIndex = 0;
     self.candidateUpdateSerial += 1;
     if (hadMarkedPunctuation) {
         id target = [self activeInputClient];
@@ -1800,6 +2254,10 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 }
 
 - (void)showAssociationsForCommittedText:(NSString *)text {
+    if (!self.associationCandidatesEnabled) {
+        return;
+    }
+
     if ([self privacyLockPausesLearningContextForMode:self.engineMode]) {
         return;
     }
@@ -1850,7 +2308,8 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
                         anchorCharacterIndex:[self candidatePanelAnchorCharacterIndex]
                                    pageIndex:self.candidatePageIndex
                                    pageCount:pageCount
-                         usePreservedAnchor:usePreservedAnchor];
+                         usePreservedAnchor:usePreservedAnchor
+                              selectedIndex:[self candidatePanelSelectedIndexForCandidateTexts:candidateTexts]];
     } else {
         [self.candidatePanel hide];
     }

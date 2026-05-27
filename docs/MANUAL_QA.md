@@ -15,14 +15,14 @@ sh -n scripts/install-local.sh scripts/uninstall-local.sh scripts/uninstall-syst
   packaging/scripts/preinstall packaging/scripts/postinstall \
   packaging/uninstall-scripts/postinstall packaging/Uninstall-PurrType.command
 make release-preflight
-(cd build && shasum -a 256 -c PurrType-0.1.1-checksums.sha256)
+(cd build && shasum -a 256 -c PurrType-0.1.2-checksums.sha256)
 ```
 
 For signed releases, also run:
 
 ```sh
-xcrun stapler validate build/PurrType-0.1.1-signed.dmg
-spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.1-signed.dmg
+xcrun stapler validate build/PurrType-0.1.2-signed.dmg
+spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.2-signed.dmg
 ```
 
 Expected result:
@@ -42,7 +42,7 @@ Expected result:
 
 Install from the DMG:
 
-1. Open `build/PurrType-0.1.1.dmg`.
+1. Open `build/PurrType-0.1.2.dmg`.
 2. Confirm only `README.txt`, `Install PurrType.pkg`, and
    `Uninstall PurrType.pkg` are present at the DMG root.
 3. Double-click `Install PurrType.pkg`.
@@ -136,6 +136,7 @@ mode before running the typing cases.
 | Pinyin | type `hao`, press `1` | commits `好` |
 | association | in Sucheng, New Sucheng, Cangjie, and Pinyin, commit `你` | association candidates start with `好` |
 | raw English | type `setting`, press Space | commits `setting ` |
+| Quick Phrase | add `;email -> founder@example.com` in Preferences, type `;email`, press `1` | commits `founder@example.com` |
 | short raw candidate | type a short token with Chinese candidates, press `0` | commits original letters |
 | uppercase English | hold Shift and type `SETTING-1`, press Space | commits `SETTING-1 ` |
 | paging | produce more than one page, press Space/Tab/PageDown | moves forward one page when enabled |
@@ -157,11 +158,20 @@ Expected result:
 - Sidebar shows exactly Input Modes, Typing, Privacy & Learning, and About
 - Preferences opens on Input Modes
 - Input Modes tab switches default mode, candidate page size, and mode shortcuts
-- Typing tab switches raw-English candidate and Space key behavior, and shows
-  protected English as a read-only note
+- Typing tab switches raw-English candidate, `0` row position, and Space key behavior, manages
+  Quick Phrases, and shows protected English as a read-only note
 - Privacy & Learning tab exposes New Sucheng learning, Privacy Lock shortcut,
-  Privacy Lock, and reset learning
+  Privacy Lock, reset learning, and basic backup/restore
 - About tab exposes project links and version information
+
+Quick Phrases and backup checks:
+
+1. In Preferences > Typing, save `;email` with a one-line replacement.
+2. Type `;email` in TextEdit and confirm the replacement appears as candidate 1.
+3. Export Quick Phrases TXT to Downloads, edit or add a `;trigger<TAB>replacement`
+   row, import it, and confirm the new trigger works.
+4. Export a backup JSON to Downloads, remove a quick phrase, restore the backup,
+   and confirm the quick phrase returns.
 
 Privacy checks:
 

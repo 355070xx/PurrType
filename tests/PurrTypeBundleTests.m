@@ -193,14 +193,19 @@ int main(int argc, const char *argv[]) {
         AssertTrue(![makefile containsString:@"cp third_party/rime-cangjie/cangjie5.base.dict.yaml"], @"bundle does not copy runtime Rime Cangjie YAML dictionaries");
         AssertTrue(![makefile containsString:@"cangjie5*.yaml"], @"bundle build does not wildcard-copy unused Rime schema files");
         AssertTrue([makefile containsString:@"third_party/rime-pinyin/luna_pinyin.dict.yaml"], @"build depends on full Rime pinyin dictionary");
+        AssertTrue([makefile containsString:@"resources/pinyin_phrases.tsv"], @"build depends on the curated Traditional pinyin phrase seeds");
         AssertTrue([makefile containsString:@"$(PINYIN_CANDIDATE_INDEX):"], @"build converts Rime pinyin into a read-only index");
         AssertTrue(![makefile containsString:@"cp third_party/rime-pinyin/luna_pinyin.dict.yaml"], @"bundle does not copy runtime Rime pinyin YAML dictionary");
+        AssertTrue(![makefile containsString:@"cp resources/pinyin_seed.tsv"], @"bundle does not copy runtime pinyin seed TSV");
+        AssertTrue(![makefile containsString:@"cp resources/pinyin_phrases.tsv"], @"bundle does not copy runtime pinyin phrase TSV");
         AssertTrue([makefile containsString:@".PHONY: all build clean-bundle"], @"clean-bundle is a phony build prerequisite");
         AssertTrue([makefile containsString:@"$(MACOS_DIR)/$(EXECUTABLE_NAME): clean-bundle"], @"bundle executable target always starts from a clean app tree");
         AssertTrue([makefile containsString:@"rm -rf \"$(BUNDLE_DIR)\""], @"bundle build starts from a clean app tree");
         AssertTrue([makefile containsString:@"test ! -e \"$(PACKAGE_SMOKE_APP)/Contents/Resources/RimeCangjie/cangjie5.dict.yaml\""], @"package smoke rejects unused Rime aggregate dictionary metadata");
         AssertTrue([makefile containsString:@"test ! -e \"$(PACKAGE_SMOKE_APP)/Contents/Resources/RimeCangjie/cangjie5_express.schema.yaml\""], @"package smoke rejects unused Rime schema files");
         AssertTrue([makefile containsString:@"test ! -e \"$(PACKAGE_SMOKE_APP)/Contents/Resources/RimePinyin/luna_pinyin.dict.yaml\""], @"package smoke rejects runtime Rime pinyin YAML");
+        AssertTrue([makefile containsString:@"test ! -e \"$(PACKAGE_SMOKE_APP)/Contents/Resources/pinyin_seed.tsv\""], @"package smoke rejects runtime pinyin seed TSV");
+        AssertTrue([makefile containsString:@"test ! -e \"$(PACKAGE_SMOKE_APP)/Contents/Resources/pinyin_phrases.tsv\""], @"package smoke rejects runtime pinyin phrase TSV");
         AssertTrue([makefile containsString:@"test ! -e \"$(PACKAGE_SMOKE_APP)/Contents/Resources/CINTables\""], @"package smoke rejects stale legacy CIN resource directories");
         AssertTrue([makefile containsString:@"test ! -e \"$(PACKAGE_SMOKE_APP)/Contents/Resources/ranking_overrides.tsv\""], @"package smoke rejects stale ranking override resources");
         AssertTrue([makefile containsString:@"test ! -e \"$(PACKAGE_SMOKE_APP)/Contents/Resources/legacy_sucheng_overrides.tsv\""], @"package smoke rejects stale legacy override resources");
@@ -237,6 +242,8 @@ int main(int argc, const char *argv[]) {
         AssertTrue([makefile containsString:@"test ! -e \"$(PACKAGE_SMOKE_APP)/Contents/Resources/PreferenceCovers\""], @"package smoke rejects duplicate main-app preference cover assets");
         AssertTrue([makefile containsString:@"Contents/Resources/$(PREFERENCES_BUNDLE_NAME)/Contents/Resources/PreferenceCovers/pref_cover_about.png"], @"package smoke keeps preferences helper full cover assets");
         AssertTrue([makefile containsString:@"src/PurrTypeCandidatePanel.m"], @"build includes custom candidate panel");
+        AssertTrue([makefile containsString:@"src/PurrTypeQuickPhraseStore.m"], @"build includes public Quick Phrases store");
+        AssertTrue([makefile containsString:@"src/PurrTypeBackupStore.m"], @"build includes public basic backup store");
         AssertTrue([makefile containsString:@"SYSTEM_INPUT_METHOD_APP := /Library/Input Methods/$(BUNDLE_NAME)"], @"diagnostic targets know the system input method location");
         AssertTrue([makefile containsString:@"USER_INPUT_METHOD_APP := $(HOME)/Library/Input Methods/$(BUNDLE_NAME)"], @"diagnostic targets know the user input method location");
         AssertTrue([makefile containsString:@"RUN_PURRTYPE_APP"], @"diagnostic targets use a shared installed-app launcher");
@@ -309,7 +316,10 @@ int main(int argc, const char *argv[]) {
         AssertTrue([englishLocalization containsString:@"\"Privacy Lock\" = \"Privacy Lock\";"], @"English preferences localization includes Privacy Lock");
         AssertTrue([englishLocalization containsString:@"\"Candidate Page Size\" = \"Candidate Page Size\";"], @"English preferences localization includes candidate page size");
         AssertTrue([englishLocalization containsString:@"\"Show raw English candidate as 0\""], @"English preferences localization includes raw-English candidate setting");
+        AssertTrue([englishLocalization containsString:@"\"0 candidate position\""], @"English preferences localization includes raw-English candidate position setting");
         AssertTrue([englishLocalization containsString:@"\"English spelling suggestions\""], @"English preferences localization includes spelling suggestion setting");
+        AssertTrue([englishLocalization containsString:@"\"Quick Phrases\" = \"Quick Phrases\";"], @"English preferences localization includes Quick Phrases");
+        AssertTrue([englishLocalization containsString:@"\"Backup / Restore\" = \"Backup / Restore\";"], @"English preferences localization includes basic backup");
         AssertTrue([englishLocalization containsString:@"\"Temporary English with Shift\" = \"Uppercase English with Shift\";"], @"English preferences localization explains Shift as uppercase English");
         AssertTrue([englishLocalization containsString:@"\"On - learning paused\""], @"English preferences localization includes clear Privacy Lock state");
         AssertTrue([traditionalChineseLocalization containsString:@"\"General\" = \"一般\";"], @"Traditional Chinese preferences localization includes General");
@@ -319,6 +329,8 @@ int main(int argc, const char *argv[]) {
         AssertTrue([traditionalChineseLocalization containsString:@"\"Candidate Page Size\" = \"候選頁大小\";"], @"Traditional Chinese preferences localization includes candidate page size");
         AssertTrue([traditionalChineseLocalization containsString:@"\"Show raw English candidate as 0\" = \"以 0 顯示原文英文候選\";"], @"Traditional Chinese preferences localization includes raw-English candidate setting");
         AssertTrue([traditionalChineseLocalization containsString:@"\"English spelling suggestions\" = \"英文串字建議\";"], @"Traditional Chinese preferences localization includes spelling suggestion setting");
+        AssertTrue([traditionalChineseLocalization containsString:@"\"Quick Phrases\" = \"快速短語\";"], @"Traditional Chinese preferences localization includes Quick Phrases");
+        AssertTrue([traditionalChineseLocalization containsString:@"\"Backup / Restore\" = \"備份 / 還原\";"], @"Traditional Chinese preferences localization includes basic backup");
         AssertTrue([traditionalChineseLocalization containsString:@"\"Temporary English with Shift\" = \"按 Shift 輸入大楷英文\";"], @"Traditional Chinese preferences localization explains Shift as uppercase English");
         AssertTrue([traditionalChineseLocalization containsString:@"\"On - learning paused\" = \"開：學習暫停\";"], @"Traditional Chinese preferences localization includes clear Privacy Lock state");
         AssertTrue([preferencesConstants containsString:@"https://buymeacoffee.com/mrz.final.v1_1_1_1.mov"], @"Buy Me a Coffee link points to the requested URL");
@@ -362,6 +374,9 @@ int main(int argc, const char *argv[]) {
         AssertTrue([controller containsString:@"handlePreferencesShortcutForKey"], @"input controller handles preferences shortcut");
         AssertTrue([controller containsString:@"isPreferencesShortcutKeyCode"], @"input controller delegates preferences shortcut behavior");
         AssertTrue([controller containsString:@"[self.preferences privacyLockEnabled]"], @"input controller reads Privacy Lock through the preferences store");
+        AssertTrue([controller containsString:@"MKQuickPhraseCandidateSource"], @"input controller has Quick Phrases candidates");
+        AssertTrue([controller containsString:@"convertSemicolonPunctuationToQuickPhraseWithString"], @"input controller turns ; prefix typing into Quick Phrases composition");
+        AssertTrue([controller containsString:@"PurrTypeQuickPhraseStore isTriggerContinuationString"], @"Quick Phrases runtime uses strict semicolon trigger continuation syntax");
         NSString *privacyLockSuppressionMethod = SubstringBetween(controller,
                                                                   @"- (BOOL)privacyLockPausesLearningContextForMode:(NSString *)mode {\n",
                                                                   @"\n}\n\n- (void)resetLearning");
@@ -448,6 +463,12 @@ int main(int argc, const char *argv[]) {
         NSRange punctuationRange = [inputTextSection rangeOfString:@"showPunctuationCandidatesForString"];
         AssertTrue(rawContinuationRange.location != NSNotFound && punctuationRange.location != NSNotFound && rawContinuationRange.location < punctuationRange.location,
                    @"raw English continuation is handled before punctuation candidates");
+        NSRange pinyinSpaceCommitRange = [inputTextSection rangeOfString:@"[self commitCandidateAtIndex:[self candidateIndexForCurrentCommit] client:sender]"];
+        NSRange candidatePageKeyRange = [inputTextSection rangeOfString:@"handleCandidatePageKey"];
+        AssertTrue(pinyinSpaceCommitRange.location != NSNotFound &&
+                   candidatePageKeyRange.location != NSNotFound &&
+                   pinyinSpaceCommitRange.location < candidatePageKeyRange.location,
+                   @"Pinyin Space commits the highlighted candidate before Space can page candidates");
         NSString *scheduleCandidatePanelUpdateSection = SubstringBetween(controller,
                                                                          @"- (void)scheduleCandidatePanelUpdate {",
                                                                          @"- (void)updateCandidatePanel {");
@@ -462,6 +483,12 @@ int main(int argc, const char *argv[]) {
                    @"punctuation candidates use the same active marked character index as text candidates");
         AssertTrue([controller containsString:@"commitPunctuationCandidateText"], @"input controller commits selected punctuation");
         AssertTrue([controller containsString:@"shouldAutoCommitDefaultPunctuationForInputString"], @"input controller auto-commits default punctuation when typing continues without alternate selection");
+        AssertTrue([controller containsString:@"handlePinyinCandidateSelectionKey"] &&
+                   [controller containsString:@"handlePinyinCandidateSelectionSelector"] &&
+                   [controller containsString:@"candidatePanelSelectedIndexForCandidateTexts"],
+                   @"input controller supports Pinyin Up/Down candidate selection and panel highlighting");
+        AssertTrue([controller containsString:@"selectedIndex:[self candidatePanelSelectedIndexForCandidateTexts:candidateTexts]"],
+                   @"candidate panel receives the active selected row from the input controller");
 
         NSString *inputBehavior = FileTextAtPath([root stringByAppendingPathComponent:@"src/PurrTypeInputBehavior.m"]);
         AssertTrue([inputBehavior containsString:@"MKInputBehaviorKeyCodeComma = 43"], @"preferences shortcut uses comma key");

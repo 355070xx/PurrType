@@ -67,7 +67,7 @@ Uninstall PurrType.pkg
 ```
 
 The installer and uninstaller scripts remove only PurrType app bundles,
-Launch Services registrations, and matching dev package receipts by
+Launch Services registrations, and matching legacy package receipts by
 default. They must not remove the public `/Library/Input Methods/PurrTypeIM.app`
 bundle or public package receipt. `Uninstall PurrType.pkg` preserves PurrType preferences and New
 Sucheng learning data. The source-tree `packaging/Uninstall-PurrType.command`

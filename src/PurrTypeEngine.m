@@ -24,10 +24,20 @@ static NSUInteger const MKRecentCommittedCodeLimit = 24;
 static NSUInteger const MKSmartPhraseMaximumGeneratedPaths = 24;
 static NSUInteger const MKSmartPhraseBeamWidth = 24;
 static NSUInteger const MKSmartPhraseSegmentCandidateLimit = 9;
+static NSUInteger const MKPinyinMaximumContinuousInputLength = 48;
+static NSUInteger const MKPinyinMaximumGeneratedInputLength = 32;
+static NSUInteger const MKPinyinMaximumGeneratedSyllables = 6;
+static NSUInteger const MKPinyinMaximumContinuousSyllables = 12;
+static NSUInteger const MKPinyinMaximumSyllableCodeLength = 6;
+static NSUInteger const MKPinyinMaximumGeneratedPaths = 24;
+static NSUInteger const MKPinyinBeamWidth = 24;
+static NSUInteger const MKPinyinSegmentCandidateLimit = 5;
 static NSUInteger const MKLearningDirectoryPermissions = 0700;
 static NSUInteger const MKLearningFilePermissions = 0600;
 static NSInteger const MKSmartPhraseAssociationBoost = 6000;
 static NSInteger const MKSmartPhraseSingleCodePenalty = 3500;
+static NSInteger const MKPinyinSegmentPenalty = 1400;
+static NSString *const MKPinyinGeneratedPhraseSource = @"pinyin_phrase";
 static NSInteger const MKHKSCSOverlayCangjieWeight = -1000000;
 static NSInteger const MKHKSCSOverlayQuickWeight = -1000000;
 static NSString *const MKSmartPhraseStatePathKey = @"path";
@@ -248,6 +258,20 @@ static int MKCompareAssociationIndexBytes(const uint8_t *left,
 - (void)sortCandidateBucketsForSource:(NSString *)source;
 - (void)sortUnifiedCandidateBuckets;
 - (void)applyCandidateOrderOverridesForSource:(NSString *)source;
+- (NSArray<MKCandidate *> *)pinyinCandidatesForInput:(NSString *)input
+                                      baseCandidates:(NSArray<MKCandidate *> *)baseCandidates;
+- (NSArray<MKCandidate *> *)generatedPinyinPhraseCandidatesForInput:(NSString *)input
+                                                excludingCandidates:(NSArray<MKCandidate *> *)existingCandidates;
+- (NSArray<NSDictionary *> *)generatedPinyinPhraseStatesForInput:(NSString *)input;
+- (NSArray<MKCandidate *> *)pinyinSegmentCandidatesForCode:(NSString *)code previousText:(NSString *)previousText;
+- (NSArray<MKCandidate *> *)pinyinSingleCharacterCandidatesForCode:(NSString *)code;
+- (NSInteger)pinyinSegmentScoreForCandidate:(MKCandidate *)candidate previousText:(NSString *)previousText;
+- (void)prunePinyinStateBeam:(NSMutableArray<NSDictionary *> *)states limit:(NSUInteger)limit;
+- (BOOL)hasSegmentedPinyinCandidateOrPrefixForInput:(NSString *)input;
+- (BOOL)canSegmentPinyinInputPrefix:(NSString *)input
+                           position:(NSUInteger)position
+                       syllableCount:(NSUInteger)syllableCount
+                         failedMemo:(NSMutableSet<NSString *> *)failedMemo;
 
 @end
 
@@ -1110,6 +1134,8 @@ forRecordAtIndex:(NSUInteger)recordIndex {
                                                                               mode:mode];
     if ([mode isEqualToString:MKInputModeSmartSucheng]) {
         candidates = [self smartSuchengCandidatesForInput:normalized baseCandidates:candidates];
+    } else if ([mode isEqualToString:MKInputModePinyin]) {
+        candidates = [self pinyinCandidatesForInput:normalized baseCandidates:candidates];
     }
 
     NSArray<MKCandidate *> *result = candidates;
@@ -1320,7 +1346,15 @@ forRecordAtIndex:(NSUInteger)recordIndex {
         return YES;
     }
 
-    return [[self candidateProviderForMode:mode] hasCandidatesOrPrefixesForInput:normalized];
+    if ([[self candidateProviderForMode:mode] hasCandidatesOrPrefixesForInput:normalized]) {
+        return YES;
+    }
+
+    if ([mode isEqualToString:MKInputModePinyin]) {
+        return [self hasSegmentedPinyinCandidateOrPrefixForInput:normalized];
+    }
+
+    return NO;
 }
 
 - (BOOL)isLikelyRawToken:(NSString *)input {
@@ -1370,6 +1404,17 @@ forRecordAtIndex:(NSUInteger)recordIndex {
     return NO;
 }
 
+- (BOOL)looksLikeRawEnglishInput:(NSString *)input mode:(MKInputMode)mode {
+    NSString *normalized = [self normalizedInput:input];
+    if (![self isAlphabeticInputCode:normalized]) {
+        return [self isLikelyRawToken:normalized mode:mode];
+    }
+    if ([self isLikelyRawToken:normalized mode:mode]) {
+        return YES;
+    }
+    return [self looksLikeEnglishWordInput:normalized];
+}
+
 - (BOOL)isLikelyRawToken:(NSString *)input mode:(MKInputMode)mode {
     NSString *normalized = [self normalizedInput:input];
     if (normalized.length == 0) {
@@ -1388,6 +1433,11 @@ forRecordAtIndex:(NSUInteger)recordIndex {
     [self ensureDataForMode:mode];
     if ([mode isEqualToString:MKInputModeSmartSucheng] &&
         [self hasSmartSuchengPhraseCandidateOrPrefixForInput:normalized]) {
+        return NO;
+    }
+
+    if ([mode isEqualToString:MKInputModePinyin] &&
+        [self hasSegmentedPinyinCandidateOrPrefixForInput:normalized]) {
         return NO;
     }
 
@@ -2656,6 +2706,288 @@ forRecordAtIndex:(NSUInteger)recordIndex {
         }
     }
 
+    return NO;
+}
+
+- (NSArray<MKCandidate *> *)pinyinCandidatesForInput:(NSString *)input
+                                      baseCandidates:(NSArray<MKCandidate *> *)baseCandidates {
+    NSArray<MKCandidate *> *safeBaseCandidates = baseCandidates ?: @[];
+    NSArray<MKCandidate *> *generatedCandidates =
+        [self generatedPinyinPhraseCandidatesForInput:input excludingCandidates:safeBaseCandidates];
+    if (generatedCandidates.count == 0) {
+        return safeBaseCandidates;
+    }
+
+    NSMutableArray<MKCandidate *> *candidates =
+        [NSMutableArray arrayWithCapacity:safeBaseCandidates.count + generatedCandidates.count];
+    [candidates addObjectsFromArray:safeBaseCandidates];
+    [candidates addObjectsFromArray:generatedCandidates];
+    return [candidates copy];
+}
+
+- (NSArray<MKCandidate *> *)generatedPinyinPhraseCandidatesForInput:(NSString *)input
+                                                excludingCandidates:(NSArray<MKCandidate *> *)existingCandidates {
+    if (input.length == 0 || input.length > MKPinyinMaximumGeneratedInputLength) {
+        return @[];
+    }
+
+    NSMutableSet<NSString *> *seenTexts = [NSMutableSet set];
+    for (MKCandidate *candidate in existingCandidates ?: @[]) {
+        if (candidate.text.length > 0) {
+            [seenTexts addObject:candidate.text];
+        }
+    }
+
+    NSMutableArray<MKCandidate *> *phrases = [NSMutableArray array];
+    NSUInteger sequence = 0;
+    for (NSDictionary *state in [self generatedPinyinPhraseStatesForInput:input]) {
+        NSArray<MKCandidate *> *path = state[MKSmartPhraseStatePathKey];
+        if (path.count < 2) {
+            continue;
+        }
+
+        NSMutableString *text = [NSMutableString string];
+        for (MKCandidate *candidate in path) {
+            [text appendString:candidate.text ?: @""];
+        }
+
+        if (text.length == 0 || [seenTexts containsObject:text]) {
+            continue;
+        }
+
+        NSArray<NSString *> *characters = [self displayableCharactersInText:text];
+        if (characters.count != path.count) {
+            continue;
+        }
+
+        [seenTexts addObject:text];
+        NSInteger weight = [state[MKSmartPhraseStateScoreKey] integerValue];
+        [phrases addObject:[[MKCandidate alloc] initWithText:text
+                                                       code:input
+                                                     source:MKPinyinGeneratedPhraseSource
+                                                     weight:weight
+                                                   sequence:sequence]];
+        sequence += 1;
+    }
+
+    [self sortCandidateBucket:phrases];
+    return [phrases copy];
+}
+
+- (NSArray<NSDictionary *> *)generatedPinyinPhraseStatesForInput:(NSString *)input {
+    NSMutableDictionary<NSNumber *, NSMutableArray<NSDictionary *> *> *beams = [NSMutableDictionary dictionary];
+    beams[@0] = [@[@{
+        MKSmartPhraseStatePathKey: @[],
+        MKSmartPhraseStateScoreKey: @0
+    }] mutableCopy];
+
+    for (NSUInteger position = 0; position < input.length; position += 1) {
+        NSMutableArray<NSDictionary *> *states = beams[@(position)];
+        if (states.count == 0) {
+            continue;
+        }
+
+        [self prunePinyinStateBeam:states limit:MKPinyinBeamWidth];
+        NSArray<NSDictionary *> *currentStates = [states copy];
+        for (NSDictionary *state in currentStates) {
+            NSArray<MKCandidate *> *path = state[MKSmartPhraseStatePathKey];
+            if (path.count >= MKPinyinMaximumGeneratedSyllables) {
+                continue;
+            }
+
+            NSMutableString *previousText = [NSMutableString string];
+            for (MKCandidate *candidate in path) {
+                [previousText appendString:candidate.text ?: @""];
+            }
+
+            NSInteger currentScore = [state[MKSmartPhraseStateScoreKey] integerValue];
+            NSUInteger remainingLength = input.length - position;
+            NSUInteger maximumLength = MIN(MKPinyinMaximumSyllableCodeLength, remainingLength);
+            for (NSUInteger length = 1; length <= maximumLength; length += 1) {
+                NSString *code = [input substringWithRange:NSMakeRange(position, length)];
+                NSArray<MKCandidate *> *segmentCandidates = [self pinyinSegmentCandidatesForCode:code
+                                                                                    previousText:previousText];
+                if (segmentCandidates.count == 0) {
+                    continue;
+                }
+
+                NSNumber *nextPositionKey = @(position + length);
+                NSMutableArray<NSDictionary *> *nextStates = beams[nextPositionKey];
+                if (!nextStates) {
+                    nextStates = [NSMutableArray array];
+                    beams[nextPositionKey] = nextStates;
+                }
+
+                for (MKCandidate *candidate in segmentCandidates) {
+                    NSMutableArray<MKCandidate *> *nextPath = [path mutableCopy];
+                    [nextPath addObject:candidate];
+                    NSInteger nextScore = currentScore + [self pinyinSegmentScoreForCandidate:candidate
+                                                                                  previousText:previousText];
+                    nextScore -= MKPinyinSegmentPenalty;
+                    [nextStates addObject:@{
+                        MKSmartPhraseStatePathKey: [nextPath copy],
+                        MKSmartPhraseStateScoreKey: @(nextScore)
+                    }];
+                }
+            }
+        }
+    }
+
+    NSMutableArray<NSDictionary *> *completedStates = [beams[@(input.length)] mutableCopy] ?: [NSMutableArray array];
+    [self prunePinyinStateBeam:completedStates limit:MKPinyinMaximumGeneratedPaths];
+
+    NSMutableArray<NSDictionary *> *validStates = [NSMutableArray arrayWithCapacity:completedStates.count];
+    for (NSDictionary *state in completedStates) {
+        NSArray<MKCandidate *> *path = state[MKSmartPhraseStatePathKey];
+        if (path.count >= 2) {
+            [validStates addObject:state];
+        }
+    }
+    return validStates;
+}
+
+- (NSArray<MKCandidate *> *)pinyinSegmentCandidatesForCode:(NSString *)code previousText:(NSString *)previousText {
+    NSArray<MKCandidate *> *bucket = [self pinyinSingleCharacterCandidatesForCode:code];
+    if (bucket.count == 0) {
+        return @[];
+    }
+
+    NSMutableDictionary<NSValue *, NSNumber *> *positions = [NSMutableDictionary dictionaryWithCapacity:bucket.count];
+    for (NSUInteger index = 0; index < bucket.count; index += 1) {
+        positions[[NSValue valueWithNonretainedObject:bucket[index]]] = @(index);
+    }
+
+    NSMutableArray<MKCandidate *> *ranked = [bucket mutableCopy];
+    [ranked sortUsingComparator:^NSComparisonResult(MKCandidate *left, MKCandidate *right) {
+        NSInteger leftScore = [self pinyinSegmentScoreForCandidate:left previousText:previousText];
+        NSInteger rightScore = [self pinyinSegmentScoreForCandidate:right previousText:previousText];
+        if (leftScore != rightScore) {
+            return leftScore > rightScore ? NSOrderedAscending : NSOrderedDescending;
+        }
+
+        NSUInteger leftPosition = [positions[[NSValue valueWithNonretainedObject:left]] unsignedIntegerValue];
+        NSUInteger rightPosition = [positions[[NSValue valueWithNonretainedObject:right]] unsignedIntegerValue];
+        if (leftPosition != rightPosition) {
+            return leftPosition < rightPosition ? NSOrderedAscending : NSOrderedDescending;
+        }
+
+        return NSOrderedSame;
+    }];
+
+    if (ranked.count <= MKPinyinSegmentCandidateLimit) {
+        return ranked;
+    }
+    return [ranked subarrayWithRange:NSMakeRange(0, MKPinyinSegmentCandidateLimit)];
+}
+
+- (NSArray<MKCandidate *> *)pinyinSingleCharacterCandidatesForCode:(NSString *)code {
+    if (code.length == 0 || code.length > MKPinyinMaximumSyllableCodeLength) {
+        return @[];
+    }
+
+    NSArray<MKCandidate *> *bucket = [self candidateBucketForCode:code source:MKInputModePinyin];
+    if (bucket.count == 0) {
+        return @[];
+    }
+
+    NSMutableArray<MKCandidate *> *singleCharacterCandidates = [NSMutableArray array];
+    for (MKCandidate *candidate in bucket) {
+        if ([self displayableCharactersInText:candidate.text].count == 1) {
+            [singleCharacterCandidates addObject:candidate];
+        }
+    }
+    return [singleCharacterCandidates copy];
+}
+
+- (NSInteger)pinyinSegmentScoreForCandidate:(MKCandidate *)candidate previousText:(NSString *)previousText {
+    NSInteger score = candidate.weight;
+    score += [self commonTextBoostForText:candidate.text];
+
+    NSString *associationKey = [self lastDisplayableCharacterInText:previousText ?: @""];
+    NSArray<NSString *> *associations = [self fixedAssociationCandidatesForKey:associationKey];
+    NSUInteger associationIndex = [associations indexOfObject:candidate.text];
+    if (associationIndex != NSNotFound) {
+        score += MKSmartPhraseAssociationBoost - (NSInteger)associationIndex * 100;
+    }
+    return score;
+}
+
+- (void)prunePinyinStateBeam:(NSMutableArray<NSDictionary *> *)states limit:(NSUInteger)limit {
+    [states sortUsingComparator:^NSComparisonResult(NSDictionary *left, NSDictionary *right) {
+        NSInteger leftScore = [left[MKSmartPhraseStateScoreKey] integerValue];
+        NSInteger rightScore = [right[MKSmartPhraseStateScoreKey] integerValue];
+        if (leftScore != rightScore) {
+            return leftScore > rightScore ? NSOrderedAscending : NSOrderedDescending;
+        }
+
+        NSArray<MKCandidate *> *leftPath = left[MKSmartPhraseStatePathKey];
+        NSArray<MKCandidate *> *rightPath = right[MKSmartPhraseStatePathKey];
+        if (leftPath.count != rightPath.count) {
+            return leftPath.count > rightPath.count ? NSOrderedAscending : NSOrderedDescending;
+        }
+
+        return NSOrderedSame;
+    }];
+
+    if (states.count > limit) {
+        [states removeObjectsInRange:NSMakeRange(limit, states.count - limit)];
+    }
+}
+
+- (BOOL)hasSegmentedPinyinCandidateOrPrefixForInput:(NSString *)input {
+    if (input.length == 0 || input.length > MKPinyinMaximumContinuousInputLength) {
+        return NO;
+    }
+
+    return [self canSegmentPinyinInputPrefix:input
+                                    position:0
+                                syllableCount:0
+                                  failedMemo:[NSMutableSet set]];
+}
+
+- (BOOL)canSegmentPinyinInputPrefix:(NSString *)input
+                           position:(NSUInteger)position
+                       syllableCount:(NSUInteger)syllableCount
+                         failedMemo:(NSMutableSet<NSString *> *)failedMemo {
+    if (syllableCount > MKPinyinMaximumContinuousSyllables) {
+        return NO;
+    }
+
+    if (position == input.length) {
+        return syllableCount >= 2;
+    }
+
+    NSString *memoKey = [NSString stringWithFormat:@"%lu:%lu",
+                         (unsigned long)position,
+                         (unsigned long)syllableCount];
+    if ([failedMemo containsObject:memoKey]) {
+        return NO;
+    }
+
+    if (syllableCount > 0) {
+        NSString *remaining = [input substringFromIndex:position];
+        if ([self hasCandidatesOrPrefixesForCode:remaining source:MKInputModePinyin]) {
+            return YES;
+        }
+    }
+
+    NSUInteger remainingLength = input.length - position;
+    NSUInteger maximumLength = MIN(MKPinyinMaximumSyllableCodeLength, remainingLength);
+    for (NSUInteger length = 1; length <= maximumLength; length += 1) {
+        NSString *code = [input substringWithRange:NSMakeRange(position, length)];
+        if ([self pinyinSingleCharacterCandidatesForCode:code].count == 0) {
+            continue;
+        }
+
+        if ([self canSegmentPinyinInputPrefix:input
+                                     position:position + length
+                                 syllableCount:syllableCount + 1
+                                   failedMemo:failedMemo]) {
+            return YES;
+        }
+    }
+
+    [failedMemo addObject:memoKey];
     return NO;
 }
 

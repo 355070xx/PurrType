@@ -1,11 +1,15 @@
 #import "PurrTypePreferencesWindowController.h"
 #import "PurrTypeInputBehavior.h"
+#import "PurrTypeQuickPhraseStore.h"
+#import "PurrTypeBackupStore.h"
+#import "PurrTypePreferencesStore.h"
 #import "PurrTypePreferencesConstants.h"
 #import <CoreImage/CoreImage.h>
+#include <math.h>
 
-static CGFloat const MKPreferencesWindowWidth = 540.0;
+static CGFloat const MKPreferencesWindowWidth = 622.0;
 static CGFloat const MKPreferencesWindowHeight = 720.0;
-static CGFloat const MKPreferencesMinimumWindowWidth = 520.0;
+static CGFloat const MKPreferencesMinimumWindowWidth = 622.0;
 static CGFloat const MKPreferencesMinimumWindowHeight = 620.0;
 static CGFloat const MKPreferencesSidebarWidth = 180.0;
 static CGFloat const MKPreferencesSidebarTitleInset = 20.0;
@@ -21,7 +25,8 @@ static NSString *const MKPreferencesTabAbout = @"about";
 static NSString *const MKPreferencesLanguageSystem = @"system";
 static NSString *const MKPreferencesLanguageEnglish = @"en";
 static NSString *const MKPreferencesLanguageTraditionalChinese = @"zh-Hant";
-static CGFloat const MKPreferencesContentHorizontalMargin = 18.0;
+static NSString *const MKPreferencesShortcutEditorIdentifier = @"purrtype.shortcut-editor";
+static CGFloat const MKPreferencesContentHorizontalMargin = 16.0;
 static CGFloat const MKPreferencesCoverAspectRatio = 1672.0 / 941.0;
 static CGFloat const MKPreferencesCoverMaxWidth = 380.0;
 static CGFloat const MKPrivacyPolicySheetWidth = 560.0;
@@ -32,6 +37,14 @@ static NSInteger const MKPreferencesShortcutTagModeBase = 9100;
 static NSInteger const MKPreferencesInputModeSwitchTagBase = 9200;
 static NSTimeInterval const MKPreferencesShortcutDoubleTapInterval = 0.60;
 
+static NSSize MKPreferencesStandardContentSize(void) {
+    return NSMakeSize(MKPreferencesWindowWidth, MKPreferencesWindowHeight);
+}
+
+static CGFloat MKPreferencesContentColumnWidth(void) {
+    return MKPreferencesWindowWidth - MKPreferencesSidebarWidth - (MKPreferencesContentHorizontalMargin * 2.0);
+}
+
 static NSFont *MKFont(CGFloat size, NSFontWeight weight) {
     return [NSFont systemFontOfSize:size weight:weight];
 }
@@ -41,6 +54,61 @@ static NSColor *MKColorFromRGB(NSUInteger rgb) {
                                      green:((rgb >> 8) & 0xFF) / 255.0
                                       blue:(rgb & 0xFF) / 255.0
                                      alpha:1.0];
+}
+
+static NSString *MKPreferencesCustomHighlightStringFromColor(NSColor *color) {
+    NSColor *rgbColor = [color colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
+    if (!rgbColor) {
+        return [MKCandidatePanelHighlightCustomPrefix stringByAppendingString:@"#FF4F57"];
+    }
+    CGFloat red = 0.0;
+    CGFloat green = 0.0;
+    CGFloat blue = 0.0;
+    CGFloat alpha = 1.0;
+    [rgbColor getRed:&red green:&green blue:&blue alpha:&alpha];
+    NSUInteger redByte = (NSUInteger)lrint(MAX(0.0, MIN(1.0, red)) * 255.0);
+    NSUInteger greenByte = (NSUInteger)lrint(MAX(0.0, MIN(1.0, green)) * 255.0);
+    NSUInteger blueByte = (NSUInteger)lrint(MAX(0.0, MIN(1.0, blue)) * 255.0);
+    return [NSString stringWithFormat:@"%@#%02lX%02lX%02lX",
+                                      MKCandidatePanelHighlightCustomPrefix,
+                                      (unsigned long)redByte,
+                                      (unsigned long)greenByte,
+                                      (unsigned long)blueByte];
+}
+
+static NSColor *MKPreferencesColorForCandidateHighlightValue(NSString *highlightColor) {
+    if ([highlightColor hasPrefix:MKCandidatePanelHighlightCustomPrefix]) {
+        NSString *hex = [highlightColor substringFromIndex:MKCandidatePanelHighlightCustomPrefix.length];
+        if ([hex hasPrefix:@"#"]) {
+            hex = [hex substringFromIndex:1];
+        }
+        if (hex.length == 6) {
+            unsigned int rgb = 0;
+            NSScanner *scanner = [NSScanner scannerWithString:hex];
+            if ([scanner scanHexInt:&rgb] && scanner.isAtEnd) {
+                return MKColorFromRGB(rgb & 0xFFFFFF);
+            }
+        }
+    }
+    if ([highlightColor isEqualToString:MKCandidatePanelHighlightOrange]) {
+        return MKColorFromRGB(0xE86B2E);
+    }
+    if ([highlightColor isEqualToString:MKCandidatePanelHighlightYellow]) {
+        return MKColorFromRGB(0xC78514);
+    }
+    if ([highlightColor isEqualToString:MKCandidatePanelHighlightGreen]) {
+        return MKColorFromRGB(0x338C47);
+    }
+    if ([highlightColor isEqualToString:MKCandidatePanelHighlightBlue]) {
+        return MKColorFromRGB(0x2870E8);
+    }
+    if ([highlightColor isEqualToString:MKCandidatePanelHighlightPurple]) {
+        return MKColorFromRGB(0x8552DB);
+    }
+    if ([highlightColor isEqualToString:MKCandidatePanelHighlightPink]) {
+        return MKColorFromRGB(0xD63D85);
+    }
+    return MKColorFromRGB(0xFF4F57);
 }
 
 static NSColor *MKPreferencesWindowBackgroundColor(void) { return MKColorFromRGB(0xFFF9F2); }
@@ -653,10 +721,25 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
 @property(nonatomic, strong) NSArray<NSString *> *tabIdentifiers;
 @property(nonatomic, strong) NSMutableDictionary<NSString *, MKPreferencesSidebarButton *> *sidebarButtonsByIdentifier;
 @property(nonatomic, strong) MKPreferencesSegmentedControl *modeSegmentedControl;
+@property(nonatomic, strong) MKPreferencesSegmentedControl *inputModeSettingsSegmentedControl;
+@property(nonatomic, strong) MKPreferencesSwitchControl *inputModeSettingsEnabledSwitch;
+@property(nonatomic, strong) MKPreferencesSegmentedControl *modeCandidatePageSizeSegmentedControl;
+@property(nonatomic, strong) MKPreferencesSegmentedControl *modeSpaceKeySegmentedControl;
+@property(nonatomic, strong) MKPreferencesSwitchControl *modeClearReadingOnFailureSwitch;
+@property(nonatomic, strong) MKPreferencesShortcutRecorderControl *modeShortcutRecorderControl;
+@property(nonatomic, strong) NSButton *modeShortcutResetButton;
+@property(nonatomic, strong) NSTextField *modeSettingsStatusField;
+@property(nonatomic, copy) NSString *selectedInputModeSettingsMode;
 @property(nonatomic, strong) MKPreferencesSegmentedControl *spaceKeySegmentedControl;
+@property(nonatomic, strong) MKPreferencesSegmentedControl *candidatePanelOrientationSegmentedControl;
+@property(nonatomic, strong) MKPreferencesSegmentedControl *candidatePanelFontSizeSegmentedControl;
+@property(nonatomic, strong) NSPopUpButton *candidatePanelHighlightPopupButton;
+@property(nonatomic, strong) MKPreferencesSwitchControl *associationCandidatesSwitch;
+@property(nonatomic, strong) MKPreferencesSwitchControl *associationContinuationSwitch;
 @property(nonatomic, strong) MKPreferencesSwitchControl *learningSwitch;
 @property(nonatomic, strong) MKPreferencesSwitchControl *privacyLockSwitch;
 @property(nonatomic, strong) MKPreferencesSwitchControl *rawEnglishCandidateSwitch;
+@property(nonatomic, strong) MKPreferencesSegmentedControl *rawEnglishCandidatePositionSegmentedControl;
 @property(nonatomic, strong) MKPreferencesSwitchControl *spellingSuggestionsSwitch;
 @property(nonatomic, strong) MKPreferencesSegmentedControl *candidatePageSizeSegmentedControl;
 @property(nonatomic, strong) MKPreferencesSegmentedControl *preferencesLanguageSegmentedControl;
@@ -667,8 +750,19 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
 @property(nonatomic, strong) NSMutableDictionary<NSString *, NSImage *> *preferenceCoverImagesByFilename;
 @property(nonatomic, strong) NSImage *cachedAppIconImage;
 @property(nonatomic, strong) NSWindow *privacyPolicySheet;
+@property(nonatomic, strong) PurrTypeQuickPhraseStore *quickPhraseStore;
+@property(nonatomic, strong) PurrTypeBackupStore *backupStore;
+@property(nonatomic, strong) NSTextField *quickPhraseTriggerField;
+@property(nonatomic, strong) NSTextField *quickPhraseReplacementField;
+@property(nonatomic, strong) NSTextField *quickPhraseSummaryField;
+@property(nonatomic, strong) NSTextField *quickPhraseStatusField;
+@property(nonatomic, strong) NSTextField *backupStatusField;
+@property(nonatomic, strong) NSTextField *generalBehaviorStatusField;
+@property(nonatomic, strong) NSTextField *dataStatusField;
 
 - (void)rebuildSidebar;
+- (void)rebuildContentPreservingScrollPosition;
+- (void)normalizeWindowContentSize;
 - (NSString *)localizedString:(NSString *)key;
 - (NSImage *)preferenceCoverImageInBundle:(NSBundle *)bundle
                              resourceName:(NSString *)resourceName
@@ -701,6 +795,8 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     self = [super initWithWindow:window];
     if (self) {
         _selectedTab = MKPreferencesTabGeneral;
+        _quickPhraseStore = [PurrTypeQuickPhraseStore defaultStore];
+        _backupStore = [PurrTypeBackupStore defaultStore];
         _tabIdentifiers = @[MKPreferencesTabGeneral,
                             MKPreferencesTabInputModes,
                             MKPreferencesTabTyping,
@@ -710,6 +806,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
         _preferenceCoverImagesByFilename = [NSMutableDictionary dictionary];
         window.title = [self localizedString:@"PurrType Settings"];
         window.minSize = NSMakeSize(MKPreferencesMinimumWindowWidth, MKPreferencesMinimumWindowHeight);
+        window.contentMinSize = NSMakeSize(MKPreferencesMinimumWindowWidth, MKPreferencesMinimumWindowHeight);
         window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
         window.backgroundColor = MKPreferencesWindowBackgroundColor();
         window.titlebarAppearsTransparent = NO;
@@ -724,9 +821,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     self.engine = engine;
     self.preferencesDelegate = delegate;
     [self reloadState];
-    if (!self.window.visible) {
-        [self.window setContentSize:NSMakeSize(MKPreferencesWindowWidth, MKPreferencesWindowHeight)];
-    }
+    [self normalizeWindowContentSize];
     [self showWindow:nil];
     [self.window center];
     [NSApp activateIgnoringOtherApps:YES];
@@ -736,11 +831,12 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     self.window.title = [self localizedString:@"PurrType Settings"];
     [self rebuildSidebar];
     [self rebuildContent];
+    [self normalizeWindowContentSize];
 }
 
 - (void)buildWindowContent {
     MKPreferencesRootView *root = [[MKPreferencesRootView alloc] initWithFrame:NSZeroRect];
-    root.translatesAutoresizingMaskIntoConstraints = NO;
+    root.translatesAutoresizingMaskIntoConstraints = YES;
     self.window.contentView = root;
 
     MKPreferencesFillView *sidebar = [[MKPreferencesFillView alloc] initWithFrame:NSZeroRect];
@@ -766,6 +862,23 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
         [self.contentContainer.trailingAnchor constraintEqualToAnchor:root.trailingAnchor],
         [self.contentContainer.bottomAnchor constraintEqualToAnchor:root.bottomAnchor]
     ]];
+}
+
+- (void)normalizeWindowContentSize {
+    NSSize targetSize = MKPreferencesStandardContentSize();
+    NSRect currentFrame = self.window.frame;
+    NSRect currentContentRect = [self.window contentRectForFrameRect:currentFrame];
+    if (fabs(NSWidth(currentContentRect) - targetSize.width) < 0.5 &&
+        fabs(NSHeight(currentContentRect) - targetSize.height) < 0.5) {
+        return;
+    }
+
+    NSRect targetContentRect = currentContentRect;
+    targetContentRect.size = targetSize;
+    NSRect targetFrame = [self.window frameRectForContentRect:targetContentRect];
+    targetFrame.origin.x = NSMinX(currentFrame);
+    targetFrame.origin.y = NSMaxY(currentFrame) - NSHeight(targetFrame);
+    [self.window setFrame:targetFrame display:self.window.visible animate:NO];
 }
 
 - (NSArray<NSDictionary<NSString *, NSString *> *> *)sidebarItems {
@@ -926,6 +1039,25 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     [content layoutSubtreeIfNeeded];
 }
 
+- (void)rebuildContentPreservingScrollPosition {
+    NSPoint scrollOrigin = NSZeroPoint;
+    for (NSView *view in self.contentContainer.subviews) {
+        if ([view isKindOfClass:[NSScrollView class]]) {
+            scrollOrigin = ((NSScrollView *)view).contentView.bounds.origin;
+            break;
+        }
+    }
+    [self rebuildContent];
+    for (NSView *view in self.contentContainer.subviews) {
+        if ([view isKindOfClass:[NSScrollView class]]) {
+            NSScrollView *scrollView = (NSScrollView *)view;
+            [scrollView.contentView scrollToPoint:scrollOrigin];
+            [scrollView reflectScrolledClipView:scrollView.contentView];
+            break;
+        }
+    }
+}
+
 - (NSView *)generalView {
     NSView *view = [self contentColumnView];
     NSStackView *stack = view.subviews.firstObject;
@@ -933,9 +1065,10 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
                                              title:[self localizedString:@"General"]]
            toStack:stack];
     [self addContentView:[self overviewCard] toStack:stack];
-    [self addContentView:[self generalBehaviorCard] toStack:stack];
-    [self addContentView:[self enabledInputModesCard] toStack:stack];
+    [self addContentView:[self currentModeCard] toStack:stack];
     [self addContentView:[self globalShortcutsCard] toStack:stack];
+    [self addContentView:[self candidatePanelCard] toStack:stack];
+    [self addContentView:[self generalBehaviorCard] toStack:stack];
     return view;
 }
 
@@ -945,9 +1078,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     [self addCoverView:[self coverCardWithFilename:@"pref_cover_input_modes.png"
 	                                             title:[self localizedString:@"Input Modes"]]
 	           toStack:stack];
-    [self addContentView:[self currentModeCard] toStack:stack];
-    [self addContentView:[self candidatePageSizeCard] toStack:stack];
-    [self addContentView:[self modeShortcutsCard] toStack:stack];
+    [self addContentView:[self inputModeSettingsCard] toStack:stack];
     return view;
 }
 
@@ -958,8 +1089,9 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
                                              title:[self localizedString:@"Typing"]]
            toStack:stack];
     [self addContentView:[self compositionCard] toStack:stack];
-    [self addContentView:[self spaceKeyCard] toStack:stack];
     [self addContentView:[self englishPassThroughCard] toStack:stack];
+    [self addContentView:[self associationCard] toStack:stack];
+    [self addContentView:[self quickPhrasesCard] toStack:stack];
     return view;
 }
 
@@ -972,6 +1104,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     [self addContentView:[self learningCard] toStack:stack];
     [self addContentView:[self privacyLockSettingsCard] toStack:stack];
     [self addContentView:[self dataCard] toStack:stack];
+    [self addContentView:[self backupRestoreCard] toStack:stack];
     return view;
 }
 
@@ -1170,7 +1303,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     NSTextField *titleLabel = nil;
     MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Enabled Input Modes"]
                                                          symbol:@"checkmark.circle"
-                                                         height:296
+                                                         height:230
                                                      titleLabel:&titleLabel];
     NSStackView *stack = [self bodyStackInCard:card belowTitle:titleLabel];
     NSArray<NSString *> *modes = [PurrTypeInputBehavior orderedInputModes];
@@ -1180,7 +1313,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
                                                                    action:@selector(inputModeSwitchChanged:)];
         toggle.tag = MKPreferencesInputModeSwitchTagBase + (NSInteger)index;
         [stack addArrangedSubview:[self settingRowWithTitle:[self titleForInputMode:mode]
-                                                     detail:[self localizedString:@"Included in global mode switching."]
+                                                     detail:nil
                                                     control:toggle
                                                     enabled:YES]];
     }
@@ -1199,17 +1332,17 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     NSTextField *titleLabel = nil;
     MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Global Shortcuts"]
                                                          symbol:@"keyboard.badge.ellipsis"
-                                                         height:260
+                                                         height:150
                                                      titleLabel:&titleLabel];
     NSStackView *stack = [self bodyStackInCard:card belowTitle:titleLabel];
     [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Switch Input Mode"]
-                                                 detail:[self localizedString:@"Cycles Sucheng, New Sucheng, Cangjie, and Pinyin."]
+                                                 detail:nil
                                                 control:[self shortcutEditorWithSpec:[self.preferencesDelegate preferencesSwitchInputModeShortcut]
                                                                           defaultSpec:[PurrTypeInputBehavior defaultSwitchInputModeShortcutSpec]
                                                                                   tag:MKPreferencesShortcutTagSwitchInputMode]
                                                 enabled:YES]];
     [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Pause Learning"]
-                                                 detail:[self localizedString:@"Toggles Privacy Lock for sensitive typing."]
+                                                 detail:nil
                                                 control:[self shortcutEditorWithSpec:[self.preferencesDelegate preferencesPrivacyLockShortcut]
                                                                           defaultSpec:[PurrTypeInputBehavior defaultPrivacyLockShortcutSpec]
                                                                                   tag:MKPreferencesShortcutTagPrivacyLock]
@@ -1223,11 +1356,122 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     return card;
 }
 
+- (NSView *)candidatePanelCard {
+    NSTextField *titleLabel = nil;
+    MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Candidate Window"]
+                                                         symbol:@"list.bullet.rectangle"
+                                                         height:264
+                                                     titleLabel:&titleLabel];
+    NSStackView *stack = [self bodyStackInCard:card belowTitle:titleLabel];
+
+    self.candidatePanelOrientationSegmentedControl = [[MKPreferencesSegmentedControl alloc] initWithFrame:NSZeroRect];
+    self.candidatePanelOrientationSegmentedControl.translatesAutoresizingMaskIntoConstraints = NO;
+    self.candidatePanelOrientationSegmentedControl.segmentCount = 2;
+    self.candidatePanelOrientationSegmentedControl.trackingMode = NSSegmentSwitchTrackingSelectOne;
+    self.candidatePanelOrientationSegmentedControl.segmentStyle = NSSegmentStyleSeparated;
+    self.candidatePanelOrientationSegmentedControl.controlSize = NSControlSizeRegular;
+    self.candidatePanelOrientationSegmentedControl.font = MKFont(12, NSFontWeightRegular);
+    [self.candidatePanelOrientationSegmentedControl setLabel:[self localizedString:@"Vertical"] forSegment:0];
+    [self.candidatePanelOrientationSegmentedControl setLabel:[self localizedString:@"Horizontal"] forSegment:1];
+    [self.candidatePanelOrientationSegmentedControl setWidth:72 forSegment:0];
+    [self.candidatePanelOrientationSegmentedControl setWidth:80 forSegment:1];
+    self.candidatePanelOrientationSegmentedControl.target = self;
+    self.candidatePanelOrientationSegmentedControl.action = @selector(candidatePanelOrientationSegmentChanged:);
+    [self syncCandidatePanelOrientationSegment];
+    [self.candidatePanelOrientationSegmentedControl.widthAnchor constraintEqualToConstant:152].active = YES;
+    [self.candidatePanelOrientationSegmentedControl.heightAnchor constraintEqualToConstant:28].active = YES;
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Direction"]
+                                                 detail:nil
+                                                control:self.candidatePanelOrientationSegmentedControl
+                                                enabled:YES]];
+
+    self.candidatePageSizeSegmentedControl = [[MKPreferencesSegmentedControl alloc] initWithFrame:NSZeroRect];
+    self.candidatePageSizeSegmentedControl.translatesAutoresizingMaskIntoConstraints = NO;
+    self.candidatePageSizeSegmentedControl.segmentCount = 2;
+    self.candidatePageSizeSegmentedControl.trackingMode = NSSegmentSwitchTrackingSelectOne;
+    self.candidatePageSizeSegmentedControl.segmentStyle = NSSegmentStyleSeparated;
+    self.candidatePageSizeSegmentedControl.controlSize = NSControlSizeRegular;
+    self.candidatePageSizeSegmentedControl.font = MKFont(12, NSFontWeightRegular);
+    [self.candidatePageSizeSegmentedControl setLabel:@"5" forSegment:0];
+    [self.candidatePageSizeSegmentedControl setLabel:@"9" forSegment:1];
+    [self.candidatePageSizeSegmentedControl setWidth:58 forSegment:0];
+    [self.candidatePageSizeSegmentedControl setWidth:58 forSegment:1];
+    self.candidatePageSizeSegmentedControl.target = self;
+    self.candidatePageSizeSegmentedControl.action = @selector(candidatePageSizeSegmentChanged:);
+    [self syncCandidatePageSizeSegment];
+    [self.candidatePageSizeSegmentedControl.widthAnchor constraintEqualToConstant:116].active = YES;
+    [self.candidatePageSizeSegmentedControl.heightAnchor constraintEqualToConstant:28].active = YES;
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Candidates per page"]
+                                                 detail:nil
+                                                control:self.candidatePageSizeSegmentedControl
+                                                enabled:YES]];
+
+    self.spaceKeySegmentedControl = [[MKPreferencesSegmentedControl alloc] initWithFrame:NSZeroRect];
+    self.spaceKeySegmentedControl.translatesAutoresizingMaskIntoConstraints = NO;
+    self.spaceKeySegmentedControl.segmentCount = 2;
+    self.spaceKeySegmentedControl.trackingMode = NSSegmentSwitchTrackingSelectOne;
+    self.spaceKeySegmentedControl.segmentStyle = NSSegmentStyleSeparated;
+    self.spaceKeySegmentedControl.controlSize = NSControlSizeRegular;
+    self.spaceKeySegmentedControl.font = MKFont(12, NSFontWeightRegular);
+    [self.spaceKeySegmentedControl setLabel:[self localizedString:@"Commit"] forSegment:0];
+    [self.spaceKeySegmentedControl setLabel:[self localizedString:@"Page"] forSegment:1];
+    [self.spaceKeySegmentedControl setWidth:68 forSegment:0];
+    [self.spaceKeySegmentedControl setWidth:58 forSegment:1];
+    self.spaceKeySegmentedControl.target = self;
+    self.spaceKeySegmentedControl.action = @selector(spaceKeySegmentChanged:);
+    self.spaceKeySegmentedControl.selectedSegment = [self.preferencesDelegate preferencesSpacePagingEnabled] ? 1 : 0;
+    [self.spaceKeySegmentedControl.widthAnchor constraintEqualToConstant:126].active = YES;
+    [self.spaceKeySegmentedControl.heightAnchor constraintEqualToConstant:28].active = YES;
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Default Space key"]
+                                                 detail:nil
+                                                control:self.spaceKeySegmentedControl
+                                                enabled:YES]];
+
+    self.candidatePanelFontSizeSegmentedControl = [[MKPreferencesSegmentedControl alloc] initWithFrame:NSZeroRect];
+    self.candidatePanelFontSizeSegmentedControl.translatesAutoresizingMaskIntoConstraints = NO;
+    self.candidatePanelFontSizeSegmentedControl.segmentCount = 3;
+    self.candidatePanelFontSizeSegmentedControl.trackingMode = NSSegmentSwitchTrackingSelectOne;
+    self.candidatePanelFontSizeSegmentedControl.segmentStyle = NSSegmentStyleSeparated;
+    self.candidatePanelFontSizeSegmentedControl.controlSize = NSControlSizeRegular;
+    self.candidatePanelFontSizeSegmentedControl.font = MKFont(12, NSFontWeightRegular);
+    [self.candidatePanelFontSizeSegmentedControl setLabel:[self localizedString:@"Small"] forSegment:0];
+    [self.candidatePanelFontSizeSegmentedControl setLabel:[self localizedString:@"Medium"] forSegment:1];
+    [self.candidatePanelFontSizeSegmentedControl setLabel:[self localizedString:@"Large"] forSegment:2];
+    [self.candidatePanelFontSizeSegmentedControl setWidth:52 forSegment:0];
+    [self.candidatePanelFontSizeSegmentedControl setWidth:62 forSegment:1];
+    [self.candidatePanelFontSizeSegmentedControl setWidth:52 forSegment:2];
+    self.candidatePanelFontSizeSegmentedControl.target = self;
+    self.candidatePanelFontSizeSegmentedControl.action = @selector(candidatePanelFontSizeSegmentChanged:);
+    [self syncCandidatePanelFontSizeSegment];
+    [self.candidatePanelFontSizeSegmentedControl.widthAnchor constraintEqualToConstant:166].active = YES;
+    [self.candidatePanelFontSizeSegmentedControl.heightAnchor constraintEqualToConstant:28].active = YES;
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Candidate font size"]
+                                                 detail:nil
+                                                control:self.candidatePanelFontSizeSegmentedControl
+                                                enabled:YES]];
+
+    self.candidatePanelHighlightPopupButton = [[NSPopUpButton alloc] initWithFrame:NSZeroRect pullsDown:NO];
+    self.candidatePanelHighlightPopupButton.translatesAutoresizingMaskIntoConstraints = NO;
+    self.candidatePanelHighlightPopupButton.controlSize = NSControlSizeRegular;
+    self.candidatePanelHighlightPopupButton.font = MKFont(12, NSFontWeightRegular);
+    self.candidatePanelHighlightPopupButton.target = self;
+    self.candidatePanelHighlightPopupButton.action = @selector(candidatePanelHighlightPopupChanged:);
+    [self configureCandidatePanelHighlightPopup];
+    [self syncCandidatePanelHighlightPopup];
+    [self.candidatePanelHighlightPopupButton.widthAnchor constraintEqualToConstant:150].active = YES;
+    [self.candidatePanelHighlightPopupButton.heightAnchor constraintEqualToConstant:28].active = YES;
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Highlight color"]
+                                                 detail:nil
+                                                control:self.candidatePanelHighlightPopupButton
+                                                enabled:YES]];
+    return card;
+}
+
 - (NSView *)generalBehaviorCard {
     NSTextField *titleLabel = nil;
     MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"General Behavior"]
                                                          symbol:@"gearshape"
-                                                         height:146
+                                                         height:126
                                                      titleLabel:&titleLabel];
     NSStackView *stack = [self bodyStackInCard:card belowTitle:titleLabel];
     self.preferencesLanguageSegmentedControl = [[MKPreferencesSegmentedControl alloc] initWithFrame:NSZeroRect];
@@ -1240,17 +1484,17 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     [self.preferencesLanguageSegmentedControl setLabel:[self localizedString:@"System"] forSegment:0];
     [self.preferencesLanguageSegmentedControl setLabel:[self localizedString:@"English"] forSegment:1];
     [self.preferencesLanguageSegmentedControl setLabel:[self localizedString:@"Traditional Chinese"] forSegment:2];
-    [self.preferencesLanguageSegmentedControl setWidth:70 forSegment:0];
-    [self.preferencesLanguageSegmentedControl setWidth:70 forSegment:1];
-    [self.preferencesLanguageSegmentedControl setWidth:124 forSegment:2];
+    [self.preferencesLanguageSegmentedControl setWidth:54 forSegment:0];
+    [self.preferencesLanguageSegmentedControl setWidth:62 forSegment:1];
+    [self.preferencesLanguageSegmentedControl setWidth:92 forSegment:2];
     self.preferencesLanguageSegmentedControl.target = self;
     self.preferencesLanguageSegmentedControl.action = @selector(preferencesLanguageSegmentChanged:);
     [self syncPreferencesLanguageSegment];
-    [self.preferencesLanguageSegmentedControl.widthAnchor constraintEqualToConstant:264].active = YES;
-    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Preferences Language"]
-                                                 detail:[self localizedString:@"Controls this preferences window."]
-                                                control:self.preferencesLanguageSegmentedControl
-                                                enabled:YES]];
+    [self.preferencesLanguageSegmentedControl.widthAnchor constraintEqualToConstant:208].active = YES;
+    [self.preferencesLanguageSegmentedControl.heightAnchor constraintEqualToConstant:28].active = YES;
+    [stack addArrangedSubview:[self leadingAlignedView:self.preferencesLanguageSegmentedControl height:30.0]];
+    self.generalBehaviorStatusField = [self statusLabel];
+    [stack addArrangedSubview:self.generalBehaviorStatusField];
     return card;
 }
 
@@ -1324,15 +1568,20 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
 - (NSView *)settingRowWithTitle:(NSString *)title detail:(NSString *)detail control:(NSView *)control enabled:(BOOL)enabled {
     NSView *row = [[NSView alloc] initWithFrame:NSZeroRect];
     row.translatesAutoresizingMaskIntoConstraints = NO;
-    BOOL stacksControlVertically = control &&
-                                   ([control isKindOfClass:[NSStackView class]] ||
-                                    [control isKindOfClass:[MKPreferencesSegmentedControl class]]);
+    BOOL hasDetail = detail.length > 0;
+    BOOL isShortcutEditor = [control.identifier isEqualToString:MKPreferencesShortcutEditorIdentifier];
+    BOOL controlStacksVertically = control &&
+                                   !isShortcutEditor &&
+                                   [control isKindOfClass:[NSStackView class]];
     NSTextField *titleLabel = [self labelWithText:title
                                              size:12
                                            weight:NSFontWeightRegular
                                             color:(enabled ? MKPreferencesPrimaryTextColor() : MKPreferencesSecondaryTextColor())];
-    [titleLabel setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow
+    titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+    [titleLabel setContentCompressionResistancePriority:NSLayoutPriorityRequired
                                          forOrientation:NSLayoutConstraintOrientationHorizontal];
+    [titleLabel setContentHuggingPriority:NSLayoutPriorityDefaultHigh
+                           forOrientation:NSLayoutConstraintOrientationHorizontal];
     NSTextField *detailLabel = [self wrappingLabelWithText:detail ?: @""
                                                       size:11
                                                     weight:NSFontWeightRegular
@@ -1344,7 +1593,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
                                           forOrientation:NSLayoutConstraintOrientationHorizontal];
     detailLabel.maximumNumberOfLines = 2;
     [row addSubview:titleLabel];
-    if (detail.length > 0) {
+    if (hasDetail) {
         [row addSubview:detailLabel];
     }
     if (control) {
@@ -1352,34 +1601,36 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
         if (!enabled) {
             [self setControlsInView:control enabled:NO];
         }
+        [control setContentCompressionResistancePriority:NSLayoutPriorityRequired
+                                          forOrientation:NSLayoutConstraintOrientationHorizontal];
         [row addSubview:control];
     }
 
     NSMutableArray<NSLayoutConstraint *> *constraints = [@[
-        [row.heightAnchor constraintGreaterThanOrEqualToConstant:(stacksControlVertically ? (detail.length > 0 ? 78 : 62) : (detail.length > 0 ? 40 : 34))],
+        [row.heightAnchor constraintGreaterThanOrEqualToConstant:(controlStacksVertically ? (hasDetail ? 78 : 56) : (hasDetail ? 40 : 30))],
         [titleLabel.leadingAnchor constraintEqualToAnchor:row.leadingAnchor],
-        [titleLabel.topAnchor constraintEqualToAnchor:row.topAnchor constant:(detail.length > 0 ? 1 : 7)]
+        [titleLabel.topAnchor constraintEqualToAnchor:row.topAnchor constant:(hasDetail || controlStacksVertically ? 1 : 5)]
     ] mutableCopy];
 
-    if (detail.length > 0) {
+    if (hasDetail) {
         [constraints addObjectsFromArray:@[
             [detailLabel.leadingAnchor constraintEqualToAnchor:titleLabel.leadingAnchor],
-            [detailLabel.trailingAnchor constraintLessThanOrEqualToAnchor:(stacksControlVertically || !control) ? row.trailingAnchor : control.leadingAnchor
-                                                                  constant:(stacksControlVertically || !control) ? 0 : -12],
+            [detailLabel.trailingAnchor constraintLessThanOrEqualToAnchor:(controlStacksVertically || !control) ? row.trailingAnchor : control.leadingAnchor
+                                                                  constant:(controlStacksVertically || !control) ? 0 : -12],
             [detailLabel.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:2],
             [detailLabel.bottomAnchor constraintLessThanOrEqualToAnchor:row.bottomAnchor]
         ]];
-    } else {
+    } else if (!controlStacksVertically) {
         [constraints addObject:[titleLabel.centerYAnchor constraintEqualToAnchor:row.centerYAnchor]];
     }
 
     if (control) {
-        if (stacksControlVertically) {
+        if (controlStacksVertically) {
             [constraints addObjectsFromArray:@[
                 [titleLabel.trailingAnchor constraintLessThanOrEqualToAnchor:row.trailingAnchor],
                 [control.leadingAnchor constraintEqualToAnchor:row.leadingAnchor],
                 [control.trailingAnchor constraintLessThanOrEqualToAnchor:row.trailingAnchor],
-                [control.topAnchor constraintEqualToAnchor:(detail.length > 0 ? detailLabel.bottomAnchor : titleLabel.bottomAnchor) constant:7],
+                [control.topAnchor constraintEqualToAnchor:(hasDetail ? detailLabel.bottomAnchor : titleLabel.bottomAnchor) constant:7],
                 [control.bottomAnchor constraintLessThanOrEqualToAnchor:row.bottomAnchor]
             ]];
         } else {
@@ -1395,6 +1646,21 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
 
     [NSLayoutConstraint activateConstraints:constraints];
     return row;
+}
+
+- (NSView *)leadingAlignedView:(NSView *)content height:(CGFloat)height {
+    NSView *container = [[NSView alloc] initWithFrame:NSZeroRect];
+    container.translatesAutoresizingMaskIntoConstraints = NO;
+    content.translatesAutoresizingMaskIntoConstraints = NO;
+    [container addSubview:content];
+    [NSLayoutConstraint activateConstraints:@[
+        [container.heightAnchor constraintGreaterThanOrEqualToConstant:height],
+        [content.leadingAnchor constraintEqualToAnchor:container.leadingAnchor],
+        [content.topAnchor constraintEqualToAnchor:container.topAnchor],
+        [content.bottomAnchor constraintLessThanOrEqualToAnchor:container.bottomAnchor],
+        [content.trailingAnchor constraintLessThanOrEqualToAnchor:container.trailingAnchor]
+    ]];
+    return container;
 }
 
 - (void)setControlsInView:(NSView *)view enabled:(BOOL)enabled {
@@ -1432,6 +1698,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
 - (NSView *)shortcutEditorWithSpec:(NSString *)shortcutSpec defaultSpec:(NSString *)defaultSpec tag:(NSInteger)tag {
     NSStackView *row = [[NSStackView alloc] initWithFrame:NSZeroRect];
     row.translatesAutoresizingMaskIntoConstraints = NO;
+    row.identifier = MKPreferencesShortcutEditorIdentifier;
     row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     row.alignment = NSLayoutAttributeCenterY;
     row.spacing = 6.0;
@@ -1445,22 +1712,28 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     recorder.allowsDoubleTapBacktick = (tag == MKPreferencesShortcutTagPrivacyLock);
     recorder.recordingPrompt = [self localizedString:@"Press shortcut..."];
     recorder.secondBacktickPrompt = [self localizedString:@"Press ` again..."];
-    [recorder.widthAnchor constraintEqualToConstant:186].active = YES;
+    [recorder.widthAnchor constraintEqualToConstant:142].active = YES;
     [recorder.heightAnchor constraintEqualToConstant:30].active = YES;
     [row addArrangedSubview:recorder];
 
     NSButton *reset = [self secondaryButtonWithTitle:[self localizedString:@"Reset"] action:@selector(shortcutResetButtonClicked:)];
     reset.tag = tag;
     [reset.heightAnchor constraintEqualToConstant:28].active = YES;
+    [reset.widthAnchor constraintEqualToConstant:54].active = YES;
     [row addArrangedSubview:reset];
+    if (tag >= MKPreferencesShortcutTagModeBase && tag < MKPreferencesShortcutTagModeBase + 4) {
+        self.modeShortcutRecorderControl = recorder;
+        self.modeShortcutResetButton = reset;
+    }
 
-    [row.widthAnchor constraintEqualToConstant:250].active = YES;
+    [row.widthAnchor constraintEqualToConstant:202].active = YES;
     return row;
 }
 
 - (NSView *)privacyShortcutReferenceControl {
     NSStackView *row = [[NSStackView alloc] initWithFrame:NSZeroRect];
     row.translatesAutoresizingMaskIntoConstraints = NO;
+    row.identifier = MKPreferencesShortcutEditorIdentifier;
     row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     row.alignment = NSLayoutAttributeCenterY;
     row.spacing = 6.0;
@@ -1468,41 +1741,75 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     display.translatesAutoresizingMaskIntoConstraints = NO;
     display.enabled = NO;
     display.shortcutSpec = [self.preferencesDelegate preferencesPrivacyLockShortcut];
-    [display.widthAnchor constraintEqualToConstant:136].active = YES;
+    [display.widthAnchor constraintEqualToConstant:126].active = YES;
     [display.heightAnchor constraintEqualToConstant:30].active = YES;
     [row addArrangedSubview:display];
     NSButton *edit = [self secondaryButtonWithTitle:[self localizedString:@"Edit in General"] action:@selector(editPrivacyShortcutInGeneral:)];
     [edit.heightAnchor constraintEqualToConstant:28].active = YES;
-    [edit.widthAnchor constraintEqualToConstant:126].active = YES;
+    [edit.widthAnchor constraintEqualToConstant:54].active = YES;
     [row addArrangedSubview:edit];
-    [row.widthAnchor constraintEqualToConstant:268].active = YES;
+    [row.widthAnchor constraintEqualToConstant:186].active = YES;
     return row;
 }
 
-- (NSStackView *)buttonRowWithButtons:(NSArray<NSButton *> *)buttons {
-    NSStackView *row = [[NSStackView alloc] initWithFrame:NSZeroRect];
-    row.translatesAutoresizingMaskIntoConstraints = NO;
-    row.orientation = buttons.count > 1 ? NSUserInterfaceLayoutOrientationVertical : NSUserInterfaceLayoutOrientationHorizontal;
-    row.alignment = buttons.count > 1 ? NSLayoutAttributeLeading : NSLayoutAttributeCenterY;
-    row.spacing = buttons.count > 1 ? 8.0 : 10.0;
-    for (NSButton *button in buttons) {
-        [row addArrangedSubview:button];
-    }
-    return row;
-}
-
-- (NSStackView *)horizontalButtonRowWithButtons:(NSArray<NSButton *> *)buttons {
+- (NSView *)buttonRowWithButtons:(NSArray<NSButton *> *)buttons {
+    NSView *container = [[NSView alloc] initWithFrame:NSZeroRect];
+    container.translatesAutoresizingMaskIntoConstraints = NO;
     NSStackView *row = [[NSStackView alloc] initWithFrame:NSZeroRect];
     row.translatesAutoresizingMaskIntoConstraints = NO;
     row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     row.alignment = NSLayoutAttributeCenterY;
+    row.distribution = NSStackViewDistributionFill;
     row.spacing = 8.0;
+    [row setContentCompressionResistancePriority:NSLayoutPriorityRequired
+                                  forOrientation:NSLayoutConstraintOrientationHorizontal];
     for (NSButton *button in buttons) {
-        [button setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow
+        [button setContentCompressionResistancePriority:NSLayoutPriorityRequired
                                          forOrientation:NSLayoutConstraintOrientationHorizontal];
+        [button setContentHuggingPriority:NSLayoutPriorityRequired
+                           forOrientation:NSLayoutConstraintOrientationHorizontal];
+        [button.widthAnchor constraintGreaterThanOrEqualToConstant:[self minimumButtonWidthForTitle:button.title]].active = YES;
         [row addArrangedSubview:button];
     }
-    return row;
+    [container addSubview:row];
+    [NSLayoutConstraint activateConstraints:@[
+        [container.heightAnchor constraintGreaterThanOrEqualToConstant:30.0],
+        [row.leadingAnchor constraintEqualToAnchor:container.leadingAnchor],
+        [row.topAnchor constraintEqualToAnchor:container.topAnchor],
+        [row.bottomAnchor constraintEqualToAnchor:container.bottomAnchor],
+        [row.trailingAnchor constraintLessThanOrEqualToAnchor:container.trailingAnchor]
+    ]];
+    return container;
+}
+
+- (NSView *)horizontalButtonRowWithButtons:(NSArray<NSButton *> *)buttons {
+    NSView *container = [[NSView alloc] initWithFrame:NSZeroRect];
+    container.translatesAutoresizingMaskIntoConstraints = NO;
+    NSStackView *row = [[NSStackView alloc] initWithFrame:NSZeroRect];
+    row.translatesAutoresizingMaskIntoConstraints = NO;
+    row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
+    row.alignment = NSLayoutAttributeCenterY;
+    row.distribution = NSStackViewDistributionFill;
+    row.spacing = 8.0;
+    [row setContentCompressionResistancePriority:NSLayoutPriorityRequired
+                                  forOrientation:NSLayoutConstraintOrientationHorizontal];
+    for (NSButton *button in buttons) {
+        [button setContentCompressionResistancePriority:NSLayoutPriorityRequired
+                                         forOrientation:NSLayoutConstraintOrientationHorizontal];
+        [button setContentHuggingPriority:NSLayoutPriorityRequired
+                           forOrientation:NSLayoutConstraintOrientationHorizontal];
+        [button.widthAnchor constraintGreaterThanOrEqualToConstant:[self minimumButtonWidthForTitle:button.title]].active = YES;
+        [row addArrangedSubview:button];
+    }
+    [container addSubview:row];
+    [NSLayoutConstraint activateConstraints:@[
+        [container.heightAnchor constraintGreaterThanOrEqualToConstant:30.0],
+        [row.leadingAnchor constraintEqualToAnchor:container.leadingAnchor],
+        [row.topAnchor constraintEqualToAnchor:container.topAnchor],
+        [row.bottomAnchor constraintEqualToAnchor:container.bottomAnchor],
+        [row.trailingAnchor constraintLessThanOrEqualToAnchor:container.trailingAnchor]
+    ]];
+    return container;
 }
 
 - (NSButton *)linkButtonWithTitle:(NSString *)title action:(SEL)action {
@@ -1559,47 +1866,17 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     NSTextField *titleLabel = nil;
     MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Composition"]
                                                          symbol:@"text.cursor"
-                                                         height:150
+                                                         height:154
                                                      titleLabel:&titleLabel];
     NSStackView *stack = [self bodyStackInCard:card belowTitle:titleLabel];
     [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Escape cancels composition"]
-                                                 detail:[self localizedString:@"Clears the active buffer without committing text."]
+                                                 detail:nil
                                                 control:[self readOnlyChipWithText:[self localizedString:@"Esc"]]
                                                 enabled:YES]];
     [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Enter commits raw input"]
-                                                 detail:[self localizedString:@"Commits the typed code exactly as entered."]
+                                                 detail:nil
                                                 control:[self readOnlyChipWithText:[self localizedString:@"Return"]]
                                                 enabled:YES]];
-    return card;
-}
-
-- (NSView *)spaceKeyCard {
-    NSTextField *title = nil;
-    MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Space Key"]
-                                                         symbol:@"keyboard"
-                                                         height:116
-                                                     titleLabel:&title];
-    self.spaceKeySegmentedControl = [[MKPreferencesSegmentedControl alloc] initWithFrame:NSZeroRect];
-    self.spaceKeySegmentedControl.translatesAutoresizingMaskIntoConstraints = NO;
-    self.spaceKeySegmentedControl.segmentCount = 2;
-    self.spaceKeySegmentedControl.trackingMode = NSSegmentSwitchTrackingSelectOne;
-    self.spaceKeySegmentedControl.segmentStyle = NSSegmentStyleSeparated;
-    self.spaceKeySegmentedControl.controlSize = NSControlSizeRegular;
-    self.spaceKeySegmentedControl.font = MKFont(12, NSFontWeightRegular);
-    [self.spaceKeySegmentedControl setLabel:[self localizedString:@"Commit first candidate"] forSegment:0];
-    [self.spaceKeySegmentedControl setLabel:[self localizedString:@"Page candidates"] forSegment:1];
-    [self.spaceKeySegmentedControl setWidth:150 forSegment:0];
-    [self.spaceKeySegmentedControl setWidth:110 forSegment:1];
-    self.spaceKeySegmentedControl.target = self;
-    self.spaceKeySegmentedControl.action = @selector(spaceKeySegmentChanged:);
-    self.spaceKeySegmentedControl.selectedSegment = [self.preferencesDelegate preferencesSpacePagingEnabled] ? 1 : 0;
-    [card addSubview:self.spaceKeySegmentedControl];
-    [NSLayoutConstraint activateConstraints:@[
-        [self.spaceKeySegmentedControl.leadingAnchor constraintEqualToAnchor:title.leadingAnchor],
-        [self.spaceKeySegmentedControl.trailingAnchor constraintLessThanOrEqualToAnchor:card.trailingAnchor constant:-24],
-        [self.spaceKeySegmentedControl.topAnchor constraintEqualToAnchor:title.bottomAnchor constant:16],
-        [self.spaceKeySegmentedControl.widthAnchor constraintEqualToConstant:260]
-    ]];
     return card;
 }
 
@@ -1607,48 +1884,120 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     NSTextField *titleLabel = nil;
     MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"English Pass-through"]
                                                          symbol:@"globe"
-                                                         height:260
+                                                         height:274
                                                      titleLabel:&titleLabel];
     NSStackView *stack = [self bodyStackInCard:card belowTitle:titleLabel];
     self.rawEnglishCandidateSwitch = [self switchControlWithState:[self.preferencesDelegate preferencesRawEnglishCandidateEnabled]
                                                            action:@selector(rawEnglishCandidateSwitchChanged:)];
     [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Show raw English candidate as 0"]
-                                                 detail:[self localizedString:@"Keeps typed letters available when Chinese candidates exist."]
+                                                 detail:nil
                                                 control:self.rawEnglishCandidateSwitch
                                                 enabled:YES]];
+    self.rawEnglishCandidatePositionSegmentedControl = [[MKPreferencesSegmentedControl alloc] initWithFrame:NSZeroRect];
+    self.rawEnglishCandidatePositionSegmentedControl.translatesAutoresizingMaskIntoConstraints = NO;
+    self.rawEnglishCandidatePositionSegmentedControl.segmentCount = 2;
+    self.rawEnglishCandidatePositionSegmentedControl.trackingMode = NSSegmentSwitchTrackingSelectOne;
+    self.rawEnglishCandidatePositionSegmentedControl.segmentStyle = NSSegmentStyleSeparated;
+    self.rawEnglishCandidatePositionSegmentedControl.controlSize = NSControlSizeRegular;
+    self.rawEnglishCandidatePositionSegmentedControl.font = MKFont(12, NSFontWeightRegular);
+    [self.rawEnglishCandidatePositionSegmentedControl setLabel:[self localizedString:@"First"] forSegment:0];
+    [self.rawEnglishCandidatePositionSegmentedControl setLabel:[self localizedString:@"Last"] forSegment:1];
+    [self.rawEnglishCandidatePositionSegmentedControl setWidth:62 forSegment:0];
+    [self.rawEnglishCandidatePositionSegmentedControl setWidth:62 forSegment:1];
+    self.rawEnglishCandidatePositionSegmentedControl.target = self;
+    self.rawEnglishCandidatePositionSegmentedControl.action = @selector(rawEnglishCandidatePositionSegmentChanged:);
+    [self syncRawEnglishCandidatePositionSegment];
+    [self.rawEnglishCandidatePositionSegmentedControl.widthAnchor constraintEqualToConstant:124].active = YES;
+    [self.rawEnglishCandidatePositionSegmentedControl.heightAnchor constraintEqualToConstant:28].active = YES;
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"0 candidate position"]
+                                                detail:nil
+                                               control:self.rawEnglishCandidatePositionSegmentedControl
+                                               enabled:YES]];
     self.spellingSuggestionsSwitch = [self switchControlWithState:[self.preferencesDelegate preferencesSpellingSuggestionsEnabled]
                                                            action:@selector(spellingSuggestionsSwitchChanged:)];
     [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"English spelling suggestions"]
-                                                detail:[self localizedString:@"Uses macOS spell checking locally and never auto-corrects."]
+                                                detail:nil
                                                control:self.spellingSuggestionsSwitch
                                                enabled:YES]];
     [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Temporary English with Shift"]
-                                                detail:[self localizedString:@"Hold Shift while typing letters."]
+                                                detail:nil
                                                 control:[self readOnlyChipWithText:[self localizedString:@"Shift"]]
                                                 enabled:YES]];
     [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Keep URL / email / path in English"]
-                                                detail:[self localizedString:@"URLs, emails, file paths and code-like text stay in English automatically."]
+                                                detail:nil
                                                control:[self readOnlyChipWithText:[self localizedString:@"Automatic"]]
                                                enabled:YES]];
     return card;
 }
 
-- (NSView *)protectedEnglishCard {
+- (NSView *)associationCard {
     NSTextField *titleLabel = nil;
-    MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Protected English"]
-                                                         symbol:@"checkmark.shield"
-                                                         height:112
+    MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Related Words"]
+                                                         symbol:@"text.append"
+                                                         height:146
                                                      titleLabel:&titleLabel];
-    NSTextField *note = [self wrappingLabelWithText:[self localizedString:@"URLs, emails, file paths and code-like text stay in English automatically."]
-                                              size:13
-                                            weight:NSFontWeightRegular
-                                             color:MKPreferencesSecondaryTextColor()];
-    [card addSubview:note];
+    NSStackView *stack = [self bodyStackInCard:card belowTitle:titleLabel];
+    self.associationCandidatesSwitch = [self switchControlWithState:[self.preferencesDelegate preferencesAssociationCandidatesEnabled]
+                                                             action:@selector(associationCandidatesSwitchChanged:)];
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Show related words"]
+                                                 detail:nil
+                                                control:self.associationCandidatesSwitch
+                                                enabled:YES]];
+    self.associationContinuationSwitch = [self switchControlWithState:[self.preferencesDelegate preferencesAssociationContinuationEnabled]
+                                                               action:@selector(associationContinuationSwitchChanged:)];
+    self.associationContinuationSwitch.enabled = [self.preferencesDelegate preferencesAssociationCandidatesEnabled];
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Continue after choosing related word"]
+                                                 detail:nil
+                                                control:self.associationContinuationSwitch
+                                                enabled:YES]];
+    return card;
+}
+
+- (NSView *)quickPhrasesCard {
+    NSTextField *titleLabel = nil;
+    MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Quick Phrases"]
+                                                         symbol:@"text.quote"
+                                                         height:270
+                                                     titleLabel:&titleLabel];
+    NSStackView *stack = [self bodyStackInCard:card belowTitle:titleLabel];
+    self.quickPhraseTriggerField = [self textFieldWithPlaceholder:[self localizedString:@"Start with ;, e.g. ;email"]];
+    [stack addArrangedSubview:self.quickPhraseTriggerField];
+
+    self.quickPhraseReplacementField = [self textFieldWithPlaceholder:[self localizedString:@"Replacement text"]];
+    [stack addArrangedSubview:self.quickPhraseReplacementField];
+
+    NSButton *save = [self prominentButtonWithTitle:[self localizedString:@"Save Phrase"] action:@selector(saveQuickPhrase:)];
+    NSButton *remove = [self secondaryButtonWithTitle:[self localizedString:@"Remove Phrase"] action:@selector(removeQuickPhrase:)];
+    NSView *saveRow = [self horizontalButtonRowWithButtons:@[save, remove]];
+    [stack addArrangedSubview:saveRow];
+
+    NSButton *import = [self secondaryButtonWithTitle:[self localizedString:@"Import TXT"] action:@selector(importQuickPhrasesFromTXT:)];
+    NSButton *export = [self secondaryButtonWithTitle:[self localizedString:@"Export TXT"] action:@selector(exportQuickPhrasesToTXT:)];
+    NSView *transferRow = [self horizontalButtonRowWithButtons:@[import, export]];
+    [stack addArrangedSubview:transferRow];
+    [stack setCustomSpacing:6.0 afterView:transferRow];
+
+    self.quickPhraseSummaryField = [self labelWithText:@""
+                                                  size:11
+                                                weight:NSFontWeightSemibold
+                                                 color:MKPreferencesPrimaryTextColor()];
+    self.quickPhraseSummaryField.alignment = NSTextAlignmentLeft;
+    self.quickPhraseSummaryField.lineBreakMode = NSLineBreakByTruncatingTail;
+    self.quickPhraseSummaryField.maximumNumberOfLines = 1;
+    [self.quickPhraseSummaryField.heightAnchor constraintGreaterThanOrEqualToConstant:18.0].active = YES;
+    [stack addArrangedSubview:self.quickPhraseSummaryField];
+    [stack setCustomSpacing:4.0 afterView:self.quickPhraseSummaryField];
+
+    self.quickPhraseStatusField = [self statusLabel];
+    self.quickPhraseStatusField.lineBreakMode = NSLineBreakByTruncatingTail;
+    self.quickPhraseStatusField.maximumNumberOfLines = 1;
+    [self.quickPhraseStatusField.heightAnchor constraintGreaterThanOrEqualToConstant:18.0].active = YES;
+    [stack addArrangedSubview:self.quickPhraseStatusField];
     [NSLayoutConstraint activateConstraints:@[
-        [note.leadingAnchor constraintEqualToAnchor:titleLabel.leadingAnchor],
-        [note.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-24],
-        [note.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:16]
+        [self.quickPhraseSummaryField.widthAnchor constraintEqualToAnchor:stack.widthAnchor],
+        [self.quickPhraseStatusField.widthAnchor constraintEqualToAnchor:stack.widthAnchor]
     ]];
+    [self updateQuickPhraseSummary];
     return card;
 }
 
@@ -1656,13 +2005,13 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     NSTextField *titleLabel = nil;
     MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Learning"]
                                                          symbol:@"brain"
-                                                         height:112
+                                                         height:98
                                                      titleLabel:&titleLabel];
     NSStackView *stack = [self bodyStackInCard:card belowTitle:titleLabel];
     self.learningSwitch = [self switchControlWithState:[self.preferencesDelegate preferencesLearningEnabled]
                                                 action:@selector(learningSwitchChanged:)];
     [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Enable New Sucheng learning"]
-                                                 detail:[self localizedString:@"Stores hashed ranking data locally only."]
+                                                 detail:nil
                                                 control:self.learningSwitch
                                                 enabled:YES]];
     return card;
@@ -1672,18 +2021,18 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     NSTextField *titleLabel = nil;
     MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Privacy Lock"]
                                                          symbol:@"lock"
-                                                         height:210
+                                                         height:142
                                                      titleLabel:&titleLabel];
     NSStackView *stack = [self bodyStackInCard:card belowTitle:titleLabel];
     self.privacyLockSwitch = [self switchControlWithState:[self.preferencesDelegate preferencesPrivacyLockEnabled]
                                                    action:@selector(privacyLockSwitchChanged:)];
     self.privacyLockStatusField = nil;
     [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Pause learning immediately"]
-                                                 detail:[self privacyLockStatusText]
+                                                 detail:nil
                                                 control:self.privacyLockSwitch
                                                 enabled:YES]];
     [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Current shortcut"]
-                                                 detail:[self localizedString:@"Configured in General."]
+                                                 detail:nil
                                                 control:[self privacyShortcutReferenceControl]
                                                 enabled:YES]];
     return card;
@@ -1693,7 +2042,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     NSTextField *titleLabel = nil;
     MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Data"]
                                                          symbol:@"externaldrive"
-                                                         height:146
+                                                         height:126
                                                      titleLabel:&titleLabel];
     NSStackView *stack = [self bodyStackInCard:card belowTitle:titleLabel];
     NSButton *reset = [self prominentButtonWithTitle:[self localizedString:@"Reset Learning Data"] action:@selector(resetLearning:)];
@@ -1702,6 +2051,24 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
         [buttons addObject:[self linkButtonWithTitle:[self localizedString:@"Open Privacy Policy"] action:@selector(openPrivacyPolicy:)]];
     }
     [stack addArrangedSubview:[self buttonRowWithButtons:buttons]];
+    self.dataStatusField = [self statusLabel];
+    [stack addArrangedSubview:self.dataStatusField];
+    return card;
+}
+
+- (NSView *)backupRestoreCard {
+    NSTextField *titleLabel = nil;
+    MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Backup / Restore"]
+                                                         symbol:@"externaldrive.badge.timemachine"
+                                                         height:126
+                                                     titleLabel:&titleLabel];
+    NSStackView *stack = [self bodyStackInCard:card belowTitle:titleLabel];
+    NSButton *export = [self prominentButtonWithTitle:[self localizedString:@"Export Backup"] action:@selector(exportBackup:)];
+    NSButton *restore = [self secondaryButtonWithTitle:[self localizedString:@"Restore Backup"] action:@selector(restoreBackup:)];
+    [stack addArrangedSubview:[self horizontalButtonRowWithButtons:@[export, restore]]];
+
+    self.backupStatusField = [self statusLabel];
+    [stack addArrangedSubview:self.backupStatusField];
     return card;
 }
 
@@ -1761,7 +2128,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
                                                          symbol:@"link"
                                                          height:214
                                                      titleLabel:&titleLabel];
-    NSStackView *buttonRow = [self horizontalButtonRowWithButtons:buttons];
+    NSView *buttonRow = [self horizontalButtonRowWithButtons:buttons];
     [card addSubview:buttonRow];
     [NSLayoutConstraint activateConstraints:@[
         [buttonRow.leadingAnchor constraintEqualToAnchor:titleLabel.leadingAnchor],
@@ -1802,6 +2169,146 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     return card;
 }
 
+- (NSView *)inputModeSettingsCard {
+    if (![self.selectedInputModeSettingsMode isKindOfClass:[NSString class]] ||
+        ![[PurrTypeInputBehavior orderedInputModes] containsObject:self.selectedInputModeSettingsMode]) {
+        self.selectedInputModeSettingsMode = [self.preferencesDelegate preferencesCurrentMode] ?: MKInputModeSucheng;
+    }
+
+    NSTextField *title = nil;
+    MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Input Mode Settings"]
+                                                         symbol:@"keyboard"
+                                                         height:346
+                                                     titleLabel:&title];
+    NSStackView *stack = [self bodyStackInCard:card belowTitle:title];
+    stack.spacing = 6.0;
+
+    self.inputModeSettingsSegmentedControl = [[MKPreferencesSegmentedControl alloc] initWithFrame:NSZeroRect];
+    self.inputModeSettingsSegmentedControl.translatesAutoresizingMaskIntoConstraints = NO;
+    self.inputModeSettingsSegmentedControl.segmentCount = 4;
+    self.inputModeSettingsSegmentedControl.trackingMode = NSSegmentSwitchTrackingSelectOne;
+    self.inputModeSettingsSegmentedControl.segmentStyle = NSSegmentStyleSeparated;
+    self.inputModeSettingsSegmentedControl.controlSize = NSControlSizeRegular;
+    self.inputModeSettingsSegmentedControl.font = MKFont(12, NSFontWeightRegular);
+    NSArray<NSString *> *modes = [PurrTypeInputBehavior orderedInputModes];
+    for (NSUInteger index = 0; index < modes.count; index += 1) {
+        [self.inputModeSettingsSegmentedControl setLabel:[self titleForInputMode:modes[index]] forSegment:(NSInteger)index];
+    }
+    [self.inputModeSettingsSegmentedControl setWidth:58 forSegment:0];
+    [self.inputModeSettingsSegmentedControl setWidth:86 forSegment:1];
+    [self.inputModeSettingsSegmentedControl setWidth:50 forSegment:2];
+    [self.inputModeSettingsSegmentedControl setWidth:42 forSegment:3];
+    self.inputModeSettingsSegmentedControl.target = self;
+    self.inputModeSettingsSegmentedControl.action = @selector(inputModeSettingsSegmentChanged:);
+    [self.inputModeSettingsSegmentedControl.heightAnchor constraintEqualToConstant:28].active = YES;
+    NSView *modeSelectorRow = [[NSView alloc] initWithFrame:NSZeroRect];
+    modeSelectorRow.translatesAutoresizingMaskIntoConstraints = NO;
+    [modeSelectorRow addSubview:self.inputModeSettingsSegmentedControl];
+    [NSLayoutConstraint activateConstraints:@[
+        [modeSelectorRow.heightAnchor constraintGreaterThanOrEqualToConstant:28],
+        [self.inputModeSettingsSegmentedControl.leadingAnchor constraintEqualToAnchor:modeSelectorRow.leadingAnchor constant:-2],
+        [self.inputModeSettingsSegmentedControl.topAnchor constraintEqualToAnchor:modeSelectorRow.topAnchor],
+        [self.inputModeSettingsSegmentedControl.bottomAnchor constraintEqualToAnchor:modeSelectorRow.bottomAnchor],
+        [self.inputModeSettingsSegmentedControl.widthAnchor constraintEqualToConstant:236]
+    ]];
+    [stack addArrangedSubview:modeSelectorRow];
+
+    self.inputModeSettingsEnabledSwitch = [self switchControlWithState:YES
+                                                                 action:@selector(inputModeSettingsEnabledSwitchChanged:)];
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Use this input mode"]
+                                                 detail:nil
+                                                control:self.inputModeSettingsEnabledSwitch
+                                                enabled:YES]];
+
+    NSString *selectedMode = self.selectedInputModeSettingsMode ?: MKInputModeSucheng;
+    NSUInteger selectedIndex = [self selectedInputModeSettingsIndex];
+    NSDictionary<NSString *, NSString *> *shortcuts = [self.preferencesDelegate preferencesModeShortcutsByMode] ?: @{};
+    NSString *shortcut = shortcuts[selectedMode] ?: [PurrTypeInputBehavior defaultModeShortcutSpecForMode:selectedMode];
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Shortcut"]
+                                                 detail:nil
+                                                control:[self shortcutEditorWithSpec:shortcut
+                                                                          defaultSpec:[PurrTypeInputBehavior defaultModeShortcutSpecForMode:selectedMode]
+                                                                                  tag:MKPreferencesShortcutTagModeBase + (NSInteger)selectedIndex]
+                                                enabled:YES]];
+
+    self.modeCandidatePageSizeSegmentedControl = [[MKPreferencesSegmentedControl alloc] initWithFrame:NSZeroRect];
+    self.modeCandidatePageSizeSegmentedControl.translatesAutoresizingMaskIntoConstraints = NO;
+    self.modeCandidatePageSizeSegmentedControl.segmentCount = 3;
+    self.modeCandidatePageSizeSegmentedControl.trackingMode = NSSegmentSwitchTrackingSelectOne;
+    self.modeCandidatePageSizeSegmentedControl.segmentStyle = NSSegmentStyleSeparated;
+    self.modeCandidatePageSizeSegmentedControl.controlSize = NSControlSizeRegular;
+    self.modeCandidatePageSizeSegmentedControl.font = MKFont(12, NSFontWeightRegular);
+    [self.modeCandidatePageSizeSegmentedControl setLabel:[self localizedString:@"Follow Global"] forSegment:0];
+    [self.modeCandidatePageSizeSegmentedControl setLabel:@"5" forSegment:1];
+    [self.modeCandidatePageSizeSegmentedControl setLabel:@"9" forSegment:2];
+    [self.modeCandidatePageSizeSegmentedControl setWidth:70 forSegment:0];
+    [self.modeCandidatePageSizeSegmentedControl setWidth:50 forSegment:1];
+    [self.modeCandidatePageSizeSegmentedControl setWidth:50 forSegment:2];
+    self.modeCandidatePageSizeSegmentedControl.target = self;
+    self.modeCandidatePageSizeSegmentedControl.action = @selector(modeCandidatePageSizeSegmentChanged:);
+    [self.modeCandidatePageSizeSegmentedControl.widthAnchor constraintLessThanOrEqualToConstant:170].active = YES;
+    [self.modeCandidatePageSizeSegmentedControl.heightAnchor constraintEqualToConstant:28].active = YES;
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Candidate Page Size"]
+                                                 detail:nil
+                                                control:self.modeCandidatePageSizeSegmentedControl
+                                                enabled:YES]];
+
+    self.modeSpaceKeySegmentedControl = [[MKPreferencesSegmentedControl alloc] initWithFrame:NSZeroRect];
+    self.modeSpaceKeySegmentedControl.translatesAutoresizingMaskIntoConstraints = NO;
+    self.modeSpaceKeySegmentedControl.segmentCount = 3;
+    self.modeSpaceKeySegmentedControl.trackingMode = NSSegmentSwitchTrackingSelectOne;
+    self.modeSpaceKeySegmentedControl.segmentStyle = NSSegmentStyleSeparated;
+    self.modeSpaceKeySegmentedControl.controlSize = NSControlSizeRegular;
+    self.modeSpaceKeySegmentedControl.font = MKFont(12, NSFontWeightRegular);
+    [self.modeSpaceKeySegmentedControl setLabel:[self localizedString:@"Follow Global"] forSegment:0];
+    [self.modeSpaceKeySegmentedControl setLabel:[self localizedString:@"Commit"] forSegment:1];
+    [self.modeSpaceKeySegmentedControl setLabel:[self localizedString:@"Page"] forSegment:2];
+    [self.modeSpaceKeySegmentedControl setWidth:70 forSegment:0];
+    [self.modeSpaceKeySegmentedControl setWidth:70 forSegment:1];
+    [self.modeSpaceKeySegmentedControl setWidth:54 forSegment:2];
+    self.modeSpaceKeySegmentedControl.target = self;
+    self.modeSpaceKeySegmentedControl.action = @selector(modeSpaceKeySegmentChanged:);
+    [self.modeSpaceKeySegmentedControl.widthAnchor constraintLessThanOrEqualToConstant:194].active = YES;
+    [self.modeSpaceKeySegmentedControl.heightAnchor constraintEqualToConstant:28].active = YES;
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Space key"]
+                                                 detail:nil
+                                                control:self.modeSpaceKeySegmentedControl
+                                                enabled:YES]];
+
+    self.modeClearReadingOnFailureSwitch = [self switchControlWithState:NO
+                                                                  action:@selector(modeClearReadingOnFailureSwitchChanged:)];
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Clear reading when composition fails"]
+                                                 detail:nil
+                                                control:self.modeClearReadingOnFailureSwitch
+                                                enabled:YES]];
+
+    NSButton *resetButton = [self secondaryButtonWithTitle:[self localizedString:@"Reset this mode"]
+                                                    action:@selector(resetSelectedInputModeSettings:)];
+    [resetButton.heightAnchor constraintEqualToConstant:28].active = YES;
+    [resetButton.widthAnchor constraintEqualToConstant:112].active = YES;
+    [resetButton setContentCompressionResistancePriority:NSLayoutPriorityRequired
+                                          forOrientation:NSLayoutConstraintOrientationHorizontal];
+
+    self.modeSettingsStatusField = [self wrappingLabelWithText:@""
+                                                          size:11
+                                                        weight:NSFontWeightRegular
+                                                         color:MKPreferencesSecondaryTextColor()];
+    self.modeSettingsStatusField.maximumNumberOfLines = 2;
+
+    NSView *footer = [[NSView alloc] initWithFrame:NSZeroRect];
+    footer.translatesAutoresizingMaskIntoConstraints = NO;
+    [footer addSubview:resetButton];
+    [NSLayoutConstraint activateConstraints:@[
+        [footer.heightAnchor constraintGreaterThanOrEqualToConstant:34],
+        [resetButton.trailingAnchor constraintEqualToAnchor:footer.trailingAnchor],
+        [resetButton.centerYAnchor constraintEqualToAnchor:footer.centerYAnchor]
+    ]];
+    [stack addArrangedSubview:footer];
+
+    [self refreshInputModeSettingsControls];
+    return card;
+}
+
 - (NSView *)currentModeCard {
     NSTextField *title = nil;
     MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Default Mode"]
@@ -1824,10 +2331,10 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     for (NSUInteger index = 0; index < labels.count; index += 1) {
         [self.modeSegmentedControl setLabel:labels[index] forSegment:index];
     }
-    [self.modeSegmentedControl setWidth:60 forSegment:0];
+    [self.modeSegmentedControl setWidth:58 forSegment:0];
     [self.modeSegmentedControl setWidth:86 forSegment:1];
-    [self.modeSegmentedControl setWidth:68 forSegment:2];
-    [self.modeSegmentedControl setWidth:60 forSegment:3];
+    [self.modeSegmentedControl setWidth:50 forSegment:2];
+    [self.modeSegmentedControl setWidth:42 forSegment:3];
     self.modeSegmentedControl.target = self;
     self.modeSegmentedControl.action = @selector(modeSegmentChanged:);
     [self syncModeSegment];
@@ -1836,75 +2343,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
         [self.modeSegmentedControl.leadingAnchor constraintEqualToAnchor:title.leadingAnchor],
         [self.modeSegmentedControl.trailingAnchor constraintLessThanOrEqualToAnchor:card.trailingAnchor constant:-18],
         [self.modeSegmentedControl.topAnchor constraintEqualToAnchor:title.bottomAnchor constant:14],
-        [self.modeSegmentedControl.widthAnchor constraintEqualToConstant:274]
-    ]];
-    return card;
-}
-
-- (NSView *)modeShortcutsCard {
-    NSTextField *title = nil;
-    MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Mode Shortcuts"]
-                                                         symbol:@"keyboard"
-                                                         height:430
-                                                     titleLabel:&title];
-
-    NSArray<NSString *> *modes = @[MKInputModeSucheng, MKInputModeSmartSucheng, MKInputModeCangjie, MKInputModePinyin];
-    NSArray<NSString *> *titles = @[
-        [self localizedString:@"Sucheng"],
-        [self localizedString:@"New Sucheng"],
-        [self localizedString:@"Cangjie"],
-        [self localizedString:@"Pinyin"]
-    ];
-    NSDictionary<NSString *, NSString *> *shortcuts = [self.preferencesDelegate preferencesModeShortcutsByMode] ?: @{};
-
-    NSStackView *stack = [self bodyStackInCard:card belowTitle:title];
-    for (NSUInteger index = 0; index < modes.count; index += 1) {
-        NSString *mode = modes[index];
-        NSString *shortcut = shortcuts[mode] ?: [PurrTypeInputBehavior defaultModeShortcutSpecForMode:mode];
-        BOOL modeEnabled = [self isInputModeEnabled:mode];
-        [stack addArrangedSubview:[self settingRowWithTitle:titles[index]
-                                                     detail:[self localizedString:(modeEnabled ? @"Directly switches to this mode." : @"Inactive while this mode is disabled in General.")]
-                                                    control:[self shortcutEditorWithSpec:shortcut
-                                                                              defaultSpec:[PurrTypeInputBehavior defaultModeShortcutSpecForMode:mode]
-                                                                                      tag:MKPreferencesShortcutTagModeBase + (NSInteger)index]
-                                                    enabled:modeEnabled]];
-    }
-    self.shortcutErrorField = [self wrappingLabelWithText:@""
-                                                     size:11
-                                                   weight:NSFontWeightRegular
-                                                    color:NSColor.systemRedColor];
-    self.shortcutErrorField.hidden = YES;
-    [stack addArrangedSubview:self.shortcutErrorField];
-    return card;
-}
-
-- (NSView *)candidatePageSizeCard {
-    NSTextField *title = nil;
-    MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Candidate Page Size"]
-                                                         symbol:@"list.bullet"
-                                                         height:108
-                                                     titleLabel:&title];
-    self.candidatePageSizeSegmentedControl = [[MKPreferencesSegmentedControl alloc] initWithFrame:NSZeroRect];
-    self.candidatePageSizeSegmentedControl.translatesAutoresizingMaskIntoConstraints = NO;
-    self.candidatePageSizeSegmentedControl.segmentCount = 2;
-    self.candidatePageSizeSegmentedControl.trackingMode = NSSegmentSwitchTrackingSelectOne;
-    self.candidatePageSizeSegmentedControl.segmentStyle = NSSegmentStyleSeparated;
-    self.candidatePageSizeSegmentedControl.controlSize = NSControlSizeRegular;
-    self.candidatePageSizeSegmentedControl.font = MKFont(12, NSFontWeightRegular);
-    [self.candidatePageSizeSegmentedControl setLabel:@"5" forSegment:0];
-    [self.candidatePageSizeSegmentedControl setLabel:@"9" forSegment:1];
-    [self.candidatePageSizeSegmentedControl setWidth:58 forSegment:0];
-    [self.candidatePageSizeSegmentedControl setWidth:58 forSegment:1];
-    self.candidatePageSizeSegmentedControl.target = self;
-    self.candidatePageSizeSegmentedControl.action = @selector(candidatePageSizeSegmentChanged:);
-    [self syncCandidatePageSizeSegment];
-
-    [card addSubview:self.candidatePageSizeSegmentedControl];
-    [NSLayoutConstraint activateConstraints:@[
-        [self.candidatePageSizeSegmentedControl.leadingAnchor constraintEqualToAnchor:title.leadingAnchor],
-        [self.candidatePageSizeSegmentedControl.trailingAnchor constraintLessThanOrEqualToAnchor:card.trailingAnchor constant:-18],
-        [self.candidatePageSizeSegmentedControl.topAnchor constraintEqualToAnchor:title.bottomAnchor constant:14],
-        [self.candidatePageSizeSegmentedControl.widthAnchor constraintEqualToConstant:116]
+        [self.modeSegmentedControl.widthAnchor constraintEqualToConstant:236]
     ]];
     return card;
 }
@@ -1916,6 +2355,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     stack.alignment = NSLayoutAttributeWidth;
     [view addSubview:stack];
     [NSLayoutConstraint activateConstraints:@[
+        [stack.widthAnchor constraintGreaterThanOrEqualToConstant:MKPreferencesContentColumnWidth()],
         [stack.leadingAnchor constraintEqualToAnchor:view.leadingAnchor constant:MKPreferencesContentHorizontalMargin],
         [stack.trailingAnchor constraintEqualToAnchor:view.trailingAnchor constant:-MKPreferencesContentHorizontalMargin],
         [stack.topAnchor constraintEqualToAnchor:view.topAnchor constant:18],
@@ -1953,7 +2393,32 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     NSTextField *label = [self labelWithText:text size:size weight:weight color:color];
     label.lineBreakMode = NSLineBreakByWordWrapping;
     label.maximumNumberOfLines = 3;
+    [label setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow
+                                    forOrientation:NSLayoutConstraintOrientationHorizontal];
+    [label setContentHuggingPriority:NSLayoutPriorityDefaultLow
+                      forOrientation:NSLayoutConstraintOrientationHorizontal];
     return label;
+}
+
+- (NSTextField *)statusLabel {
+    NSTextField *label = [self wrappingLabelWithText:@""
+                                               size:11
+                                             weight:NSFontWeightRegular
+                                              color:MKPreferencesAccentActiveColor()];
+    label.maximumNumberOfLines = 2;
+    [label.heightAnchor constraintGreaterThanOrEqualToConstant:16.0].active = YES;
+    return label;
+}
+
+- (NSTextField *)textFieldWithPlaceholder:(NSString *)placeholder {
+    NSTextField *textField = [[NSTextField alloc] initWithFrame:NSZeroRect];
+    textField.translatesAutoresizingMaskIntoConstraints = NO;
+    textField.placeholderString = placeholder ?: @"";
+    textField.font = MKFont(12, NSFontWeightRegular);
+    textField.bezelStyle = NSTextFieldRoundedBezel;
+    textField.lineBreakMode = NSLineBreakByTruncatingTail;
+    [textField.heightAnchor constraintEqualToConstant:30].active = YES;
+    return textField;
 }
 
 - (NSButton *)prominentButtonWithTitle:(NSString *)title action:(SEL)action {
@@ -1971,6 +2436,13 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     button.bezelStyle = NSBezelStyleRounded;
     button.font = MKFont(12, NSFontWeightSemibold);
     return button;
+}
+
+- (CGFloat)minimumButtonWidthForTitle:(NSString *)title {
+    NSDictionary<NSAttributedStringKey, id> *attributes = @{
+        NSFontAttributeName: MKFont(12, NSFontWeightSemibold)
+    };
+    return MAX(62.0, ceil([(title ?: @"") sizeWithAttributes:attributes].width) + 28.0);
 }
 
 - (MKPreferencesSwitchControl *)switchControlWithState:(BOOL)enabled action:(SEL)action {
@@ -2033,6 +2505,60 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
         return [self localizedString:@"Pinyin"];
     }
     return [self localizedString:@"Sucheng"];
+}
+
+- (NSUInteger)selectedInputModeSettingsIndex {
+    NSUInteger index = [[PurrTypeInputBehavior orderedInputModes] indexOfObject:self.selectedInputModeSettingsMode ?: @""];
+    return index == NSNotFound ? 0 : index;
+}
+
+- (NSString *)selectedInputModeSettingsTitle {
+    return [self titleForInputMode:self.selectedInputModeSettingsMode ?: MKInputModeSucheng];
+}
+
+- (void)refreshInputModeSettingsControls {
+    NSArray<NSString *> *modes = [PurrTypeInputBehavior orderedInputModes];
+    NSUInteger selectedIndex = [self selectedInputModeSettingsIndex];
+    self.inputModeSettingsSegmentedControl.selectedSegment = (NSInteger)selectedIndex;
+
+    NSString *mode = modes[selectedIndex];
+    BOOL modeEnabled = [self isInputModeEnabled:mode];
+    self.inputModeSettingsEnabledSwitch.state = modeEnabled ? NSControlStateValueOn : NSControlStateValueOff;
+
+    NSUInteger pageSizeOverride = [self.preferencesDelegate preferencesCandidatePageSizeOverrideForMode:mode];
+    self.modeCandidatePageSizeSegmentedControl.selectedSegment = pageSizeOverride == 5 ? 1 : (pageSizeOverride == 9 ? 2 : 0);
+
+    NSString *spaceOverride = [self.preferencesDelegate preferencesSpaceKeyOverrideForMode:mode];
+    if ([spaceOverride isEqualToString:MKModeSpaceKeyCommitFirst]) {
+        self.modeSpaceKeySegmentedControl.selectedSegment = 1;
+    } else if ([spaceOverride isEqualToString:MKModeSpaceKeyPageCandidates]) {
+        self.modeSpaceKeySegmentedControl.selectedSegment = 2;
+    } else {
+        self.modeSpaceKeySegmentedControl.selectedSegment = 0;
+    }
+
+    BOOL clearReadingOnFailureEnabled =
+        [self.preferencesDelegate preferencesClearReadingOnCompositionFailureEnabledForMode:mode];
+    self.modeClearReadingOnFailureSwitch.state = clearReadingOnFailureEnabled ? NSControlStateValueOn : NSControlStateValueOff;
+
+    BOOL isDefault = [[self.preferencesDelegate preferencesCurrentMode] isEqualToString:mode];
+    self.modeSettingsStatusField.stringValue = isDefault ?
+        [NSString stringWithFormat:[self localizedString:@"%@ is the default input mode."], [self selectedInputModeSettingsTitle]] :
+        [NSString stringWithFormat:[self localizedString:@"Editing %@ settings."], [self selectedInputModeSettingsTitle]];
+    [self refreshSelectedModeShortcutControl];
+}
+
+- (void)refreshSelectedModeShortcutControl {
+    if (!self.modeShortcutRecorderControl || !self.modeShortcutResetButton) {
+        return;
+    }
+    NSUInteger selectedIndex = [self selectedInputModeSettingsIndex];
+    NSString *mode = [PurrTypeInputBehavior orderedInputModes][selectedIndex];
+    NSInteger tag = MKPreferencesShortcutTagModeBase + (NSInteger)selectedIndex;
+    NSDictionary<NSString *, NSString *> *shortcuts = [self.preferencesDelegate preferencesModeShortcutsByMode] ?: @{};
+    self.modeShortcutRecorderControl.tag = tag;
+    self.modeShortcutResetButton.tag = tag;
+    self.modeShortcutRecorderControl.shortcutSpec = shortcuts[mode] ?: [PurrTypeInputBehavior defaultModeShortcutSpecForMode:mode];
 }
 
 - (BOOL)isInputModeEnabled:(NSString *)mode {
@@ -2259,7 +2785,11 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     }
     [[self preferencesDefaults] setObject:languages[(NSUInteger)index] forKey:MKUserDefaultPreferencesLanguageKey];
     [[self preferencesDefaults] synchronize];
-    [self reloadState];
+    self.window.title = [self localizedString:@"PurrType Settings"];
+    [self rebuildSidebar];
+    [self rebuildContentPreservingScrollPosition];
+    [self showGeneralBehaviorStatus:[self localizedString:@"Preferences language updated."] error:NO beep:NO];
+    [self normalizeWindowContentSize];
 }
 
 - (void)modeSegmentChanged:(MKPreferencesSegmentedControl *)sender {
@@ -2275,7 +2805,72 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
         return;
     }
     [self.preferencesDelegate preferencesSwitchToMode:mode];
+    self.selectedInputModeSettingsMode = mode;
     [self syncModeSegment];
+    [self refreshInputModeSettingsControls];
+}
+
+- (void)inputModeSettingsSegmentChanged:(MKPreferencesSegmentedControl *)sender {
+    NSArray<NSString *> *modes = [PurrTypeInputBehavior orderedInputModes];
+    NSInteger index = sender.selectedSegment;
+    if (index < 0 || index >= (NSInteger)modes.count) {
+        return;
+    }
+    self.selectedInputModeSettingsMode = modes[(NSUInteger)index];
+    [self refreshInputModeSettingsControls];
+}
+
+- (void)inputModeSettingsEnabledSwitchChanged:(MKPreferencesSwitchControl *)sender {
+    NSString *mode = self.selectedInputModeSettingsMode ?: MKInputModeSucheng;
+    NSMutableArray<NSString *> *enabledModes = [[PurrTypeInputBehavior normalizedEnabledInputModes:[self.preferencesDelegate preferencesEnabledInputModes]] mutableCopy];
+    BOOL shouldEnable = sender.state == NSControlStateValueOn;
+    BOOL currentlyEnabled = [enabledModes containsObject:mode];
+    if (!shouldEnable && currentlyEnabled && enabledModes.count <= 1) {
+        sender.state = NSControlStateValueOn;
+        self.modeSettingsStatusField.stringValue = [self localizedString:@"At least one input mode must remain enabled."];
+        NSBeep();
+        return;
+    }
+
+    if (shouldEnable && !currentlyEnabled) {
+        [enabledModes addObject:mode];
+    } else if (!shouldEnable && currentlyEnabled) {
+        [enabledModes removeObject:mode];
+    }
+
+    [self.preferencesDelegate preferencesSetEnabledInputModes:[PurrTypeInputBehavior normalizedEnabledInputModes:enabledModes]];
+    [self refreshInputModeSettingsControls];
+}
+
+- (void)modeCandidatePageSizeSegmentChanged:(MKPreferencesSegmentedControl *)sender {
+    NSUInteger override = sender.selectedSegment == 1 ? 5 : (sender.selectedSegment == 2 ? 9 : 0);
+    [self.preferencesDelegate preferencesSetCandidatePageSizeOverride:override
+                                                               forMode:self.selectedInputModeSettingsMode ?: MKInputModeSucheng];
+    [self refreshInputModeSettingsControls];
+}
+
+- (void)modeSpaceKeySegmentChanged:(MKPreferencesSegmentedControl *)sender {
+    NSString *override = MKModeOverrideFollowGlobal;
+    if (sender.selectedSegment == 1) {
+        override = MKModeSpaceKeyCommitFirst;
+    } else if (sender.selectedSegment == 2) {
+        override = MKModeSpaceKeyPageCandidates;
+    }
+    [self.preferencesDelegate preferencesSetSpaceKeyOverride:override
+                                                     forMode:self.selectedInputModeSettingsMode ?: MKInputModeSucheng];
+    [self refreshInputModeSettingsControls];
+}
+
+- (void)modeClearReadingOnFailureSwitchChanged:(MKPreferencesSwitchControl *)sender {
+    [self.preferencesDelegate preferencesSetClearReadingOnCompositionFailureEnabled:(sender.state == NSControlStateValueOn)
+                                                                            forMode:self.selectedInputModeSettingsMode ?: MKInputModeSucheng];
+    [self refreshInputModeSettingsControls];
+}
+
+- (void)resetSelectedInputModeSettings:(id)sender {
+    (void)sender;
+    [self.preferencesDelegate preferencesResetOverridesForMode:self.selectedInputModeSettingsMode ?: MKInputModeSucheng];
+    [self refreshInputModeSettingsControls];
 }
 
 - (void)learningSwitchChanged:(MKPreferencesSwitchControl *)sender {
@@ -2291,6 +2886,11 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     [self.preferencesDelegate preferencesSetRawEnglishCandidateEnabled:(sender.state == NSControlStateValueOn)];
 }
 
+- (void)rawEnglishCandidatePositionSegmentChanged:(MKPreferencesSegmentedControl *)sender {
+    NSString *position = sender.selectedSegment == 1 ? MKRawEnglishCandidatePositionTrailing : MKRawEnglishCandidatePositionLeading;
+    [self.preferencesDelegate preferencesSetRawEnglishCandidatePosition:position];
+}
+
 - (void)spellingSuggestionsSwitchChanged:(MKPreferencesSwitchControl *)sender {
     [self.preferencesDelegate preferencesSetSpellingSuggestionsEnabled:(sender.state == NSControlStateValueOn)];
 }
@@ -2302,6 +2902,55 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
 - (void)candidatePageSizeSegmentChanged:(MKPreferencesSegmentedControl *)sender {
     NSUInteger pageSize = sender.selectedSegment == 0 ? 5 : 9;
     [self.preferencesDelegate preferencesSetCandidatePageSize:pageSize];
+}
+
+- (void)candidatePanelOrientationSegmentChanged:(MKPreferencesSegmentedControl *)sender {
+    NSString *orientation = sender.selectedSegment == 1 ? MKCandidatePanelOrientationHorizontal : MKCandidatePanelOrientationVertical;
+    [self.preferencesDelegate preferencesSetCandidatePanelOrientation:orientation];
+}
+
+- (void)candidatePanelFontSizeSegmentChanged:(MKPreferencesSegmentedControl *)sender {
+    CGFloat fontSize = 17.0;
+    if (sender.selectedSegment == 0) {
+        fontSize = 15.0;
+    } else if (sender.selectedSegment == 2) {
+        fontSize = 19.0;
+    }
+    [self.preferencesDelegate preferencesSetCandidatePanelFontSize:fontSize];
+}
+
+- (void)candidatePanelHighlightPopupChanged:(NSPopUpButton *)sender {
+    NSString *highlightColor = sender.selectedItem.representedObject;
+    if ([highlightColor isEqualToString:MKCandidatePanelHighlightCustomPrefix]) {
+        NSColorPanel *colorPanel = [NSColorPanel sharedColorPanel];
+        colorPanel.showsAlpha = NO;
+        colorPanel.target = self;
+        colorPanel.action = @selector(candidatePanelCustomHighlightColorChanged:);
+        [colorPanel setColor:MKPreferencesColorForCandidateHighlightValue([self.preferencesDelegate preferencesCandidatePanelHighlightColor])];
+        [colorPanel orderFront:self];
+        return;
+    }
+    if (highlightColor.length == 0) {
+        highlightColor = MKCandidatePanelHighlightRed;
+    }
+    [self.preferencesDelegate preferencesSetCandidatePanelHighlightColor:highlightColor];
+    [self syncCandidatePanelHighlightPopup];
+}
+
+- (void)candidatePanelCustomHighlightColorChanged:(NSColorPanel *)sender {
+    NSString *highlightColor = MKPreferencesCustomHighlightStringFromColor(sender.color ?: NSColor.systemRedColor);
+    [self.preferencesDelegate preferencesSetCandidatePanelHighlightColor:highlightColor];
+    [self syncCandidatePanelHighlightPopup];
+}
+
+- (void)associationCandidatesSwitchChanged:(MKPreferencesSwitchControl *)sender {
+    BOOL enabled = sender.state == NSControlStateValueOn;
+    [self.preferencesDelegate preferencesSetAssociationCandidatesEnabled:enabled];
+    self.associationContinuationSwitch.enabled = enabled;
+}
+
+- (void)associationContinuationSwitchChanged:(MKPreferencesSwitchControl *)sender {
+    [self.preferencesDelegate preferencesSetAssociationContinuationEnabled:(sender.state == NSControlStateValueOn)];
 }
 
 - (void)modeShortcutPopUpChanged:(NSPopUpButton *)sender {
@@ -2322,6 +2971,202 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
 - (void)resetLearning:(id)sender {
     (void)sender;
     [self.preferencesDelegate preferencesResetLearning];
+    [self showDataStatus:[self localizedString:@"Learning data reset."] error:NO beep:NO];
+}
+
+- (void)saveQuickPhrase:(id)sender {
+    (void)sender;
+    NSError *error = nil;
+    PurrTypeQuickPhraseEntry *entry = [self.quickPhraseStore upsertTrigger:self.quickPhraseTriggerField.stringValue
+                                                               replacement:self.quickPhraseReplacementField.stringValue
+                                                                     label:@""
+                                                                   enabled:YES
+                                                                     error:&error];
+    if (!entry || ![self.quickPhraseStore saveWithError:&error]) {
+        [self showQuickPhraseStatus:error.localizedDescription ?: [self localizedString:@"Unable to save quick phrase."] beep:YES];
+        return;
+    }
+
+    NSString *trigger = entry.normalizedTrigger ?: [PurrTypeQuickPhraseStore normalizedTriggerForTrigger:self.quickPhraseTriggerField.stringValue];
+    NSUInteger triggerCount = [self.quickPhraseStore entriesForTrigger:trigger].count;
+    [self postQuickPhrasesChangedNotification];
+    [self updateQuickPhraseSummary];
+    NSString *message = [NSString stringWithFormat:[self localizedString:@"Saved %@. This command has %lu items."],
+                         trigger.length > 0 ? trigger : [self localizedString:@"Quick Phrases"],
+                         (unsigned long)triggerCount];
+    [self showQuickPhraseStatus:message beep:NO];
+}
+
+- (void)removeQuickPhrase:(id)sender {
+    (void)sender;
+    NSError *error = nil;
+    NSUInteger removedCount = [self.quickPhraseStore removeEntriesForTrigger:self.quickPhraseTriggerField.stringValue
+                                                                 replacement:self.quickPhraseReplacementField.stringValue
+                                                                       error:&error];
+    if (error || ![self.quickPhraseStore saveWithError:&error]) {
+        [self showQuickPhraseStatus:error.localizedDescription ?: [self localizedString:@"Unable to remove quick phrase."] beep:YES];
+        return;
+    }
+
+    if (removedCount == 0) {
+        [self showQuickPhraseStatus:[self localizedString:@"No matching quick phrase to remove."] beep:YES];
+        return;
+    }
+    self.quickPhraseReplacementField.stringValue = @"";
+    [self postQuickPhrasesChangedNotification];
+    [self updateQuickPhraseSummary];
+    NSString *message = [NSString stringWithFormat:[self localizedString:@"Removed %lu quick phrase items."], (unsigned long)removedCount];
+    [self showQuickPhraseStatus:message beep:NO];
+}
+
+- (void)importQuickPhrasesFromTXT:(id)sender {
+    (void)sender;
+    NSOpenPanel *panel = [NSOpenPanel openPanel];
+    panel.title = [self localizedString:@"Import Quick Phrases"];
+    panel.canChooseFiles = YES;
+    panel.canChooseDirectories = NO;
+    panel.allowsMultipleSelection = NO;
+    panel.directoryURL = [self downloadsDirectoryURL];
+    if ([panel runModal] != NSModalResponseOK) {
+        return;
+    }
+
+    NSError *error = nil;
+    NSString *text = [NSString stringWithContentsOfURL:panel.URL encoding:NSUTF8StringEncoding error:&error];
+    PurrTypeQuickPhraseImportSummary *summary = text ? [self.quickPhraseStore importEntriesFromText:text error:&error] : nil;
+    if (!summary || ![self.quickPhraseStore saveWithError:&error]) {
+        [self showQuickPhraseStatus:error.localizedDescription ?: [self localizedString:@"Unable to import quick phrases."] beep:YES];
+        return;
+    }
+
+    [self postQuickPhrasesChangedNotification];
+    [self updateQuickPhraseSummary];
+    NSString *message = [NSString stringWithFormat:[self localizedString:@"Imported %lu, updated %lu, invalid %lu."],
+                         (unsigned long)summary.importedCount,
+                         (unsigned long)summary.updatedCount,
+                         (unsigned long)summary.invalidCount];
+    [self showQuickPhraseStatus:message beep:NO];
+}
+
+- (void)exportQuickPhrasesToTXT:(id)sender {
+    (void)sender;
+    NSSavePanel *panel = [NSSavePanel savePanel];
+    panel.title = [self localizedString:@"Export Quick Phrases"];
+    panel.directoryURL = [self downloadsDirectoryURL];
+    panel.nameFieldStringValue = @"purrtype-quick-phrases.txt";
+    if ([panel runModal] != NSModalResponseOK) {
+        return;
+    }
+
+    NSError *error = nil;
+    NSString *text = [self.quickPhraseStore exportText];
+    if (![text writeToURL:panel.URL atomically:YES encoding:NSUTF8StringEncoding error:&error]) {
+        [self showQuickPhraseStatus:error.localizedDescription ?: [self localizedString:@"Unable to export quick phrases."] beep:YES];
+        return;
+    }
+    [self showQuickPhraseStatus:[self localizedString:@"Quick phrases exported."] beep:NO];
+}
+
+- (void)exportBackup:(id)sender {
+    (void)sender;
+    NSSavePanel *panel = [NSSavePanel savePanel];
+    panel.title = [self localizedString:@"Export Backup"];
+    panel.directoryURL = [self downloadsDirectoryURL];
+    panel.nameFieldStringValue = [NSString stringWithFormat:@"purrtype-backup-%@.json", [self filenameTimestamp]];
+    if ([panel runModal] != NSModalResponseOK) {
+        return;
+    }
+
+    NSError *error = nil;
+    NSData *data = [self.backupStore exportBackupDataWithError:&error];
+    if (!data || ![data writeToURL:panel.URL options:NSDataWritingAtomic error:&error]) {
+        [self showBackupStatus:error.localizedDescription ?: [self localizedString:@"Unable to export backup."] beep:YES];
+        return;
+    }
+    [[NSFileManager defaultManager] setAttributes:@{ NSFilePosixPermissions: @0600 } ofItemAtPath:panel.URL.path error:nil];
+    [self showBackupStatus:[self localizedString:@"Backup exported."] beep:NO];
+}
+
+- (void)restoreBackup:(id)sender {
+    (void)sender;
+    NSOpenPanel *panel = [NSOpenPanel openPanel];
+    panel.title = [self localizedString:@"Restore Backup"];
+    panel.canChooseFiles = YES;
+    panel.canChooseDirectories = NO;
+    panel.allowsMultipleSelection = NO;
+    panel.directoryURL = [self downloadsDirectoryURL];
+    if ([panel runModal] != NSModalResponseOK) {
+        return;
+    }
+
+    NSError *error = nil;
+    NSData *data = [NSData dataWithContentsOfURL:panel.URL options:0 error:&error];
+    PurrTypeBackupSummary *summary = data ? [self.backupStore restoreBackupData:data error:&error] : nil;
+    if (!summary) {
+        [self showBackupStatus:error.localizedDescription ?: [self localizedString:@"Unable to restore backup."] beep:YES];
+        return;
+    }
+
+    [self.quickPhraseStore loadWithError:nil];
+    [self postQuickPhrasesChangedNotification];
+    [self updateQuickPhraseSummary];
+    NSString *message = [NSString stringWithFormat:[self localizedString:@"Restored %lu data file, invalid %lu."],
+                         (unsigned long)summary.importedCount,
+                         (unsigned long)summary.invalidCount];
+    [self showBackupStatus:message beep:(summary.invalidCount > 0)];
+}
+
+- (void)postQuickPhrasesChangedNotification {
+    [[PurrTypePreferencesStore sharedStore] postPreferencesChangedNotificationWithUserInfo:@{ MKPreferencesQuickPhrasesChangedKey: @YES }];
+}
+
+- (void)updateQuickPhraseSummary {
+    [self.quickPhraseStore loadWithError:nil];
+    NSUInteger count = self.quickPhraseStore.entries.count;
+    self.quickPhraseSummaryField.stringValue =
+        count == 0 ? [self localizedString:@"No quick phrases yet."] :
+        [NSString stringWithFormat:[self localizedString:@"%lu quick phrases saved."], (unsigned long)count];
+}
+
+- (void)showQuickPhraseStatus:(NSString *)message beep:(BOOL)beep {
+    [self showStatus:message inField:self.quickPhraseStatusField error:beep beep:beep];
+}
+
+- (void)showBackupStatus:(NSString *)message beep:(BOOL)beep {
+    [self showStatus:message inField:self.backupStatusField error:beep beep:beep];
+}
+
+- (void)showGeneralBehaviorStatus:(NSString *)message error:(BOOL)isError beep:(BOOL)beep {
+    [self showStatus:message inField:self.generalBehaviorStatusField error:isError beep:beep];
+}
+
+- (void)showDataStatus:(NSString *)message error:(BOOL)isError beep:(BOOL)beep {
+    [self showStatus:message inField:self.dataStatusField error:isError beep:beep];
+}
+
+- (void)showStatus:(NSString *)message inField:(NSTextField *)field error:(BOOL)isError beep:(BOOL)beep {
+    field.stringValue = message ?: @"";
+    field.textColor = isError ? NSColor.systemRedColor : MKPreferencesAccentActiveColor();
+    if (beep) {
+        NSBeep();
+    }
+}
+
+- (NSURL *)downloadsDirectoryURL {
+    NSURL *url = [[NSFileManager defaultManager] URLForDirectory:NSDownloadsDirectory
+                                                        inDomain:NSUserDomainMask
+                                               appropriateForURL:nil
+                                                          create:NO
+                                                           error:nil];
+    return url ?: [NSURL fileURLWithPath:NSHomeDirectory() isDirectory:YES];
+}
+
+- (NSString *)filenameTimestamp {
+    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+    formatter.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
+    formatter.timeZone = [NSTimeZone localTimeZone];
+    formatter.dateFormat = @"yyyyMMdd-HHmmss";
+    return [formatter stringFromDate:[NSDate date]];
 }
 
 - (NSURL *)privacyPolicyFileURL {
@@ -2483,6 +3328,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     NSURL *fileURL = [self privacyPolicyFileURL];
     if (!fileURL) {
         [self openURL:[self privacyPolicyURL]];
+        [self showDataStatus:[self localizedString:@"Privacy policy opened."] error:NO beep:NO];
         return;
     }
 
@@ -2492,10 +3338,12 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
                                                  error:&error];
     if (text.length == 0) {
         [self showPrivacyPolicyReadErrorForURL:fileURL error:error];
+        [self showDataStatus:error.localizedDescription ?: [self localizedString:@"Privacy policy unavailable"] error:YES beep:YES];
         return;
     }
 
     [self showPrivacyPolicyText:text sourceURL:fileURL];
+    [self showDataStatus:[self localizedString:@"Privacy policy opened."] error:NO beep:NO];
 }
 
 - (void)openGitHub:(id)sender {
@@ -2532,6 +3380,64 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
 - (void)syncCandidatePageSizeSegment {
     NSUInteger pageSize = [self.preferencesDelegate preferencesCandidatePageSize];
     self.candidatePageSizeSegmentedControl.selectedSegment = pageSize == 5 ? 0 : 1;
+}
+
+- (void)syncRawEnglishCandidatePositionSegment {
+    NSString *position = [self.preferencesDelegate preferencesRawEnglishCandidatePosition];
+    self.rawEnglishCandidatePositionSegmentedControl.selectedSegment =
+        [position isEqualToString:MKRawEnglishCandidatePositionTrailing] ? 1 : 0;
+}
+
+- (void)syncCandidatePanelOrientationSegment {
+    NSString *orientation = [self.preferencesDelegate preferencesCandidatePanelOrientation];
+    self.candidatePanelOrientationSegmentedControl.selectedSegment =
+        [orientation isEqualToString:MKCandidatePanelOrientationHorizontal] ? 1 : 0;
+}
+
+- (void)syncCandidatePanelFontSizeSegment {
+    CGFloat fontSize = [self.preferencesDelegate preferencesCandidatePanelFontSize];
+    if (fontSize <= 15.5) {
+        self.candidatePanelFontSizeSegmentedControl.selectedSegment = 0;
+    } else if (fontSize >= 18.5) {
+        self.candidatePanelFontSizeSegmentedControl.selectedSegment = 2;
+    } else {
+        self.candidatePanelFontSizeSegmentedControl.selectedSegment = 1;
+    }
+}
+
+- (NSArray<NSDictionary<NSString *, NSString *> *> *)candidatePanelHighlightMenuItems {
+    return @[
+        @{@"title": [self localizedString:@"Red"], @"value": MKCandidatePanelHighlightRed},
+        @{@"title": [self localizedString:@"Orange"], @"value": MKCandidatePanelHighlightOrange},
+        @{@"title": [self localizedString:@"Yellow"], @"value": MKCandidatePanelHighlightYellow},
+        @{@"title": [self localizedString:@"Green"], @"value": MKCandidatePanelHighlightGreen},
+        @{@"title": [self localizedString:@"Blue"], @"value": MKCandidatePanelHighlightBlue},
+        @{@"title": [self localizedString:@"Purple"], @"value": MKCandidatePanelHighlightPurple},
+        @{@"title": [self localizedString:@"Pink"], @"value": MKCandidatePanelHighlightPink},
+        @{@"title": [self localizedString:@"Custom Color..."], @"value": MKCandidatePanelHighlightCustomPrefix}
+    ];
+}
+
+- (void)configureCandidatePanelHighlightPopup {
+    [self.candidatePanelHighlightPopupButton removeAllItems];
+    for (NSDictionary<NSString *, NSString *> *item in [self candidatePanelHighlightMenuItems]) {
+        [self.candidatePanelHighlightPopupButton addItemWithTitle:item[@"title"] ?: @""];
+        self.candidatePanelHighlightPopupButton.lastItem.representedObject = item[@"value"] ?: MKCandidatePanelHighlightRed;
+    }
+}
+
+- (void)syncCandidatePanelHighlightPopup {
+    NSString *highlightColor = [self.preferencesDelegate preferencesCandidatePanelHighlightColor] ?: MKCandidatePanelHighlightRed;
+    BOOL isCustom = [highlightColor hasPrefix:MKCandidatePanelHighlightCustomPrefix];
+    for (NSMenuItem *item in self.candidatePanelHighlightPopupButton.itemArray) {
+        NSString *value = item.representedObject;
+        if ((isCustom && [value isEqualToString:MKCandidatePanelHighlightCustomPrefix]) ||
+            (!isCustom && [value isEqualToString:highlightColor])) {
+            [self.candidatePanelHighlightPopupButton selectItem:item];
+            return;
+        }
+    }
+    [self.candidatePanelHighlightPopupButton selectItemAtIndex:0];
 }
 
 - (void)syncPreferencesLanguageSegment {
