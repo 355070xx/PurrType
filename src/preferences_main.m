@@ -65,6 +65,49 @@
 
     appMenuItem.submenu = appMenu;
 
+    NSMenuItem *editMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Edit", nil) action:nil keyEquivalent:@""];
+    [mainMenu addItem:editMenuItem];
+    NSMenu *editMenu = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"Edit", nil)];
+    NSMenuItem *undoItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Undo", nil)
+                                                      action:@selector(undo:)
+                                               keyEquivalent:@"z"];
+    undoItem.target = nil;
+    undoItem.keyEquivalentModifierMask = NSEventModifierFlagCommand;
+    [editMenu addItem:undoItem];
+    NSMenuItem *redoItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Redo", nil)
+                                                      action:@selector(redo:)
+                                               keyEquivalent:@"z"];
+    redoItem.target = nil;
+    redoItem.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
+    [editMenu addItem:redoItem];
+    [editMenu addItem:[NSMenuItem separatorItem]];
+    NSMenuItem *cutItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Cut", nil)
+                                                     action:@selector(cut:)
+                                              keyEquivalent:@"x"];
+    cutItem.target = nil;
+    cutItem.keyEquivalentModifierMask = NSEventModifierFlagCommand;
+    [editMenu addItem:cutItem];
+    NSMenuItem *copyItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Copy", nil)
+                                                      action:@selector(copy:)
+                                               keyEquivalent:@"c"];
+    copyItem.target = nil;
+    copyItem.keyEquivalentModifierMask = NSEventModifierFlagCommand;
+    [editMenu addItem:copyItem];
+    NSMenuItem *pasteItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Paste", nil)
+                                                       action:@selector(paste:)
+                                                keyEquivalent:@"v"];
+    pasteItem.target = nil;
+    pasteItem.keyEquivalentModifierMask = NSEventModifierFlagCommand;
+    [editMenu addItem:pasteItem];
+    [editMenu addItem:[NSMenuItem separatorItem]];
+    NSMenuItem *selectAllItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Select All", nil)
+                                                           action:@selector(selectAll:)
+                                                    keyEquivalent:@"a"];
+    selectAllItem.target = nil;
+    selectAllItem.keyEquivalentModifierMask = NSEventModifierFlagCommand;
+    [editMenu addItem:selectAllItem];
+    editMenuItem.submenu = editMenu;
+
     NSMenuItem *windowMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Window", nil) action:nil keyEquivalent:@""];
     [mainMenu addItem:windowMenuItem];
     NSMenu *windowMenu = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"Window", nil)];
@@ -152,6 +195,83 @@
 
 - (void)preferencesSetCandidatePageSize:(NSUInteger)pageSize {
     [self.preferencesStore setCandidatePageSize:pageSize];
+    [self.preferencesStore postPreferencesChangedNotification];
+}
+
+- (NSString *)preferencesCandidatePanelOrientation {
+    return [self.preferencesStore candidatePanelOrientation];
+}
+
+- (void)preferencesSetCandidatePanelOrientation:(NSString *)orientation {
+    [self.preferencesStore setCandidatePanelOrientation:orientation];
+    [self.preferencesStore postPreferencesChangedNotification];
+}
+
+- (CGFloat)preferencesCandidatePanelFontSize {
+    return [self.preferencesStore candidatePanelFontSize];
+}
+
+- (void)preferencesSetCandidatePanelFontSize:(CGFloat)fontSize {
+    [self.preferencesStore setCandidatePanelFontSize:fontSize];
+    [self.preferencesStore postPreferencesChangedNotification];
+}
+
+- (NSString *)preferencesCandidatePanelHighlightColor {
+    return [self.preferencesStore candidatePanelHighlightColor];
+}
+
+- (void)preferencesSetCandidatePanelHighlightColor:(NSString *)highlightColor {
+    [self.preferencesStore setCandidatePanelHighlightColor:highlightColor];
+    [self.preferencesStore postPreferencesChangedNotification];
+}
+
+- (BOOL)preferencesAssociationCandidatesEnabled {
+    return [self.preferencesStore associationCandidatesEnabled];
+}
+
+- (void)preferencesSetAssociationCandidatesEnabled:(BOOL)enabled {
+    [self.preferencesStore setAssociationCandidatesEnabled:enabled];
+    [self.preferencesStore postPreferencesChangedNotification];
+}
+
+- (BOOL)preferencesAssociationContinuationEnabled {
+    return [self.preferencesStore associationContinuationEnabled];
+}
+
+- (void)preferencesSetAssociationContinuationEnabled:(BOOL)enabled {
+    [self.preferencesStore setAssociationContinuationEnabled:enabled];
+    [self.preferencesStore postPreferencesChangedNotification];
+}
+
+- (NSUInteger)preferencesCandidatePageSizeOverrideForMode:(NSString *)mode {
+    return [self.preferencesStore candidatePageSizeOverrideForMode:mode];
+}
+
+- (void)preferencesSetCandidatePageSizeOverride:(NSUInteger)pageSize forMode:(NSString *)mode {
+    [self.preferencesStore setCandidatePageSizeOverride:pageSize forMode:mode];
+    [self.preferencesStore postPreferencesChangedNotification];
+}
+
+- (NSString *)preferencesSpaceKeyOverrideForMode:(NSString *)mode {
+    return [self.preferencesStore spaceKeyOverrideForMode:mode];
+}
+
+- (void)preferencesSetSpaceKeyOverride:(NSString *)overrideValue forMode:(NSString *)mode {
+    [self.preferencesStore setSpaceKeyOverride:overrideValue forMode:mode];
+    [self.preferencesStore postPreferencesChangedNotification];
+}
+
+- (BOOL)preferencesClearReadingOnCompositionFailureEnabledForMode:(NSString *)mode {
+    return [self.preferencesStore clearReadingOnCompositionFailureEnabledForMode:mode];
+}
+
+- (void)preferencesSetClearReadingOnCompositionFailureEnabled:(BOOL)enabled forMode:(NSString *)mode {
+    [self.preferencesStore setClearReadingOnCompositionFailureEnabled:enabled forMode:mode];
+    [self.preferencesStore postPreferencesChangedNotification];
+}
+
+- (void)preferencesResetOverridesForMode:(NSString *)mode {
+    [self.preferencesStore resetOverridesForMode:mode];
     [self.preferencesStore postPreferencesChangedNotification];
 }
 

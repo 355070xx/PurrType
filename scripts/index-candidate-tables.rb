@@ -12,7 +12,7 @@ def usage!
   warn 'Usage: index-candidate-tables.rb MODE OUTPUT INPUT...'
   warn '  quick OUTPUT quick-classic.txt'
   warn '  cangjie OUTPUT cangjie5.txt cangjie5.base.dict.yaml cangjie5.extended.dict.yaml'
-  warn '  pinyin OUTPUT pinyin_seed.tsv luna_pinyin.dict.yaml quick-classic.txt'
+  warn '  pinyin OUTPUT pinyin_seed.tsv pinyin_phrases.tsv luna_pinyin.dict.yaml quick-classic.txt'
   exit 2
 end
 
@@ -102,7 +102,7 @@ def parse_rime_cangjie(path)
   rows
 end
 
-def parse_pinyin_seed(path)
+def parse_pinyin_tsv(path, base_weight)
   rows = []
   File.foreach(path, encoding: 'UTF-8') do |line|
     line = line.chomp
@@ -111,10 +111,10 @@ def parse_pinyin_seed(path)
     columns = line.split("\t")
     next if columns.length < 2
 
-    code = normalized_input(columns[0])
+    code = normalized_pinyin_code(columns[0])
     text = columns[1]
-    weight = 10_000 + (columns.length >= 3 ? columns[2].to_i : 0)
-    next if code.empty? || text.empty?
+    weight = base_weight + (columns.length >= 3 ? columns[2].to_i : 0)
+    next if code.empty? || text.empty? || !alphabetic_code?(code)
 
     rows << [code, text, weight]
   end
@@ -218,9 +218,10 @@ rows = case mode
            parse_rime_cangjie(inputs[1]) +
            parse_rime_cangjie(inputs[2])
        when 'pinyin'
-         usage! unless inputs.length == 3
-         parse_pinyin_seed(inputs[0]) +
-           parse_rime_pinyin(inputs[1], quick_weight_by_text(inputs[2]))
+         usage! unless inputs.length == 4
+         parse_pinyin_tsv(inputs[0], 10_000) +
+           parse_pinyin_tsv(inputs[1], 30_000) +
+           parse_rime_pinyin(inputs[2], quick_weight_by_text(inputs[3]))
        else
          usage!
        end

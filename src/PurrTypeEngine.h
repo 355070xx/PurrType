@@ -69,6 +69,7 @@ extern MKInputMode MKInputModeEnglish;
 - (void)resetLearningState;
 - (void)resetLearningContext;
 - (BOOL)prefersRawEnglishForInput:(NSString *)input mode:(MKInputMode)mode;
+- (BOOL)looksLikeRawEnglishInput:(NSString *)input mode:(MKInputMode)mode;
 - (BOOL)isLikelyRawToken:(NSString *)input;
 - (BOOL)isLikelyRawToken:(NSString *)input mode:(MKInputMode)mode;
 - (NSString *)preferredSuchengCodeForText:(NSString *)text;

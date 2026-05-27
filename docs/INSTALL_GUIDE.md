@@ -3,7 +3,7 @@
 Language: [繁體中文](#繁體中文) | [English](#english)
 
 Official download:
-[PurrType-0.1.1.dmg](https://github.com/355070xx/PurrType/releases/download/v0.1.1/PurrType-0.1.1.dmg)
+[PurrType-0.1.2.dmg](https://github.com/355070xx/PurrType/releases/download/v0.1.2/PurrType-0.1.2.dmg)
 
 Do not download GitHub's auto-generated `Source code` zip/tar.gz files to
 install PurrType. Those files are source archives, not the installer.
@@ -12,7 +12,7 @@ install PurrType. Those files are source archives, not the installer.
 
 ### 1. 打開 DMG 並啟動安裝程式
 
-下載 `PurrType-0.1.1.dmg`，然後用 Finder 打開。
+下載 `PurrType-0.1.2.dmg`，然後用 Finder 打開。
 
 在 DMG 入面 double-click `Install PurrType.pkg`。
 
@@ -72,7 +72,7 @@ PurrType preferences 同 New Sucheng learning data。
 
 ### 1. Open The DMG And Start The Installer
 
-Download `PurrType-0.1.1.dmg`, then open it in Finder.
+Download `PurrType-0.1.2.dmg`, then open it in Finder.
 
 Inside the DMG, double-click `Install PurrType.pkg`.
 

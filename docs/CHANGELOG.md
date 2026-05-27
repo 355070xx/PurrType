@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- Adds free Quick Phrases: user-defined `;` short codes such as `;email` can expand to saved replacement text from local storage.
+- Adds free Quick Phrases TXT import/export and basic backup/restore for local Quick Phrases data.
+
 ## 0.1.1
 
 - Adds local English spelling suggestions using macOS `NSSpellChecker`, shown only as optional candidates without autocorrect or online lookup; suggestions can appear in raw English and mixed Chinese candidate pages.

@@ -108,6 +108,22 @@ int main(int argc, const char *argv[]) {
         AssertTrue([PurrTypeInputBehavior candidatePageOffsetForSelector:@selector(moveRight:) candidateCount:10 candidatePageSize:9] == 1, @"moveRight selector pages forward");
         AssertTrue([PurrTypeInputBehavior candidatePageOffsetForSelector:@selector(moveLeft:) candidateCount:10 candidatePageSize:9] == -1, @"moveLeft selector pages back");
         AssertTrue([PurrTypeInputBehavior candidatePageOffsetForSelector:@selector(moveRight:) candidateCount:5 candidatePageSize:5] == 0, @"single compact selector page does not page");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionOffsetForKeyCode:125 modifiers:0 candidateCount:5] == 1,
+                   @"down arrow selects the next Pinyin candidate");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionOffsetForKeyCode:126 modifiers:0 candidateCount:5] == -1,
+                   @"up arrow selects the previous Pinyin candidate");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionOffsetForKeyCode:125 modifiers:NSEventModifierFlagCommand candidateCount:5] == 0,
+                   @"modified arrow keys do not change Pinyin candidate selection");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionOffsetForSelector:@selector(moveDown:) candidateCount:5] == 1,
+                   @"moveDown selector selects the next Pinyin candidate");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionOffsetForSelector:@selector(moveUp:) candidateCount:5] == -1,
+                   @"moveUp selector selects the previous Pinyin candidate");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionIndexFromIndex:1 offset:1 candidateCount:3] == 2,
+                   @"Pinyin selected candidate advances by offset");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionIndexFromIndex:2 offset:1 candidateCount:3] == 2,
+                   @"Pinyin selected candidate clamps at the last candidate");
+        AssertTrue([PurrTypeInputBehavior candidateSelectionIndexFromIndex:0 offset:-1 candidateCount:3] == 0,
+                   @"Pinyin selected candidate clamps at the first candidate");
 
         NSMutableArray<MKCandidate *> *pool = [NSMutableArray array];
         for (NSUInteger index = 1; index <= 12; index += 1) {
@@ -155,6 +171,16 @@ int main(int argc, const char *argv[]) {
                                                               associationModeActive:NO
                                                          rawEnglishCandidateEnabled:NO
                                                                      candidateCount:2], @"preference toggle suppresses 0 candidate");
+        NSArray<MKCandidate *> *quickPhraseCandidates = @[ CandidateWithSource(@"founder@example.com", @";email", @"quickPhrase") ];
+        NSArray<NSString *> *quickPhraseDisplayTexts =
+            [PurrTypeInputBehavior displayTextsForCandidates:quickPhraseCandidates
+                                                      buffer:@";email"
+                                        rawEnglishModeActive:YES
+                                       associationModeActive:NO
+                                 rawEnglishCandidateEnabled:YES];
+        AssertTrue(quickPhraseDisplayTexts.count == 1 &&
+                   [quickPhraseDisplayTexts[0] isEqualToString:@"1 founder@example.com"],
+                   @"quick phrase candidate display includes the replacement text");
 
         NSArray<MKCandidate *> *spellingCandidates = @[
             CandidateWithSource(@"spelling", @"speling", @"spelling"),

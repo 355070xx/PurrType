@@ -9,6 +9,9 @@
 @interface PurrTypeCandidatePanel : NSObject
 
 @property(nonatomic, weak) id<PurrTypeCandidatePanelDelegate> delegate;
+@property(nonatomic, copy) NSString *orientation;
+@property(nonatomic, assign) CGFloat candidateFontSize;
+@property(nonatomic, copy) NSString *highlightColor;
 
 - (void)showCandidates:(NSArray<NSString *> *)candidateTexts nearClient:(id)client;
 - (void)showCandidates:(NSArray<NSString *> *)candidateTexts

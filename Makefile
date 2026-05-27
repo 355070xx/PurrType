@@ -1,6 +1,6 @@
 BUNDLE_NAME := PurrTypeIM.app
 EXECUTABLE_NAME := PurrType
-VERSION := 0.1.1
+VERSION := 0.1.2
 BUNDLE_VERSION := $(shell printf "%s" "$(VERSION)" | awk -F. '{printf "%d", ($$1 * 10000) + ($$2 * 100) + $$3}')
 BUILD_DIR := build
 BUNDLE_DIR := $(BUILD_DIR)/$(BUNDLE_NAME)
@@ -59,22 +59,26 @@ ENGINE_SOURCES := src/PurrTypeEngine.m
 INPUT_STATE_SOURCES := src/PurrTypeInputState.m
 INPUT_BEHAVIOR_SOURCES := src/PurrTypeInputBehavior.m
 ENGLISH_SPELL_CHECKER_SOURCES := src/PurrTypeEnglishSpellChecker.m
+QUICK_PHRASE_STORE_SOURCES := src/PurrTypeQuickPhraseStore.m
+BACKUP_STORE_SOURCES := src/PurrTypeBackupStore.m
 CANDIDATE_PANEL_SOURCES := src/PurrTypeCandidatePanel.m
 PREFERENCES_SOURCES := src/PurrTypePreferencesWindowController.m
 PREFERENCES_STORE_SOURCES := src/PurrTypePreferencesStore.m
-APP_SOURCES := src/main.m src/PurrTypeInputController.m src/PurrTypeInputDelegate.m $(ENGINE_SOURCES) $(INPUT_STATE_SOURCES) $(INPUT_BEHAVIOR_SOURCES) $(ENGLISH_SPELL_CHECKER_SOURCES) $(CANDIDATE_PANEL_SOURCES) $(PREFERENCES_SOURCES) $(PREFERENCES_STORE_SOURCES)
-PREFERENCES_APP_SOURCES := src/preferences_main.m $(PREFERENCES_SOURCES) $(PREFERENCES_STORE_SOURCES) $(ENGINE_SOURCES) $(INPUT_BEHAVIOR_SOURCES)
+APP_SOURCES := src/main.m src/PurrTypeInputController.m src/PurrTypeInputDelegate.m $(ENGINE_SOURCES) $(INPUT_STATE_SOURCES) $(INPUT_BEHAVIOR_SOURCES) $(ENGLISH_SPELL_CHECKER_SOURCES) $(QUICK_PHRASE_STORE_SOURCES) $(BACKUP_STORE_SOURCES) $(CANDIDATE_PANEL_SOURCES) $(PREFERENCES_SOURCES) $(PREFERENCES_STORE_SOURCES)
+PREFERENCES_APP_SOURCES := src/preferences_main.m $(PREFERENCES_SOURCES) $(PREFERENCES_STORE_SOURCES) $(QUICK_PHRASE_STORE_SOURCES) $(BACKUP_STORE_SOURCES) $(ENGINE_SOURCES) $(INPUT_BEHAVIOR_SOURCES)
 TEST_SOURCES := tests/PurrTypeEngineTests.m $(ENGINE_SOURCES)
 STARTUP_BENCHMARK_SOURCES := tests/PurrTypeEngineStartupBenchmark.m $(ENGINE_SOURCES)
 INPUT_STATE_TEST_SOURCES := tests/PurrTypeInputStateTests.m $(INPUT_STATE_SOURCES)
 INPUT_BEHAVIOR_TEST_SOURCES := tests/PurrTypeInputBehaviorTests.m $(INPUT_BEHAVIOR_SOURCES) $(ENGINE_SOURCES)
 ENGLISH_SPELL_CHECKER_TEST_SOURCES := tests/PurrTypeEnglishSpellCheckerTests.m $(ENGLISH_SPELL_CHECKER_SOURCES)
+QUICK_PHRASE_STORE_TEST_SOURCES := tests/PurrTypeQuickPhraseStoreTests.m $(QUICK_PHRASE_STORE_SOURCES)
+BACKUP_STORE_TEST_SOURCES := tests/PurrTypeBackupStoreTests.m $(BACKUP_STORE_SOURCES) $(QUICK_PHRASE_STORE_SOURCES)
 CANDIDATE_PANEL_TEST_SOURCES := tests/PurrTypeCandidatePanelTests.m $(CANDIDATE_PANEL_SOURCES)
 TYPING_SIMULATION_TEST_SOURCES := tests/PurrTypeTypingSimulationTests.m $(ENGINE_SOURCES) $(INPUT_BEHAVIOR_SOURCES)
 FULL_BIBLE_AUDIT_SOURCES := tests/PurrTypeFullBibleTypingAudit.m $(ENGINE_SOURCES) $(INPUT_BEHAVIOR_SOURCES)
 CLASSIC_SUCHENG_RANKING_AUDIT_SOURCES := tests/PurrTypeClassicSuchengRankingAudit.m $(ENGINE_SOURCES)
 ASSOCIATION_AUDIT_SOURCES := tests/PurrTypeAssociationAudit.m $(ENGINE_SOURCES)
-PREFERENCES_TEST_SOURCES := tests/PurrTypePreferencesTests.m $(PREFERENCES_SOURCES) $(PREFERENCES_STORE_SOURCES) $(ENGINE_SOURCES) $(INPUT_BEHAVIOR_SOURCES)
+PREFERENCES_TEST_SOURCES := tests/PurrTypePreferencesTests.m $(PREFERENCES_SOURCES) $(PREFERENCES_STORE_SOURCES) $(QUICK_PHRASE_STORE_SOURCES) $(BACKUP_STORE_SOURCES) $(ENGINE_SOURCES) $(INPUT_BEHAVIOR_SOURCES)
 BUNDLE_TEST_SOURCES := tests/PurrTypeBundleTests.m
 TIS_PROBE_SOURCES := tests/TISProbe.m
 SUCHENG_SNAPSHOT_SOURCES := tests/SuchengSnapshot.m $(ENGINE_SOURCES)
@@ -113,7 +117,7 @@ build: $(MACOS_DIR)/$(EXECUTABLE_NAME)
 clean-bundle:
 	rm -rf "$(BUNDLE_DIR)"
 
-$(MACOS_DIR)/$(EXECUTABLE_NAME): clean-bundle $(APP_SOURCES) $(PREFERENCES_APP_SOURCES) src/PurrTypeInputState.h src/PurrTypeInputBehavior.h src/PurrTypeEnglishSpellChecker.h src/PurrTypeCandidatePanel.h src/PurrTypePreferencesWindowController.h src/PurrTypePreferencesStore.h src/PurrTypePreferencesConstants.h resources/Info.plist resources/PurrTypePreferencesInfo.plist resources/Base.lproj/InfoPlist.strings resources/English.lproj/InfoPlist.strings resources/en.lproj/InfoPlist.strings resources/en.lproj/Localizable.strings resources/zh-Hant.lproj/InfoPlist.strings resources/zh-Hant.lproj/Localizable.strings resources/zh_TW.lproj/InfoPlist.strings resources/PurrType.png $(PREFERENCE_COVER_RESOURCES) LICENSE docs/CREDITS.md docs/PRIVACY_POLICY.md docs/LICENSE_AUDIT.md resources/pinyin_seed.tsv resources/sucheng_order_guards.tsv resources/smart_phrases.tsv resources/association_phrases.tsv $(ASSOCIATION_GENERATED_INDEX) $(CANDIDATE_INDEXES) resources/traditional_compatibility.tsv resources/sucheng_first_pages.tsv scripts/generate-icon.sh scripts/pad-png-alpha.py third_party/rime-cangjie/LICENSE third_party/rime-cangjie/AUTHORS third_party/rime-pinyin/LICENSE third_party/rime-pinyin/AUTHORS third_party/mcbopomofo/LICENSE.txt third_party/ibus-table-chinese/LICENSE third_party/ibus-table-chinese/README.md third_party/hkscs/HKSCS2016.json third_party/hkscs/README.md third_party/hkscs/TERMS.md
+$(MACOS_DIR)/$(EXECUTABLE_NAME): clean-bundle $(APP_SOURCES) $(PREFERENCES_APP_SOURCES) src/PurrTypeInputState.h src/PurrTypeInputBehavior.h src/PurrTypeEnglishSpellChecker.h src/PurrTypeQuickPhraseStore.h src/PurrTypeBackupStore.h src/PurrTypeCandidatePanel.h src/PurrTypePreferencesWindowController.h src/PurrTypePreferencesStore.h src/PurrTypePreferencesConstants.h resources/Info.plist resources/PurrTypePreferencesInfo.plist resources/Base.lproj/InfoPlist.strings resources/English.lproj/InfoPlist.strings resources/en.lproj/InfoPlist.strings resources/en.lproj/Localizable.strings resources/zh-Hant.lproj/InfoPlist.strings resources/zh-Hant.lproj/Localizable.strings resources/zh_TW.lproj/InfoPlist.strings resources/PurrType.png $(PREFERENCE_COVER_RESOURCES) LICENSE docs/CREDITS.md docs/PRIVACY_POLICY.md docs/LICENSE_AUDIT.md resources/pinyin_seed.tsv resources/pinyin_phrases.tsv resources/sucheng_order_guards.tsv resources/smart_phrases.tsv resources/association_phrases.tsv $(ASSOCIATION_GENERATED_INDEX) $(CANDIDATE_INDEXES) resources/traditional_compatibility.tsv resources/sucheng_first_pages.tsv scripts/generate-icon.sh scripts/pad-png-alpha.py third_party/rime-cangjie/LICENSE third_party/rime-cangjie/AUTHORS third_party/rime-pinyin/LICENSE third_party/rime-pinyin/AUTHORS third_party/mcbopomofo/LICENSE.txt third_party/ibus-table-chinese/LICENSE third_party/ibus-table-chinese/README.md third_party/hkscs/HKSCS2016.json third_party/hkscs/README.md third_party/hkscs/TERMS.md
 	mkdir -p "$(MACOS_DIR)" "$(RESOURCES_DIR)/CandidateTables" "$(RESOURCES_DIR)/RimeCangjie" "$(RESOURCES_DIR)/RimePinyin" "$(RESOURCES_DIR)/IBusTableChinese" "$(RESOURCES_DIR)/HKSCS" "$(RESOURCES_DIR)/Legal" "$(PREFERENCES_MACOS_DIR)" "$(PREFERENCES_CONTENTS_DIR)/Resources" "$(PREFERENCES_CONTENTS_DIR)/Resources/PreferenceCovers"
 	cp resources/Info.plist "$(CONTENTS_DIR)/Info.plist"
 	mkdir -p "$(RESOURCES_DIR)/Base.lproj" "$(RESOURCES_DIR)/English.lproj" "$(RESOURCES_DIR)/en.lproj" "$(RESOURCES_DIR)/zh-Hant.lproj" "$(RESOURCES_DIR)/zh_TW.lproj"
@@ -129,7 +133,6 @@ $(MACOS_DIR)/$(EXECUTABLE_NAME): clean-bundle $(APP_SOURCES) $(PREFERENCES_APP_S
 	cp resources/zh_TW.lproj/InfoPlist.strings "$(RESOURCES_DIR)/zh_TW.lproj/InfoPlist.strings"
 	for file in "$(RESOURCES_DIR)"/*.lproj/InfoPlist.strings; do iconv -f UTF-8 -t UTF-16 "$$file" > "$$file.tmp" && mv "$$file.tmp" "$$file"; done
 	cp resources/PurrTypePreferencesInfo.plist "$(PREFERENCES_CONTENTS_DIR)/Info.plist"
-	cp resources/pinyin_seed.tsv "$(RESOURCES_DIR)/pinyin_seed.tsv"
 	cp resources/sucheng_order_guards.tsv "$(RESOURCES_DIR)/sucheng_order_guards.tsv"
 	cp resources/smart_phrases.tsv "$(RESOURCES_DIR)/smart_phrases.tsv"
 	cp resources/association_phrases.tsv "$(RESOURCES_DIR)/association_phrases.tsv"
@@ -159,7 +162,7 @@ $(MACOS_DIR)/$(EXECUTABLE_NAME): clean-bundle $(APP_SOURCES) $(PREFERENCES_APP_S
 	codesign --force --sign - "$(BUNDLE_DIR)"
 	if [ -x "$(LSREGISTER)" ] && [ -d "$(BUNDLE_DIR)" ]; then app="$$(cd "$(BUILD_DIR)" && pwd)/$(BUNDLE_NAME)"; "$(LSREGISTER)" -u "$$app" >/dev/null 2>&1 || true; "$(LSREGISTER)" -gc >/dev/null 2>&1 || true; fi
 
-test: $(TEST_SOURCES) $(STARTUP_BENCHMARK_SOURCES) $(INPUT_STATE_TEST_SOURCES) $(INPUT_BEHAVIOR_TEST_SOURCES) $(ENGLISH_SPELL_CHECKER_TEST_SOURCES) $(CANDIDATE_PANEL_TEST_SOURCES) $(TYPING_SIMULATION_TEST_SOURCES) $(PREFERENCES_TEST_SOURCES) $(BUNDLE_TEST_SOURCES) src/PurrTypeInputState.h src/PurrTypeInputBehavior.h src/PurrTypeEnglishSpellChecker.h src/PurrTypeCandidatePanel.h src/PurrTypePreferencesWindowController.h src/PurrTypePreferencesStore.h docs/typing/one_hour_typing_corpus.md resources/en.lproj/Localizable.strings resources/zh-Hant.lproj/Localizable.strings resources/pinyin_seed.tsv resources/sucheng_order_guards.tsv resources/smart_phrases.tsv resources/association_phrases.tsv $(ASSOCIATION_GENERATED_INDEX) $(CANDIDATE_INDEXES) resources/traditional_compatibility.tsv resources/sucheng_first_pages.tsv third_party/hkscs/HKSCS2016.json
+test: $(TEST_SOURCES) $(STARTUP_BENCHMARK_SOURCES) $(INPUT_STATE_TEST_SOURCES) $(INPUT_BEHAVIOR_TEST_SOURCES) $(ENGLISH_SPELL_CHECKER_TEST_SOURCES) $(QUICK_PHRASE_STORE_TEST_SOURCES) $(BACKUP_STORE_TEST_SOURCES) $(CANDIDATE_PANEL_TEST_SOURCES) $(TYPING_SIMULATION_TEST_SOURCES) $(PREFERENCES_TEST_SOURCES) $(BUNDLE_TEST_SOURCES) src/PurrTypeInputState.h src/PurrTypeInputBehavior.h src/PurrTypeEnglishSpellChecker.h src/PurrTypeQuickPhraseStore.h src/PurrTypeBackupStore.h src/PurrTypeCandidatePanel.h src/PurrTypePreferencesWindowController.h src/PurrTypePreferencesStore.h docs/typing/one_hour_typing_corpus.md resources/en.lproj/Localizable.strings resources/zh-Hant.lproj/Localizable.strings resources/pinyin_seed.tsv resources/pinyin_phrases.tsv resources/sucheng_order_guards.tsv resources/smart_phrases.tsv resources/association_phrases.tsv $(ASSOCIATION_GENERATED_INDEX) $(CANDIDATE_INDEXES) resources/traditional_compatibility.tsv resources/sucheng_first_pages.tsv third_party/hkscs/HKSCS2016.json
 	mkdir -p "$(BUILD_DIR)"
 	clang $(OBJCFLAGS) $(TEST_SOURCES) $(ENGINE_TEST_FRAMEWORKS) -o "$(BUILD_DIR)/PurrTypeEngineTests"
 	"$(BUILD_DIR)/PurrTypeEngineTests"
@@ -171,6 +174,10 @@ test: $(TEST_SOURCES) $(STARTUP_BENCHMARK_SOURCES) $(INPUT_STATE_TEST_SOURCES) $
 	"$(BUILD_DIR)/PurrTypeInputBehaviorTests"
 	clang $(OBJCFLAGS) $(ENGLISH_SPELL_CHECKER_TEST_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeEnglishSpellCheckerTests"
 	"$(BUILD_DIR)/PurrTypeEnglishSpellCheckerTests"
+	clang $(OBJCFLAGS) $(QUICK_PHRASE_STORE_TEST_SOURCES) -framework Foundation -o "$(BUILD_DIR)/PurrTypeQuickPhraseStoreTests"
+	"$(BUILD_DIR)/PurrTypeQuickPhraseStoreTests"
+	clang $(OBJCFLAGS) $(BACKUP_STORE_TEST_SOURCES) -framework Foundation -o "$(BUILD_DIR)/PurrTypeBackupStoreTests"
+	"$(BUILD_DIR)/PurrTypeBackupStoreTests"
 	clang $(OBJCFLAGS) $(CANDIDATE_PANEL_TEST_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeCandidatePanelTests"
 	"$(BUILD_DIR)/PurrTypeCandidatePanelTests"
 	clang $(OBJCFLAGS) $(TYPING_SIMULATION_TEST_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeTypingSimulationTests"
@@ -235,8 +242,8 @@ $(QUICK_CANDIDATE_INDEX): $(CANDIDATE_INDEX_SCRIPT) third_party/ibus-table-chine
 $(CANGJIE_CANDIDATE_INDEX): $(CANDIDATE_INDEX_SCRIPT) third_party/ibus-table-chinese/cangjie5.txt third_party/rime-cangjie/cangjie5.base.dict.yaml third_party/rime-cangjie/cangjie5.extended.dict.yaml
 	ruby "$(CANDIDATE_INDEX_SCRIPT)" cangjie "$@" third_party/ibus-table-chinese/cangjie5.txt third_party/rime-cangjie/cangjie5.base.dict.yaml third_party/rime-cangjie/cangjie5.extended.dict.yaml
 
-$(PINYIN_CANDIDATE_INDEX): $(CANDIDATE_INDEX_SCRIPT) resources/pinyin_seed.tsv third_party/rime-pinyin/luna_pinyin.dict.yaml third_party/ibus-table-chinese/quick-classic.txt
-	ruby "$(CANDIDATE_INDEX_SCRIPT)" pinyin "$@" resources/pinyin_seed.tsv third_party/rime-pinyin/luna_pinyin.dict.yaml third_party/ibus-table-chinese/quick-classic.txt
+$(PINYIN_CANDIDATE_INDEX): $(CANDIDATE_INDEX_SCRIPT) resources/pinyin_seed.tsv resources/pinyin_phrases.tsv third_party/rime-pinyin/luna_pinyin.dict.yaml third_party/ibus-table-chinese/quick-classic.txt
+	ruby "$(CANDIDATE_INDEX_SCRIPT)" pinyin "$@" resources/pinyin_seed.tsv resources/pinyin_phrases.tsv third_party/rime-pinyin/luna_pinyin.dict.yaml third_party/ibus-table-chinese/quick-classic.txt
 
 tis-probe: $(TIS_PROBE_SOURCES)
 	mkdir -p "$(BUILD_DIR)"
@@ -391,6 +398,8 @@ package-smoke: package
 	test -s "$(PACKAGE_SMOKE_APP)/Contents/Resources/CandidateTables/cangjie5.index"
 	test -s "$(PACKAGE_SMOKE_APP)/Contents/Resources/CandidateTables/quick-classic.index"
 	test -s "$(PACKAGE_SMOKE_APP)/Contents/Resources/CandidateTables/pinyin.index"
+	test ! -e "$(PACKAGE_SMOKE_APP)/Contents/Resources/pinyin_seed.tsv"
+	test ! -e "$(PACKAGE_SMOKE_APP)/Contents/Resources/pinyin_phrases.tsv"
 	test ! -e "$(PACKAGE_SMOKE_APP)/Contents/Resources/IBusTableChinese/cangjie5.txt"
 	test ! -e "$(PACKAGE_SMOKE_APP)/Contents/Resources/IBusTableChinese/quick-classic.txt"
 	test -s "$(PACKAGE_SMOKE_APP)/Contents/Resources/IBusTableChinese/LICENSE"

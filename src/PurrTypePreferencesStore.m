@@ -8,6 +8,12 @@
 
 - (NSString *)userDefaultShortcutKeyForMode:(MKInputMode)mode;
 - (MKInputMode)fallbackEngineModeForEnabledModes:(NSArray<NSString *> *)enabledModes;
+- (NSDictionary<NSString *, id> *)modeOverridesForKey:(NSString *)key;
+- (void)setModeOverrideValue:(id)value forMode:(MKInputMode)mode key:(NSString *)key;
+- (NSString *)normalizedSpaceKeyOverride:(NSString *)overrideValue;
+- (NSString *)normalizedCandidatePanelOrientation:(NSString *)orientation;
+- (CGFloat)normalizedCandidatePanelFontSize:(CGFloat)fontSize;
+- (NSString *)normalizedCandidatePanelHighlightColor:(NSString *)highlightColor;
 
 @end
 
@@ -158,6 +164,151 @@
     [self.defaults synchronize];
 }
 
+- (NSString *)candidatePanelOrientation {
+    return [self normalizedCandidatePanelOrientation:[self.defaults stringForKey:MKUserDefaultCandidatePanelOrientationKey]];
+}
+
+- (void)setCandidatePanelOrientation:(NSString *)orientation {
+    [self.defaults setObject:[self normalizedCandidatePanelOrientation:orientation]
+                      forKey:MKUserDefaultCandidatePanelOrientationKey];
+    [self.defaults synchronize];
+}
+
+- (CGFloat)candidatePanelFontSize {
+    id savedValue = [self.defaults objectForKey:MKUserDefaultCandidatePanelFontSizeKey];
+    if ([savedValue respondsToSelector:@selector(doubleValue)]) {
+        return [self normalizedCandidatePanelFontSize:[savedValue doubleValue]];
+    }
+    return 17.0;
+}
+
+- (void)setCandidatePanelFontSize:(CGFloat)fontSize {
+    [self.defaults setDouble:[self normalizedCandidatePanelFontSize:fontSize]
+                      forKey:MKUserDefaultCandidatePanelFontSizeKey];
+    [self.defaults synchronize];
+}
+
+- (NSString *)candidatePanelHighlightColor {
+    return [self normalizedCandidatePanelHighlightColor:[self.defaults stringForKey:MKUserDefaultCandidatePanelHighlightColorKey]];
+}
+
+- (void)setCandidatePanelHighlightColor:(NSString *)highlightColor {
+    [self.defaults setObject:[self normalizedCandidatePanelHighlightColor:highlightColor]
+                      forKey:MKUserDefaultCandidatePanelHighlightColorKey];
+    [self.defaults synchronize];
+}
+
+- (BOOL)associationCandidatesEnabled {
+    id savedValue = [self.defaults objectForKey:MKUserDefaultAssociationCandidatesEnabledKey];
+    if ([savedValue respondsToSelector:@selector(boolValue)]) {
+        return [savedValue boolValue];
+    }
+    return YES;
+}
+
+- (void)setAssociationCandidatesEnabled:(BOOL)enabled {
+    [self.defaults setBool:enabled forKey:MKUserDefaultAssociationCandidatesEnabledKey];
+    [self.defaults synchronize];
+}
+
+- (BOOL)associationContinuationEnabled {
+    id savedValue = [self.defaults objectForKey:MKUserDefaultAssociationContinuationEnabledKey];
+    if ([savedValue respondsToSelector:@selector(boolValue)]) {
+        return [savedValue boolValue];
+    }
+    return YES;
+}
+
+- (void)setAssociationContinuationEnabled:(BOOL)enabled {
+    [self.defaults setBool:enabled forKey:MKUserDefaultAssociationContinuationEnabledKey];
+    [self.defaults synchronize];
+}
+
+- (NSUInteger)candidatePageSizeOverrideForMode:(MKInputMode)mode {
+    if (![self isSupportedEngineMode:mode]) {
+        return 0;
+    }
+    id value = [self modeOverridesForKey:MKUserDefaultModeCandidatePageSizeOverridesKey][mode];
+    if ([value respondsToSelector:@selector(unsignedIntegerValue)]) {
+        NSUInteger pageSize = [value unsignedIntegerValue];
+        if (pageSize == 5 || pageSize == 9) {
+            return pageSize;
+        }
+    }
+    return 0;
+}
+
+- (void)setCandidatePageSizeOverride:(NSUInteger)pageSize forMode:(MKInputMode)mode {
+    if (![self isSupportedEngineMode:mode]) {
+        return;
+    }
+    if (pageSize != 5 && pageSize != 9) {
+        [self setModeOverrideValue:nil forMode:mode key:MKUserDefaultModeCandidatePageSizeOverridesKey];
+        return;
+    }
+    [self setModeOverrideValue:@(pageSize) forMode:mode key:MKUserDefaultModeCandidatePageSizeOverridesKey];
+}
+
+- (NSUInteger)effectiveCandidatePageSizeForMode:(MKInputMode)mode {
+    NSUInteger overridePageSize = [self candidatePageSizeOverrideForMode:mode];
+    return overridePageSize > 0 ? overridePageSize : [self candidatePageSize];
+}
+
+- (NSString *)spaceKeyOverrideForMode:(MKInputMode)mode {
+    if (![self isSupportedEngineMode:mode]) {
+        return MKModeOverrideFollowGlobal;
+    }
+    id value = [self modeOverridesForKey:MKUserDefaultModeSpaceKeyOverridesKey][mode];
+    return [self normalizedSpaceKeyOverride:[value isKindOfClass:[NSString class]] ? value : nil];
+}
+
+- (void)setSpaceKeyOverride:(NSString *)overrideValue forMode:(MKInputMode)mode {
+    if (![self isSupportedEngineMode:mode]) {
+        return;
+    }
+    NSString *normalized = [self normalizedSpaceKeyOverride:overrideValue];
+    [self setModeOverrideValue:[normalized isEqualToString:MKModeOverrideFollowGlobal] ? nil : normalized
+                       forMode:mode
+                           key:MKUserDefaultModeSpaceKeyOverridesKey];
+}
+
+- (BOOL)effectiveSpacePagingEnabledForMode:(MKInputMode)mode {
+    NSString *overrideValue = [self spaceKeyOverrideForMode:mode];
+    if ([overrideValue isEqualToString:MKModeSpaceKeyCommitFirst]) {
+        return NO;
+    }
+    if ([overrideValue isEqualToString:MKModeSpaceKeyPageCandidates]) {
+        return YES;
+    }
+    return [self spacePagingEnabled];
+}
+
+- (BOOL)clearReadingOnCompositionFailureEnabledForMode:(MKInputMode)mode {
+    if (![self isSupportedEngineMode:mode]) {
+        return NO;
+    }
+    id value = [self modeOverridesForKey:MKUserDefaultModeClearReadingOnFailureOverridesKey][mode];
+    return [value respondsToSelector:@selector(boolValue)] && [value boolValue];
+}
+
+- (void)setClearReadingOnCompositionFailureEnabled:(BOOL)enabled forMode:(MKInputMode)mode {
+    if (![self isSupportedEngineMode:mode]) {
+        return;
+    }
+    [self setModeOverrideValue:enabled ? @YES : nil
+                       forMode:mode
+                           key:MKUserDefaultModeClearReadingOnFailureOverridesKey];
+}
+
+- (void)resetOverridesForMode:(MKInputMode)mode {
+    if (![self isSupportedEngineMode:mode]) {
+        return;
+    }
+    [self setModeOverrideValue:nil forMode:mode key:MKUserDefaultModeCandidatePageSizeOverridesKey];
+    [self setModeOverrideValue:nil forMode:mode key:MKUserDefaultModeSpaceKeyOverridesKey];
+    [self setModeOverrideValue:nil forMode:mode key:MKUserDefaultModeClearReadingOnFailureOverridesKey];
+}
+
 - (NSArray<MKInputMode> *)enabledInputModes {
     id savedValue = [self.defaults objectForKey:MKUserDefaultEnabledInputModesKey];
     return [PurrTypeInputBehavior normalizedEnabledInputModes:[savedValue isKindOfClass:[NSArray class]] ? savedValue : nil];
@@ -282,6 +433,83 @@
 
 - (MKInputMode)fallbackEngineModeForEnabledModes:(NSArray<NSString *> *)enabledModes {
     return [PurrTypeInputBehavior firstEnabledInputModeInModes:enabledModes] ?: MKInputModeSucheng;
+}
+
+- (NSDictionary<NSString *, id> *)modeOverridesForKey:(NSString *)key {
+    id value = [self.defaults objectForKey:key];
+    return [value isKindOfClass:[NSDictionary class]] ? value : @{};
+}
+
+- (void)setModeOverrideValue:(id)value forMode:(MKInputMode)mode key:(NSString *)key {
+    if (![self isSupportedEngineMode:mode] || key.length == 0) {
+        return;
+    }
+
+    NSMutableDictionary<NSString *, id> *overrides = [[self modeOverridesForKey:key] mutableCopy];
+    if (value) {
+        overrides[mode] = value;
+    } else {
+        [overrides removeObjectForKey:mode];
+    }
+
+    if (overrides.count > 0) {
+        [self.defaults setObject:overrides forKey:key];
+    } else {
+        [self.defaults removeObjectForKey:key];
+    }
+    [self.defaults synchronize];
+}
+
+- (NSString *)normalizedSpaceKeyOverride:(NSString *)overrideValue {
+    if ([overrideValue isEqualToString:MKModeSpaceKeyCommitFirst] ||
+        [overrideValue isEqualToString:MKModeSpaceKeyPageCandidates]) {
+        return overrideValue;
+    }
+    return MKModeOverrideFollowGlobal;
+}
+
+- (NSString *)normalizedCandidatePanelOrientation:(NSString *)orientation {
+    if ([orientation isEqualToString:MKCandidatePanelOrientationHorizontal]) {
+        return MKCandidatePanelOrientationHorizontal;
+    }
+    return MKCandidatePanelOrientationVertical;
+}
+
+- (CGFloat)normalizedCandidatePanelFontSize:(CGFloat)fontSize {
+    if (fontSize <= 15.5) {
+        return 15.0;
+    }
+    if (fontSize >= 18.5) {
+        return 19.0;
+    }
+    return 17.0;
+}
+
+- (NSString *)normalizedCandidatePanelHighlightColor:(NSString *)highlightColor {
+    if ([highlightColor isEqualToString:MKCandidatePanelHighlightOrange] ||
+        [highlightColor isEqualToString:MKCandidatePanelHighlightYellow] ||
+        [highlightColor isEqualToString:MKCandidatePanelHighlightGreen] ||
+        [highlightColor isEqualToString:MKCandidatePanelHighlightBlue] ||
+        [highlightColor isEqualToString:MKCandidatePanelHighlightPurple] ||
+        [highlightColor isEqualToString:MKCandidatePanelHighlightPink]) {
+        return highlightColor;
+    }
+    if ([highlightColor hasPrefix:MKCandidatePanelHighlightCustomPrefix]) {
+        NSString *hex = [highlightColor substringFromIndex:MKCandidatePanelHighlightCustomPrefix.length];
+        if ([hex hasPrefix:@"#"]) {
+            hex = [hex substringFromIndex:1];
+        }
+        if (hex.length == 6) {
+            unsigned int rgb = 0;
+            NSScanner *scanner = [NSScanner scannerWithString:hex];
+            if ([scanner scanHexInt:&rgb] && scanner.isAtEnd) {
+                return [NSString stringWithFormat:@"%@#%06X",
+                                                  MKCandidatePanelHighlightCustomPrefix,
+                                                  rgb & 0xFFFFFF];
+            }
+        }
+    }
+    return MKCandidatePanelHighlightRed;
 }
 
 @end

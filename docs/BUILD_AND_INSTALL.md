@@ -5,7 +5,7 @@
 Use the public DMG download to install PurrType. No Terminal commands are
 required:
 
-[Download PurrType 0.1.1 DMG](https://github.com/355070xx/PurrType/releases/download/v0.1.1/PurrType-0.1.1.dmg)
+[Download PurrType 0.1.2 DMG](https://github.com/355070xx/PurrType/releases/download/v0.1.2/PurrType-0.1.2.dmg)
 
 Do not download GitHub's auto-generated `Source code` zip/tar.gz files to
 install PurrType. Those files are source archives, not the installer.
@@ -13,7 +13,7 @@ install PurrType. Those files are source archives, not the installer.
 If macOS shows `"Install PurrType.pkg" Not Opened` or `Apple could not verify...`,
 follow the [install guide](INSTALL_GUIDE.md). Do not click `Move to Bin`.
 
-1. Download `PurrType-0.1.1.dmg` from the link above, then open it in Finder.
+1. Download `PurrType-0.1.2.dmg` from the link above, then open it in Finder.
 2. Double-click `Install PurrType.pkg`.
 3. Complete the macOS Installer flow.
 4. Quit and reopen System Settings if it was already open.
@@ -33,7 +33,7 @@ source permission remains an explicit user action.
 
 ## Supported Runtime Scope
 
-The current dev runtime supports one macOS-visible `PurrType` input method with four internal modes:
+The current runtime supports one macOS-visible `PurrType` input method with four internal modes:
 
 - `Sucheng`
 - `New Sucheng`
@@ -41,6 +41,11 @@ The current dev runtime supports one macOS-visible `PurrType` input method with 
 - `Pinyin`
 
 English is handled by automatic raw English pass-through instead of a separate selectable mode. Optional English spelling suggestions use macOS local `NSSpellChecker` and appear only as candidate suggestions, not automatic autocorrect.
+
+Quick Phrases are a free local feature. Add short codes in Preferences > Typing.
+Short codes must start with `;`, for example `;email`, and can be imported or
+exported as TXT. Basic backup/restore exports and restores local Quick Phrases
+data only.
 
 ## Requirements
 
@@ -113,6 +118,7 @@ Current tests validate:
 - New Sucheng committed custom phrase session learning.
 - URL-like raw token detection.
 - Local English spelling suggestion provider using macOS `NSSpellChecker`.
+- Quick Phrases store validation, TXT import/export, and basic backup/restore.
 - Input behavior regression for mode shortcuts, preferences shortcut, candidate paging, `0` raw-English candidate display, and Shift uppercase English.
 - One-hour equivalent typing simulation from `docs/typing/one_hour_typing_corpus.md`, including Sucheng candidate selection, candidate page turns, mixed English raw text, Cangjie replay, New Sucheng custom phrase session replay, preference toggle behavior, and exact output comparison.
 
@@ -159,7 +165,7 @@ This copies the built bundle to:
 ~/Library/Input Methods/PurrTypeIM.app
 ```
 
-The installer also removes the old dev prototype bundle if present:
+The installer also removes the old prototype bundle if present:
 
 ```text
 ~/Library/Input Methods/PurrTypeInput.app
@@ -227,8 +233,8 @@ make package
 This creates:
 
 ```text
-build/PurrType-0.1.1.pkg
-build/PurrType-0.1.1.dmg
+build/PurrType-0.1.2.pkg
+build/PurrType-0.1.2.dmg
 ```
 
 Before manually installing a test package, run the non-GUI release preflight:
@@ -255,7 +261,7 @@ This expands the package payload and verifies that installed Legal resources,
 runtime upstream license files, acknowledgements, and audit-only resource
 exclusions are correct.
 
-Current packages are unsigned local dev test artifacts. If you publish prebuilt
+Current packages are unsigned local test artifacts. If you publish prebuilt
 `.pkg` or `.dmg` files outside source builds, Developer ID signing and DMG
 notarization are recommended to avoid Gatekeeper warnings.
 
@@ -263,17 +269,17 @@ To generate unsigned release artifacts plus SHA-256 checksums and provenance met
 
 ```sh
 make release-artifacts
-(cd build && shasum -a 256 -c PurrType-0.1.1-checksums.sha256)
+(cd build && shasum -a 256 -c PurrType-0.1.2-checksums.sha256)
 ```
 
 This writes:
 
 ```text
-build/PurrType-0.1.1.pkg
-build/Uninstall-PurrType-0.1.1.pkg
-build/PurrType-0.1.1.dmg
-build/PurrType-0.1.1-checksums.sha256
-build/PurrType-0.1.1-provenance.json
+build/PurrType-0.1.2.pkg
+build/Uninstall-PurrType-0.1.2.pkg
+build/PurrType-0.1.2.dmg
+build/PurrType-0.1.2-checksums.sha256
+build/PurrType-0.1.2-provenance.json
 ```
 
 The public checksum file verifies the downloadable DMG.
@@ -310,23 +316,23 @@ make release-signed \
 The signed release path is not required for source-only GitHub releases. It fails before modifying artifacts if the Developer ID identities or notarytool profile are missing. A successful signed binary release writes:
 
 ```text
-build/PurrType-0.1.1-signed.pkg
-build/Uninstall-PurrType-0.1.1-signed.pkg
-build/PurrType-0.1.1-signed.dmg
-build/PurrType-0.1.1-signed-checksums.sha256
-build/PurrType-0.1.1-signed-provenance.json
+build/PurrType-0.1.2-signed.pkg
+build/Uninstall-PurrType-0.1.2-signed.pkg
+build/PurrType-0.1.2-signed.dmg
+build/PurrType-0.1.2-signed-checksums.sha256
+build/PurrType-0.1.2-signed-provenance.json
 ```
 
 Verify the signed DMG:
 
 ```sh
-xcrun stapler validate build/PurrType-0.1.1-signed.dmg
-spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.1-signed.dmg
+xcrun stapler validate build/PurrType-0.1.2-signed.dmg
+spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.2-signed.dmg
 ```
 
 Use this path for normal testing:
 
-1. Open `build/PurrType-0.1.1.dmg`.
+1. Open `build/PurrType-0.1.2.dmg`.
 2. Double-click `Install PurrType.pkg`.
 3. Complete the installer.
 4. Quit and reopen System Settings if it was already open.
@@ -381,10 +387,10 @@ The package installs to:
 This matches the system-level layout used by traditional macOS Chinese input methods.
 
 The package marks `PurrTypeIM.app` as non-relocatable, replaces only the
-previous dev app bundle, and removes earlier dev-only paths such as
+previous prototype app bundle, and removes earlier legacy prototype paths such as
 `PurrTypeIM.localized`, `PurrTypeInput.app`, and invalid
 `/Library/Application Support/PurrType/PurrTypeIM.app` installs before
-copying the system-level app. It also forgets only the dev package receipt. It
+copying the system-level app. It also forgets only the legacy package receipt. It
 does not remove `/Library/Input Methods/PurrTypeIM.app`, the public package
 receipt, public preferences, or public learning data. When removing stale local
 development installs, installer and uninstaller scripts resolve the console
@@ -594,7 +600,7 @@ The engine loads Cangjie candidates from the bundled IBus Cangjie5 table, then R
 
 `resources/association_generated.tsv` is generated by `make update-association-seeds` from project-local seed TSVs, McBopomofo associated phrase data, typing corpora, IBus Cangjie5 table data, and Rime Cangjie dictionaries. Build targets convert it into `resources/association_generated.index`, a read-only sorted key index bundled for runtime lookup. It expands `Sucheng`, `New Sucheng`, `Cangjie`, and `Pinyin` post-commit association coverage without moving fixed input-code candidate positions. The engine keeps hand-reviewed seeds in memory first, then queries the generated index for the requested key, so reviewed first-page association choices stay stable while lower-priority generated suggestions fill out later pages without parsing the giant TSV on first lookup. Association lookup first checks the full committed phrase, then falls back to the last character; this lets entries such as `你 -> 好`, `可以 -> 用`, and `輸 -> 入 / 入法` work across all Chinese modes. The UI fetches up to 120 post-commit association candidates so users can page through broader related-word lists instead of only showing the first page.
 
-`resources/pinyin_seed.tsv` is a small high-priority Traditional Chinese pinyin seed table used to keep common local ordering stable. The runtime also loads the full Rime Luna Pinyin dictionary from `RimePinyin/luna_pinyin.dict.yaml`, so pinyin mode can return broader single-character and exact phrase candidates while keeping the reviewed seed rows first.
+`resources/pinyin_seed.tsv` is a small high-priority Traditional Chinese pinyin seed table used to keep common local single-character ordering stable. `resources/pinyin_phrases.tsv` adds reviewed common Traditional phrase candidates such as greetings, time words, and input-method terms. Build targets compile both files with the full Rime Luna Pinyin dictionary into `resources/CandidateTables/pinyin.index`, so packaged runtime lookup uses the binary index instead of parsing raw TSV/YAML dictionaries.
 
 ## Local Learning Data
 
