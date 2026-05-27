@@ -349,10 +349,11 @@ the preferences window, `Cmd+W` closes it, and `Cmd+Q` quits the helper. The
 preferences window opens on `Input Modes` and contains `Input Modes`, `Typing`,
 `Privacy & Learning`, and `About`. English typing is handled by automatic raw
 English pass-through instead of a separate selectable mode. When a short English
-token also has Chinese candidates, the candidate panel lists `0` first so
-pressing `0` commits the typed letters unchanged. The preferences window can
-enable or disable this `0` raw-English candidate, choose whether Space moves to
-the next candidate page, set the Chinese candidate page size to 5 or 9,
+token also has Chinese candidates, the candidate panel can show `0` so pressing
+`0` commits the typed letters unchanged. The preferences window can enable or
+disable this `0` raw-English candidate, choose whether it appears before or
+after Chinese candidates, choose whether Space moves to the next candidate page,
+set the Chinese candidate page size to 5 or 9,
 customize mode shortcuts, and choose the Privacy Lock shortcut. The selected
 mode is saved for the next activation. If an older install had saved `English`
 or the removed experimental Quick Classic mode, the next launch falls back to
@@ -470,7 +471,7 @@ Try these after selecting `PurrType`. Sucheng is the default mode on a fresh ins
 | Escape | cancel current composition |
 | raw English, then Backspace until empty | exits raw English and lets the next input use the current Chinese mode again |
 
-The candidate panel displays explicit number labels such as `1 功`, `2 勁`; press the matching number key or click the row to select that Chinese candidate. If the current short token can also be kept as English, the panel also shows `0 <typed text>` at the top so `0` or a row click commits the original letters unchanged. When there is more than one candidate page, the panel shows a compact page count such as `1/4` so users can remember where a candidate lives. The custom panel is sized for the configured 5- or 9-candidate page and does not use a scrollbar for normal candidate pages. During composition, the panel follows the marked-text insertion endpoint and prefers the right side of the insertion point, falling above or below only when needed to stay on screen. Post-commit association panels reuse the last composing caret anchor instead of querying the app's transient selected range immediately after commit. Candidate positioning is scheduled once immediately and once shortly after marked-text updates so apps that update caret geometry asynchronously can settle before the final re-anchor.
+The candidate panel displays explicit number labels such as `1 功`, `2 勁`; press the matching number key or click the row to select that Chinese candidate. If the current short token can also be kept as English, the panel also shows `0 <typed text>` so `0` or a row click commits the original letters unchanged. Users can choose whether that `0` row appears before or after the Chinese candidates. When there is more than one candidate page, the panel shows a compact page count such as `1/4` so users can remember where a candidate lives. The custom panel is sized for the configured 5- or 9-candidate page and does not use a scrollbar for normal candidate pages. During composition, the panel follows the marked-text insertion endpoint and prefers the right side of the insertion point, falling above or below only when needed to stay on screen. Post-commit association panels reuse the last composing caret anchor instead of querying the app's transient selected range immediately after commit. Candidate positioning is scheduled once immediately and once shortly after marked-text updates so apps that update caret geometry asynchronously can settle before the final re-anchor.
 
 When no raw-English composition is active, typing punctuation or symbol keys opens a compact open-table candidate panel. `1` keeps the half-width symbol, while later rows expose Traditional Chinese punctuation and full-width symbols such as `，`, `、`, `。`, `…`, `「`, `」`, `《`, `》`, `％`, `＊`, and `＋`. If raw English composition is already active, printable ASCII punctuation stays in the raw English token so email addresses, URLs, paths, code-like text, and English sentences are not interrupted by symbol candidates.
 
@@ -580,7 +581,7 @@ Candidate paging:
 | Space, Tab, Right Arrow, or PageDown | next candidate page |
 | Left Arrow, Shift+Tab, or PageUp | previous candidate page |
 
-Each page shows Chinese candidates labelled by number keys, plus an optional `0` raw-English row. The candidate page size defaults to 9 and can be changed to 5 in `PurrType Preferences... > Input > Candidates per page`. When a composition has more than one candidate page, Space follows the legacy habit and advances to the next page instead of committing the first candidate. This Space paging behavior can be turned off in `PurrType Preferences... > Input`; Tab, Right Arrow, and PageDown still page forward.
+Each page shows Chinese candidates labelled by number keys, plus an optional `0` raw-English row that can be placed first or last. The candidate page size defaults to 9 and can be changed to 5 in Preferences. When a composition has more than one candidate page, Space follows the legacy habit and advances to the next page instead of committing the first candidate. This Space paging behavior can be turned off in Preferences; Tab, Right Arrow, and PageDown still page forward.
 
 ## Candidate Ranking Data
 

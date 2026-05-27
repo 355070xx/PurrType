@@ -114,6 +114,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 @property(nonatomic, assign) NSUInteger selectedCandidateIndex;
 @property(nonatomic, assign) NSUInteger candidateUpdateSerial;
 @property(nonatomic, assign) BOOL rawEnglishCandidateEnabled;
+@property(nonatomic, copy) NSString *rawEnglishCandidatePosition;
 @property(nonatomic, assign) BOOL spellingSuggestionsEnabled;
 @property(nonatomic, assign) BOOL spacePagingEnabled;
 @property(nonatomic, assign) BOOL privacyLockEnabled;
@@ -161,6 +162,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 - (void)applyEffectiveLearningState;
 - (void)resetLearningStateForPreferenceRequest;
 - (void)setRawEnglishCandidateEnabled:(BOOL)enabled;
+- (void)setRawEnglishCandidatePosition:(NSString *)position;
 - (void)setSpellingSuggestionsEnabled:(BOOL)enabled;
 - (void)setSpacePagingEnabled:(BOOL)enabled;
 - (void)setCandidatePageSize:(NSUInteger)pageSize;
@@ -255,6 +257,7 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
         _engineMode = [_preferences engineMode];
         _privacyLockEnabled = [_preferences privacyLockEnabled];
         _rawEnglishCandidateEnabled = [_preferences rawEnglishCandidateEnabled];
+        _rawEnglishCandidatePosition = [_preferences rawEnglishCandidatePosition];
         _spellingSuggestionsEnabled = [_preferences spellingSuggestionsEnabled];
         _spacePagingEnabled = [_preferences effectiveSpacePagingEnabledForMode:_engineMode];
         _candidatePageSize = [_preferences effectiveCandidatePageSizeForMode:_engineMode];
@@ -1129,6 +1132,15 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     [self updateComposition];
 }
 
+- (void)setRawEnglishCandidatePosition:(NSString *)position {
+    NSString *normalizedPosition = [position isEqualToString:MKRawEnglishCandidatePositionTrailing] ?
+        MKRawEnglishCandidatePositionTrailing : MKRawEnglishCandidatePositionLeading;
+    _rawEnglishCandidatePosition = normalizedPosition;
+    [self.preferences setRawEnglishCandidatePosition:normalizedPosition];
+    [self setCandidatePool:self.candidatePool resetPage:NO];
+    [self updateComposition];
+}
+
 - (void)setSpellingSuggestionsEnabled:(BOOL)enabled {
     _spellingSuggestionsEnabled = enabled;
     [self.preferences setSpellingSuggestionsEnabled:enabled];
@@ -1292,6 +1304,13 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
             [self updateComposition];
         }
 
+        NSString *nextRawEnglishCandidatePosition = [self.preferences rawEnglishCandidatePosition];
+        if (![self.rawEnglishCandidatePosition isEqualToString:nextRawEnglishCandidatePosition]) {
+            _rawEnglishCandidatePosition = nextRawEnglishCandidatePosition;
+            [self setCandidatePool:self.candidatePool resetPage:NO];
+            [self updateComposition];
+        }
+
         BOOL nextSpellingSuggestionsEnabled = [self.preferences spellingSuggestionsEnabled];
         if (self.spellingSuggestionsEnabled != nextSpellingSuggestionsEnabled) {
             _spellingSuggestionsEnabled = nextSpellingSuggestionsEnabled;
@@ -1385,6 +1404,14 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 
 - (void)preferencesSetRawEnglishCandidateEnabled:(BOOL)enabled {
     [self setRawEnglishCandidateEnabled:enabled];
+}
+
+- (NSString *)preferencesRawEnglishCandidatePosition {
+    return self.rawEnglishCandidatePosition ?: MKRawEnglishCandidatePositionLeading;
+}
+
+- (void)preferencesSetRawEnglishCandidatePosition:(NSString *)position {
+    [self setRawEnglishCandidatePosition:position];
 }
 
 - (BOOL)preferencesSpellingSuggestionsEnabled {
@@ -1731,7 +1758,8 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     }
 
     NSUInteger displayIndex = [self candidateIndexForCurrentCommit];
-    if ([self shouldShowRawEnglishCandidate]) {
+    if ([self shouldShowRawEnglishCandidate] &&
+        ![self.rawEnglishCandidatePosition isEqualToString:MKRawEnglishCandidatePositionTrailing]) {
         displayIndex += 1;
     }
     return displayIndex < candidateTexts.count ? displayIndex : 0;
@@ -1859,14 +1887,16 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
                                                         buffer:self.inputState.buffer ?: @""
                                           rawEnglishModeActive:NO
                                          associationModeActive:NO
-                                   rawEnglishCandidateEnabled:YES];
+                                   rawEnglishCandidateEnabled:YES
+                                  rawEnglishCandidatePosition:self.rawEnglishCandidatePosition];
     }
 
     return [PurrTypeInputBehavior displayTextsForCandidates:self.currentCandidates
-                                                        buffer:self.inputState.buffer ?: @""
-                                          rawEnglishModeActive:self.inputState.rawEnglishModeActive
-                                         associationModeActive:self.inputState.associationModeActive
-                                   rawEnglishCandidateEnabled:self.rawEnglishCandidateEnabled];
+                                                    buffer:self.inputState.buffer ?: @""
+                                      rawEnglishModeActive:self.inputState.rawEnglishModeActive
+                                     associationModeActive:self.inputState.associationModeActive
+                               rawEnglishCandidateEnabled:self.rawEnglishCandidateEnabled
+                              rawEnglishCandidatePosition:self.rawEnglishCandidatePosition];
 }
 
 - (void)commitText:(NSString *)text client:(id)sender resetFirst:(BOOL)resetFirst {

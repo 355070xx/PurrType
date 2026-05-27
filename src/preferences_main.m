@@ -171,6 +171,15 @@
     [self.preferencesStore postPreferencesChangedNotification];
 }
 
+- (NSString *)preferencesRawEnglishCandidatePosition {
+    return [self.preferencesStore rawEnglishCandidatePosition];
+}
+
+- (void)preferencesSetRawEnglishCandidatePosition:(NSString *)position {
+    [self.preferencesStore setRawEnglishCandidatePosition:position];
+    [self.preferencesStore postPreferencesChangedNotification];
+}
+
 - (BOOL)preferencesSpellingSuggestionsEnabled {
     return [self.preferencesStore spellingSuggestionsEnabled];
 }

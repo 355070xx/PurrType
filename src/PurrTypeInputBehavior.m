@@ -1,5 +1,6 @@
 #import "PurrTypeInputBehavior.h"
 #import <AppKit/AppKit.h>
+#import "PurrTypePreferencesConstants.h"
 
 static const NSInteger MKInputBehaviorKeyCodeComma = 43;
 static const NSInteger MKInputBehaviorKeyCodeBackslash = 42;
@@ -816,19 +817,39 @@ static NSString *MKKeyEquivalentForKeyCode(NSInteger keyCode) {
                               rawEnglishModeActive:(BOOL)rawEnglishModeActive
                              associationModeActive:(BOOL)associationModeActive
                        rawEnglishCandidateEnabled:(BOOL)rawEnglishCandidateEnabled {
+    return [self displayTextsForCandidates:candidates
+                                    buffer:buffer
+                      rawEnglishModeActive:rawEnglishModeActive
+                     associationModeActive:associationModeActive
+               rawEnglishCandidateEnabled:rawEnglishCandidateEnabled
+              rawEnglishCandidatePosition:MKRawEnglishCandidatePositionLeading];
+}
+
++ (NSArray<NSString *> *)displayTextsForCandidates:(NSArray<MKCandidate *> *)candidates
+                                            buffer:(NSString *)buffer
+                              rawEnglishModeActive:(BOOL)rawEnglishModeActive
+                             associationModeActive:(BOOL)associationModeActive
+                       rawEnglishCandidateEnabled:(BOOL)rawEnglishCandidateEnabled
+                      rawEnglishCandidatePosition:(NSString *)rawEnglishCandidatePosition {
     NSMutableArray<NSString *> *candidateTexts = [NSMutableArray arrayWithCapacity:candidates.count + 1];
-    if ([self shouldShowRawEnglishCandidateForBuffer:buffer
-                              rawEnglishModeActive:rawEnglishModeActive
-                              associationModeActive:associationModeActive
-                         rawEnglishCandidateEnabled:rawEnglishCandidateEnabled
-                                     candidateCount:candidates.count]) {
-        [candidateTexts addObject:[self rawEnglishCandidateDisplayTextForBuffer:buffer]];
+    BOOL showsRawEnglish = [self shouldShowRawEnglishCandidateForBuffer:buffer
+                                                   rawEnglishModeActive:rawEnglishModeActive
+                                                  associationModeActive:associationModeActive
+                                             rawEnglishCandidateEnabled:rawEnglishCandidateEnabled
+                                                         candidateCount:candidates.count];
+    BOOL placesRawEnglishLast = [rawEnglishCandidatePosition isEqualToString:MKRawEnglishCandidatePositionTrailing];
+    NSString *rawEnglishCandidate = showsRawEnglish ? [self rawEnglishCandidateDisplayTextForBuffer:buffer] : @"";
+    if (showsRawEnglish && !placesRawEnglishLast) {
+        [candidateTexts addObject:rawEnglishCandidate];
     }
 
     NSUInteger index = 0;
     for (MKCandidate *candidate in candidates) {
         [candidateTexts addObject:[self displayTextForCandidate:candidate index:index]];
         index += 1;
+    }
+    if (showsRawEnglish && placesRawEnglishLast) {
+        [candidateTexts addObject:rawEnglishCandidate];
     }
     return candidateTexts;
 }

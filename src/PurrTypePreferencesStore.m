@@ -11,6 +11,7 @@
 - (NSDictionary<NSString *, id> *)modeOverridesForKey:(NSString *)key;
 - (void)setModeOverrideValue:(id)value forMode:(MKInputMode)mode key:(NSString *)key;
 - (NSString *)normalizedSpaceKeyOverride:(NSString *)overrideValue;
+- (NSString *)normalizedRawEnglishCandidatePosition:(NSString *)position;
 - (NSString *)normalizedCandidatePanelOrientation:(NSString *)orientation;
 - (CGFloat)normalizedCandidatePanelFontSize:(CGFloat)fontSize;
 - (NSString *)normalizedCandidatePanelHighlightColor:(NSString *)highlightColor;
@@ -116,6 +117,16 @@
 
 - (void)setRawEnglishCandidateEnabled:(BOOL)enabled {
     [self.defaults setBool:enabled forKey:MKUserDefaultRawEnglishCandidateEnabledKey];
+    [self.defaults synchronize];
+}
+
+- (NSString *)rawEnglishCandidatePosition {
+    return [self normalizedRawEnglishCandidatePosition:[self.defaults stringForKey:MKUserDefaultRawEnglishCandidatePositionKey]];
+}
+
+- (void)setRawEnglishCandidatePosition:(NSString *)position {
+    [self.defaults setObject:[self normalizedRawEnglishCandidatePosition:position]
+                      forKey:MKUserDefaultRawEnglishCandidatePositionKey];
     [self.defaults synchronize];
 }
 
@@ -466,6 +477,13 @@
         return overrideValue;
     }
     return MKModeOverrideFollowGlobal;
+}
+
+- (NSString *)normalizedRawEnglishCandidatePosition:(NSString *)position {
+    if ([position isEqualToString:MKRawEnglishCandidatePositionTrailing]) {
+        return MKRawEnglishCandidatePositionTrailing;
+    }
+    return MKRawEnglishCandidatePositionLeading;
 }
 
 - (NSString *)normalizedCandidatePanelOrientation:(NSString *)orientation {

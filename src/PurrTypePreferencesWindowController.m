@@ -739,6 +739,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
 @property(nonatomic, strong) MKPreferencesSwitchControl *learningSwitch;
 @property(nonatomic, strong) MKPreferencesSwitchControl *privacyLockSwitch;
 @property(nonatomic, strong) MKPreferencesSwitchControl *rawEnglishCandidateSwitch;
+@property(nonatomic, strong) MKPreferencesSegmentedControl *rawEnglishCandidatePositionSegmentedControl;
 @property(nonatomic, strong) MKPreferencesSwitchControl *spellingSuggestionsSwitch;
 @property(nonatomic, strong) MKPreferencesSegmentedControl *candidatePageSizeSegmentedControl;
 @property(nonatomic, strong) MKPreferencesSegmentedControl *preferencesLanguageSegmentedControl;
@@ -1883,7 +1884,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     NSTextField *titleLabel = nil;
     MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"English Pass-through"]
                                                          symbol:@"globe"
-                                                         height:236
+                                                         height:274
                                                      titleLabel:&titleLabel];
     NSStackView *stack = [self bodyStackInCard:card belowTitle:titleLabel];
     self.rawEnglishCandidateSwitch = [self switchControlWithState:[self.preferencesDelegate preferencesRawEnglishCandidateEnabled]
@@ -1892,6 +1893,26 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
                                                  detail:nil
                                                 control:self.rawEnglishCandidateSwitch
                                                 enabled:YES]];
+    self.rawEnglishCandidatePositionSegmentedControl = [[MKPreferencesSegmentedControl alloc] initWithFrame:NSZeroRect];
+    self.rawEnglishCandidatePositionSegmentedControl.translatesAutoresizingMaskIntoConstraints = NO;
+    self.rawEnglishCandidatePositionSegmentedControl.segmentCount = 2;
+    self.rawEnglishCandidatePositionSegmentedControl.trackingMode = NSSegmentSwitchTrackingSelectOne;
+    self.rawEnglishCandidatePositionSegmentedControl.segmentStyle = NSSegmentStyleSeparated;
+    self.rawEnglishCandidatePositionSegmentedControl.controlSize = NSControlSizeRegular;
+    self.rawEnglishCandidatePositionSegmentedControl.font = MKFont(12, NSFontWeightRegular);
+    [self.rawEnglishCandidatePositionSegmentedControl setLabel:[self localizedString:@"First"] forSegment:0];
+    [self.rawEnglishCandidatePositionSegmentedControl setLabel:[self localizedString:@"Last"] forSegment:1];
+    [self.rawEnglishCandidatePositionSegmentedControl setWidth:62 forSegment:0];
+    [self.rawEnglishCandidatePositionSegmentedControl setWidth:62 forSegment:1];
+    self.rawEnglishCandidatePositionSegmentedControl.target = self;
+    self.rawEnglishCandidatePositionSegmentedControl.action = @selector(rawEnglishCandidatePositionSegmentChanged:);
+    [self syncRawEnglishCandidatePositionSegment];
+    [self.rawEnglishCandidatePositionSegmentedControl.widthAnchor constraintEqualToConstant:124].active = YES;
+    [self.rawEnglishCandidatePositionSegmentedControl.heightAnchor constraintEqualToConstant:28].active = YES;
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"0 candidate position"]
+                                                detail:nil
+                                               control:self.rawEnglishCandidatePositionSegmentedControl
+                                               enabled:YES]];
     self.spellingSuggestionsSwitch = [self switchControlWithState:[self.preferencesDelegate preferencesSpellingSuggestionsEnabled]
                                                            action:@selector(spellingSuggestionsSwitchChanged:)];
     [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"English spelling suggestions"]
@@ -2865,6 +2886,11 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     [self.preferencesDelegate preferencesSetRawEnglishCandidateEnabled:(sender.state == NSControlStateValueOn)];
 }
 
+- (void)rawEnglishCandidatePositionSegmentChanged:(MKPreferencesSegmentedControl *)sender {
+    NSString *position = sender.selectedSegment == 1 ? MKRawEnglishCandidatePositionTrailing : MKRawEnglishCandidatePositionLeading;
+    [self.preferencesDelegate preferencesSetRawEnglishCandidatePosition:position];
+}
+
 - (void)spellingSuggestionsSwitchChanged:(MKPreferencesSwitchControl *)sender {
     [self.preferencesDelegate preferencesSetSpellingSuggestionsEnabled:(sender.state == NSControlStateValueOn)];
 }
@@ -3354,6 +3380,12 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
 - (void)syncCandidatePageSizeSegment {
     NSUInteger pageSize = [self.preferencesDelegate preferencesCandidatePageSize];
     self.candidatePageSizeSegmentedControl.selectedSegment = pageSize == 5 ? 0 : 1;
+}
+
+- (void)syncRawEnglishCandidatePositionSegment {
+    NSString *position = [self.preferencesDelegate preferencesRawEnglishCandidatePosition];
+    self.rawEnglishCandidatePositionSegmentedControl.selectedSegment =
+        [position isEqualToString:MKRawEnglishCandidatePositionTrailing] ? 1 : 0;
 }
 
 - (void)syncCandidatePanelOrientationSegment {

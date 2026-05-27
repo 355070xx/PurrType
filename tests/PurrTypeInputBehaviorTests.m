@@ -1,5 +1,6 @@
 #import <Cocoa/Cocoa.h>
 #import "../src/PurrTypeInputBehavior.h"
+#import "../src/PurrTypePreferencesConstants.h"
 
 static void AssertTrue(BOOL condition, NSString *message) {
     if (!condition) {
@@ -151,6 +152,18 @@ int main(int argc, const char *argv[]) {
         AssertTrue([displayTexts[0] isEqualToString:@"0 d"], @"0 commits raw English buffer before Chinese candidates");
         AssertTrue([displayTexts[1] isEqualToString:@"1 字1"], @"first candidate has numeric label");
         AssertTrue([displayTexts[2] isEqualToString:@"2 字2"], @"second candidate has numeric label");
+        NSArray<NSString *> *trailingRawDisplayTexts =
+            [PurrTypeInputBehavior displayTextsForCandidates:[pool subarrayWithRange:NSMakeRange(0, 2)]
+                                                      buffer:@"d"
+                                        rawEnglishModeActive:NO
+                                       associationModeActive:NO
+                                 rawEnglishCandidateEnabled:YES
+                                rawEnglishCandidatePosition:MKRawEnglishCandidatePositionTrailing];
+        AssertTrue(trailingRawDisplayTexts.count == 3, @"trailing raw-English display still includes every option");
+        AssertTrue([trailingRawDisplayTexts[0] isEqualToString:@"1 字1"] &&
+                   [trailingRawDisplayTexts[1] isEqualToString:@"2 字2"] &&
+                   [trailingRawDisplayTexts[2] isEqualToString:@"0 d"],
+                   @"0 raw-English candidate can be shown after Chinese candidates");
         AssertTrue(![PurrTypeInputBehavior shouldShowRawEnglishCandidateForBuffer:@"d1"
                                                               rawEnglishModeActive:NO
                                                               associationModeActive:NO

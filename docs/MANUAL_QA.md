@@ -158,7 +158,7 @@ Expected result:
 - Sidebar shows exactly Input Modes, Typing, Privacy & Learning, and About
 - Preferences opens on Input Modes
 - Input Modes tab switches default mode, candidate page size, and mode shortcuts
-- Typing tab switches raw-English candidate and Space key behavior, manages
+- Typing tab switches raw-English candidate, `0` row position, and Space key behavior, manages
   Quick Phrases, and shows protected English as a read-only note
 - Privacy & Learning tab exposes New Sucheng learning, Privacy Lock shortcut,
   Privacy Lock, reset learning, and basic backup/restore

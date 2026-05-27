@@ -106,6 +106,9 @@
 "Page candidates" = "候選翻頁";
 "English Pass-through" = "英文直通";
 "Show raw English candidate as 0" = "以 0 顯示原文英文候選";
+"0 candidate position" = "0 字位置";
+"First" = "頭位";
+"Last" = "尾位";
 "Keeps typed letters available when Chinese candidates exist." = "有中文候選時仍可選擇原本輸入字母。";
 "English spelling suggestions" = "英文串字建議";
 "Uses macOS spell checking locally and never auto-corrects." = "使用 macOS 本機串字檢查，絕不自動更正。";

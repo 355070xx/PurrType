@@ -64,8 +64,8 @@ org.purrtype.inputmethod.PurrTypeUnified
 ```
 
 These preferences can include the selected internal mode, page size, shortcut
-choices, language preference, raw-English candidate preference, Space paging
-preference, Privacy Lock state, and whether New Sucheng learning is enabled.
+choices, language preference, raw-English candidate preference and position,
+Space paging preference, Privacy Lock state, and whether New Sucheng learning is enabled.
 `PurrTypePreferences.app` uses the same defaults suite so the input method and
 preferences window see one shared settings state.
 

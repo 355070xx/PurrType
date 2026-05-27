@@ -24,6 +24,7 @@ static void AssertTrue(BOOL condition, NSString *message) {
 @property(nonatomic, assign) BOOL learningEnabled;
 @property(nonatomic, assign) BOOL privacyLockEnabled;
 @property(nonatomic, assign) BOOL rawEnglishCandidateEnabled;
+@property(nonatomic, copy) NSString *rawEnglishCandidatePosition;
 @property(nonatomic, assign) BOOL spellingSuggestionsEnabled;
 @property(nonatomic, assign) BOOL spacePagingEnabled;
 @property(nonatomic, assign) NSUInteger candidatePageSize;
@@ -45,6 +46,7 @@ static void AssertTrue(BOOL condition, NSString *message) {
 @property(nonatomic, assign) NSUInteger switchInputModeShortcutChangeCount;
 @property(nonatomic, assign) NSUInteger modeShortcutChangeCount;
 @property(nonatomic, assign) NSUInteger rawEnglishChangeCount;
+@property(nonatomic, assign) NSUInteger rawEnglishPositionChangeCount;
 @property(nonatomic, assign) NSUInteger spellingSuggestionsChangeCount;
 @property(nonatomic, assign) NSUInteger spacePagingChangeCount;
 @property(nonatomic, assign) NSUInteger candidatePageSizeChangeCount;
@@ -67,6 +69,7 @@ static void AssertTrue(BOOL condition, NSString *message) {
     if (self) {
         _mode = MKInputModeSucheng;
         _rawEnglishCandidateEnabled = YES;
+        _rawEnglishCandidatePosition = MKRawEnglishCandidatePositionLeading;
         _spellingSuggestionsEnabled = YES;
         _spacePagingEnabled = YES;
         _candidatePageSize = 9;
@@ -124,6 +127,15 @@ static void AssertTrue(BOOL condition, NSString *message) {
 - (void)preferencesSetRawEnglishCandidateEnabled:(BOOL)enabled {
     self.rawEnglishCandidateEnabled = enabled;
     self.rawEnglishChangeCount += 1;
+}
+
+- (NSString *)preferencesRawEnglishCandidatePosition {
+    return self.rawEnglishCandidatePosition;
+}
+
+- (void)preferencesSetRawEnglishCandidatePosition:(NSString *)position {
+    self.rawEnglishCandidatePosition = position;
+    self.rawEnglishPositionChangeCount += 1;
 }
 
 - (BOOL)preferencesSpellingSuggestionsEnabled {
@@ -940,6 +952,12 @@ int main(int argc, const char *argv[]) {
         NSControl *rawSwitch = typingEnabledSwitches[0];
         SetSwitchStateAndSend(rawSwitch, NSControlStateValueOff);
         AssertTrue(!delegate.rawEnglishCandidateEnabled && delegate.rawEnglishChangeCount == 1, @"raw-English candidate switch updates delegate");
+        NSControl *rawPositionControl = FindSegmentedControl(rootView, @[@"頭位", @"尾位"]);
+        AssertTrue(rawPositionControl != nil, @"Typing tab exposes raw-English 0 position control");
+        SelectSegmentAndSend(rawPositionControl, 1);
+        AssertTrue([delegate.rawEnglishCandidatePosition isEqualToString:MKRawEnglishCandidatePositionTrailing] &&
+                   delegate.rawEnglishPositionChangeCount == 1,
+                   @"raw-English 0 position control updates delegate");
         NSControl *spellingSwitch = typingEnabledSwitches[1];
         SetSwitchStateAndSend(spellingSwitch, NSControlStateValueOff);
         AssertTrue(!delegate.spellingSuggestionsEnabled && delegate.spellingSuggestionsChangeCount == 1, @"spelling suggestion switch updates delegate");

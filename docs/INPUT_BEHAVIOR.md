@@ -29,7 +29,7 @@
 
 1. 顯示候選字列表。
 2. 預設候選排序由 engine source score、reviewed guards 和 mode-specific ranking 決定。
-3. 每頁顯示 5 或 9 個中文候選，並在候選文字前顯示相應數字；如 buffer 可當英文原文，列表另顯示 `0 <buffer>`。
+3. 每頁顯示 5 或 9 個中文候選，並在候選文字前顯示相應數字；如 buffer 可當英文原文，列表另顯示 `0 <buffer>`，位置可由 Preferences 設為頭位或尾位。
 4. 多於一頁時，候選窗顯示 `1/4` 形式的頁數。
 5. 用戶選擇候選後清空 composition buffer，commit text 到目前 app。
 
@@ -66,7 +66,7 @@ Privacy Lock shortcut 可在 Preferences 改為 double backtick、`Ctrl+Shift+\`
 - New Sucheng 對常見英文 token 會 suppress generated phrase candidates；learned phrase 或明確 seed phrase 仍然優先保護。
 - 沒有任何中文 engine 回傳候選時，會保留 raw English composition 直到 Space、Enter、Escape 或 Backspace 清空。
 - raw English composition 內可繼續輸入 printable ASCII punctuation/symbols，避免 email、URL、path、code token 或英文句子中途彈出中文符號候選。
-- 有中文候選但用戶其實想輸入原英文字母時，候選列表會提供 `0 <typed text>`；按 `0` 直接提交原文，不改動中文候選位置。
+- 有中文候選但用戶其實想輸入原英文字母時，候選列表會提供 `0 <typed text>`；按 `0` 直接提交原文，不改動中文候選位置。Preferences 可設定 `0` 顯示在中文候選前或後。
 - raw English composition 用 Backspace 刪到空字串後，必須退出 raw English 狀態，下一個輸入重新按當前 engine 判斷。
 
 英文 pass-through 不等於永久切換英文模式。完成該 token 後，輸入法應回到正常偵測。

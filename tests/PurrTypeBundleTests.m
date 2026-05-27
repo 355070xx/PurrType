@@ -316,6 +316,7 @@ int main(int argc, const char *argv[]) {
         AssertTrue([englishLocalization containsString:@"\"Privacy Lock\" = \"Privacy Lock\";"], @"English preferences localization includes Privacy Lock");
         AssertTrue([englishLocalization containsString:@"\"Candidate Page Size\" = \"Candidate Page Size\";"], @"English preferences localization includes candidate page size");
         AssertTrue([englishLocalization containsString:@"\"Show raw English candidate as 0\""], @"English preferences localization includes raw-English candidate setting");
+        AssertTrue([englishLocalization containsString:@"\"0 candidate position\""], @"English preferences localization includes raw-English candidate position setting");
         AssertTrue([englishLocalization containsString:@"\"English spelling suggestions\""], @"English preferences localization includes spelling suggestion setting");
         AssertTrue([englishLocalization containsString:@"\"Quick Phrases\" = \"Quick Phrases\";"], @"English preferences localization includes Quick Phrases");
         AssertTrue([englishLocalization containsString:@"\"Backup / Restore\" = \"Backup / Restore\";"], @"English preferences localization includes basic backup");

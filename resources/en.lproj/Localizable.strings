@@ -106,6 +106,9 @@
 "Page candidates" = "Page candidates";
 "English Pass-through" = "English Pass-through";
 "Show raw English candidate as 0" = "Show raw English candidate as 0";
+"0 candidate position" = "0 candidate position";
+"First" = "First";
+"Last" = "Last";
 "Keeps typed letters available when Chinese candidates exist." = "Keeps typed letters available when Chinese candidates exist.";
 "English spelling suggestions" = "English spelling suggestions";
 "Uses macOS spell checking locally and never auto-corrects." = "Uses macOS spell checking locally and never auto-corrects.";

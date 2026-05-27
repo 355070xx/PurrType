@@ -1,6 +1,7 @@
 #import <Cocoa/Cocoa.h>
 #import "../src/PurrTypeEngine.h"
 #import "../src/PurrTypeInputBehavior.h"
+#import "../src/PurrTypePreferencesConstants.h"
 
 static const NSUInteger MKTypingOneHourTargetKeystrokes = 14400;
 
@@ -210,6 +211,15 @@ static void RunPreferenceToggleChecks(PurrTypeEngine *engine, MKTypingSimulation
                                                                          associationModeActive:NO
                                                                    rawEnglishCandidateEnabled:YES];
     AssertTrue([[withRawEnglish firstObject] isEqualToString:@"0 d"], @"raw-English candidate is visible first when preference is on");
+
+    NSArray<NSString *> *withTrailingRawEnglish =
+        [PurrTypeInputBehavior displayTextsForCandidates:[candidates subarrayWithRange:NSMakeRange(0, MIN((NSUInteger)2, candidates.count))]
+                                                  buffer:@"d"
+                                    rawEnglishModeActive:NO
+                                   associationModeActive:NO
+                             rawEnglishCandidateEnabled:YES
+                            rawEnglishCandidatePosition:MKRawEnglishCandidatePositionTrailing];
+    AssertTrue([[withTrailingRawEnglish lastObject] isEqualToString:@"0 d"], @"raw-English candidate can be placed after Chinese candidates");
 
     NSArray<NSString *> *withoutRawEnglish = [PurrTypeInputBehavior displayTextsForCandidates:[candidates subarrayWithRange:NSMakeRange(0, MIN((NSUInteger)2, candidates.count))]
                                                                                           buffer:@"d"
