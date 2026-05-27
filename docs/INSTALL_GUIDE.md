@@ -61,6 +61,9 @@ macOS 可能會要求你輸入 Mac 密碼或使用 Touch ID。確認後，繼續
 
 PurrType 之後會出現在 macOS input menu。
 
+如果仍然見不到 `PurrType`，請 log out 再 log in，然後重新打開
+`System Settings > Keyboard > Text Input > Edit...` 檢查。
+
 ### 移除 PurrType
 
 重新打開同一個 DMG，double-click `Uninstall PurrType.pkg`。
@@ -122,6 +125,9 @@ Select `Chinese, Traditional`, choose `PurrType`, then click `Add`.
 Click `Done` when you return to the Input Sources window.
 
 PurrType is now available from the macOS input menu.
+
+If `PurrType` still does not appear, log out and log back in, then reopen
+`System Settings > Keyboard > Text Input > Edit...` and check again.
 
 ### Remove PurrType
 

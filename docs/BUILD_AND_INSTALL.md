@@ -19,6 +19,7 @@ follow the [install guide](INSTALL_GUIDE.md). Do not click `Move to Bin`.
 4. Quit and reopen System Settings if it was already open.
 5. Open `System Settings > Keyboard > Text Input > Edit...`.
 6. Add `PurrType`.
+7. If `PurrType` still does not appear, log out and log back in, then check Text Input again.
 
 The package installs to:
 

@@ -2,8 +2,15 @@
 
 ## 0.1.2
 
-- Adds free Quick Phrases: user-defined `;` short codes such as `;email` can expand to saved replacement text from local storage.
-- Adds free Quick Phrases TXT import/export and basic backup/restore for local Quick Phrases data.
+- Adds Quick Phrases: user-defined `;` short codes such as `;email` can expand to one or more saved local replacements.
+- Adds Quick Phrases TXT import/export and visible success/failure status after save, remove, import, export, backup, restore, and reset actions.
+- Adds basic backup/restore for local Quick Phrases data.
+- Improves Pinyin phrase lookup and continuous composition, including common joined input such as `nihao` -> `你好`.
+- Adds per-input-mode settings for enabled modes, shortcuts, candidate page size, Space key behavior, and guarded clear-reading behavior.
+- Adds Candidate Window settings for vertical/horizontal layout, 5/9 page size, Space behavior, font size, and highlight color.
+- Adds Related Words controls, including whether suggestions continue after choosing a related word.
+- Adds a raw-English `0` candidate position setting so users can place `0 <typed text>` before or after Chinese candidates.
+- Polishes Preferences layout, fixed Traditional Chinese / English window sizing, and release documentation.
 
 ## 0.1.1
 
