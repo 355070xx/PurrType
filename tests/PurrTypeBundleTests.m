@@ -60,6 +60,10 @@ int main(int argc, const char *argv[]) {
         AssertTrue([inputPlist[@"TISInputSourceID"] isEqualToString:@"org.purrtype.inputmethod.PurrTypeUnified"], @"input method exposes one macOS input source");
         AssertTrue([inputPlist[@"InputMethodConnectionName"] isEqualToString:@"PurrTypeUnified_Connection"], @"input method uses a stable IMK connection name");
         AssertTrue(inputPlist[@"ComponentInputModeDict"] == nil, @"input method keeps mode switching internal instead of declaring mode-level input sources");
+        AssertTrue([inputPlist[@"NSMicrophoneUsageDescription"] isEqualToString:@"PurrType uses the microphone only when you start Cantonese voice input, and does not record audio in the background."],
+                   @"public input method explains microphone use for Cantonese Voice Input");
+        AssertTrue([inputPlist[@"NSSpeechRecognitionUsageDescription"] isEqualToString:@"PurrType uses Apple Speech recognition APIs only when you start Cantonese voice input, and does not store audio or voice transcripts."],
+                   @"public input method explains Apple Speech use for Cantonese Voice Input");
 
         NSString *preinstall = FileTextAtPath([root stringByAppendingPathComponent:@"packaging/scripts/preinstall"]);
         AssertTrue([preinstall containsString:@"pkill -x PurrType"], @"installer stops the input method process");
@@ -244,6 +248,25 @@ int main(int argc, const char *argv[]) {
         AssertTrue([makefile containsString:@"src/PurrTypeCandidatePanel.m"], @"build includes custom candidate panel");
         AssertTrue([makefile containsString:@"src/PurrTypeQuickPhraseStore.m"], @"build includes public Quick Phrases store");
         AssertTrue([makefile containsString:@"src/PurrTypeBackupStore.m"], @"build includes public basic backup store");
+        AssertTrue([makefile containsString:@"-framework Speech"] &&
+                   [makefile containsString:@"-framework AVFoundation"] &&
+                   [makefile containsString:@"-framework AVFAudio"],
+                   @"build links public Cantonese Voice Input frameworks");
+        AssertTrue([makefile containsString:@"src/PurrTypeSpeechInputController.m"] &&
+                   [makefile containsString:@"src/PurrTypeVoiceFloatingButton.m"],
+                   @"build includes public Cantonese Voice Input runtime sources");
+        AssertTrue([makefile containsString:@"src/PurrTypeVoiceHomophoneStore.m"] &&
+                   [makefile containsString:@"PurrTypeVoiceHomophoneStore.h"],
+                   @"public Voice Input includes local Cantonese voice homophone fallback");
+        AssertTrue([makefile containsString:@"VoiceFloatingButtonPaw.png"] &&
+                   [makefile containsString:@"cantonese_voice_contextual_phrases.txt"] &&
+                   [makefile containsString:@"cantonese_voice_homophones.tsv"] &&
+                   [makefile containsString:@"cantonese_voice_language_model_zh-HK.bin"],
+                   @"package smoke keeps public Cantonese Voice Input resources");
+        AssertTrue([makefile containsString:@"test -s \"$(PACKAGE_SMOKE_APP)/Contents/Resources/cantonese_voice_homophones.tsv\""],
+                   @"package smoke keeps local voice homophone fallback resources");
+        AssertTrue([makefile containsString:@"test ! -e \"$(PACKAGE_SMOKE_APP)/Contents/Resources/cantonese_voice_accuracy_corpus.tsv\""],
+                   @"package smoke rejects private voice accuracy corpus");
         AssertTrue([makefile containsString:@"SYSTEM_INPUT_METHOD_APP := /Library/Input Methods/$(BUNDLE_NAME)"], @"diagnostic targets know the system input method location");
         AssertTrue([makefile containsString:@"USER_INPUT_METHOD_APP := $(HOME)/Library/Input Methods/$(BUNDLE_NAME)"], @"diagnostic targets know the user input method location");
         AssertTrue([makefile containsString:@"RUN_PURRTYPE_APP"], @"diagnostic targets use a shared installed-app launcher");
@@ -296,8 +319,23 @@ int main(int argc, const char *argv[]) {
 
         NSString *englishLocalization = FileTextAtPath([root stringByAppendingPathComponent:@"resources/en.lproj/Localizable.strings"]);
         NSString *traditionalChineseLocalization = FileTextAtPath([root stringByAppendingPathComponent:@"resources/zh-Hant.lproj/Localizable.strings"]);
+        NSString *voiceHomophones = FileTextAtPath([root stringByAppendingPathComponent:@"resources/cantonese_voice_homophones.tsv"]);
         NSString *preferencesController = FileTextAtPath([root stringByAppendingPathComponent:@"src/PurrTypePreferencesWindowController.m"]);
         NSString *preferencesConstants = FileTextAtPath([root stringByAppendingPathComponent:@"src/PurrTypePreferencesConstants.h"]);
+        AssertTrue([voiceHomophones containsString:@"soeng2"] &&
+                   [voiceHomophones containsString:@"想 上 賞"] &&
+                   [voiceHomophones containsString:@"hai2"] &&
+                   [voiceHomophones containsString:@"喺 係"],
+                   @"voice homophone fallback includes compact Cantonese live-dictation confusable groups");
+        NSString *voiceHomophoneStore = FileTextAtPath([root stringByAppendingPathComponent:@"src/PurrTypeVoiceHomophoneStore.m"]);
+        AssertTrue(![voiceHomophoneStore containsString:@"sucheng_first_pages.tsv"] &&
+                   ![voiceHomophoneStore containsString:@"pronunciationFallbacksByCharacter"],
+                   @"voice homophone store keeps only compact Cantonese live-dictation confusions; broad dictionary fallback stays in the engine");
+        NSString *engineDictionaryFallback = FileTextAtPath([root stringByAppendingPathComponent:@"src/PurrTypeEngine.m"]);
+        AssertTrue([engineDictionaryFallback containsString:@"dictionaryPronunciationCandidateTextsByKey"] &&
+                   [engineDictionaryFallback containsString:@"candidateIndexCodesForSource"] &&
+                   [engineDictionaryFallback containsString:@"dictionaryCandidateTextsForCharacter"],
+                   @"voice dictionary fallback uses the bundled engine candidate indexes instead of a hand-maintained subset table");
         AssertTrue([preferencesController containsString:@"MKPreferencesSidebarItemInset = 14.0"], @"preferences sidebar keeps readable compact item padding");
         AssertTrue([preferencesController containsString:@"MKPreferencesSidebarTitleInset = 20.0"], @"preferences sidebar keeps the title away from the window edge in compact layout");
         AssertTrue([preferencesController containsString:@"MKPreferencesSidebarWidth - (MKPreferencesSidebarItemInset * 2.0)"], @"preferences sidebar button width follows item padding");
@@ -318,6 +356,9 @@ int main(int argc, const char *argv[]) {
         AssertTrue([englishLocalization containsString:@"\"Show raw English candidate as 0\""], @"English preferences localization includes raw-English candidate setting");
         AssertTrue([englishLocalization containsString:@"\"0 candidate position\""], @"English preferences localization includes raw-English candidate position setting");
         AssertTrue([englishLocalization containsString:@"\"English spelling suggestions\""], @"English preferences localization includes spelling suggestion setting");
+        AssertTrue([englishLocalization containsString:@"\"Decimal point after numbers\""], @"English preferences localization includes decimal punctuation setting");
+        AssertTrue([englishLocalization containsString:@"\"Chinese punctuation after Chinese text\""], @"English preferences localization includes Chinese punctuation setting");
+        AssertTrue([englishLocalization containsString:@"\"Floating mic button\""], @"English preferences localization includes voice floating button setting");
         AssertTrue([englishLocalization containsString:@"\"Quick Phrases\" = \"Quick Phrases\";"], @"English preferences localization includes Quick Phrases");
         AssertTrue([englishLocalization containsString:@"\"Backup / Restore\" = \"Backup / Restore\";"], @"English preferences localization includes basic backup");
         AssertTrue([englishLocalization containsString:@"\"Temporary English with Shift\" = \"Uppercase English with Shift\";"], @"English preferences localization explains Shift as uppercase English");
@@ -329,6 +370,9 @@ int main(int argc, const char *argv[]) {
         AssertTrue([traditionalChineseLocalization containsString:@"\"Candidate Page Size\" = \"候選頁大小\";"], @"Traditional Chinese preferences localization includes candidate page size");
         AssertTrue([traditionalChineseLocalization containsString:@"\"Show raw English candidate as 0\" = \"以 0 顯示原文英文候選\";"], @"Traditional Chinese preferences localization includes raw-English candidate setting");
         AssertTrue([traditionalChineseLocalization containsString:@"\"English spelling suggestions\" = \"英文串字建議\";"], @"Traditional Chinese preferences localization includes spelling suggestion setting");
+        AssertTrue([traditionalChineseLocalization containsString:@"\"Decimal point after numbers\" = \"數字後直入小數點\";"], @"Traditional Chinese preferences localization includes decimal punctuation setting");
+        AssertTrue([traditionalChineseLocalization containsString:@"\"Chinese punctuation after Chinese text\" = \"中文字後中文標點優先\";"], @"Traditional Chinese preferences localization includes Chinese punctuation setting");
+        AssertTrue([traditionalChineseLocalization containsString:@"\"Floating mic button\" = \"浮動 Mic 按鈕\";"], @"Traditional Chinese preferences localization includes voice floating button setting");
         AssertTrue([traditionalChineseLocalization containsString:@"\"Quick Phrases\" = \"快速短語\";"], @"Traditional Chinese preferences localization includes Quick Phrases");
         AssertTrue([traditionalChineseLocalization containsString:@"\"Backup / Restore\" = \"備份 / 還原\";"], @"Traditional Chinese preferences localization includes basic backup");
         AssertTrue([traditionalChineseLocalization containsString:@"\"Temporary English with Shift\" = \"按 Shift 輸入大楷英文\";"], @"Traditional Chinese preferences localization explains Shift as uppercase English");
@@ -352,6 +396,8 @@ int main(int argc, const char *argv[]) {
         AssertTrue([associationIndexGenerator containsString:@"sort_by"], @"generated association index keeps keys sorted for runtime lookup");
 
         NSString *controller = FileTextAtPath([root stringByAppendingPathComponent:@"src/PurrTypeInputController.m"]);
+        NSString *header = FileTextAtPath([root stringByAppendingPathComponent:@"src/PurrTypeVoiceFloatingButton.h"]);
+        NSString *voiceFloatingButton = FileTextAtPath([root stringByAppendingPathComponent:@"src/PurrTypeVoiceFloatingButton.m"]);
         AssertTrue([controller containsString:@"#import <Carbon/Carbon.h>"], @"input controller can inspect macOS secure event input state");
         AssertTrue([controller containsString:@"- (BOOL)isSecureTextInputActive"], @"input controller centralizes secure input detection");
         AssertTrue([controller containsString:@"IsSecureEventInputEnabled()"], @"input controller uses the system secure-input API");
@@ -396,7 +442,9 @@ int main(int argc, const char *argv[]) {
         AssertTrue([preferencesStore containsString:@"[NSBundle mainBundle].bundleIdentifier isEqualToString:MKUserDefaultsSuiteName"] &&
                    [preferencesStore containsString:@"[NSUserDefaults standardUserDefaults]"],
                    @"preferences store uses standard defaults for its own bundle domain instead of opening its own suite name");
-        AssertTrue([controller containsString:@"self.lastInputClient = sender ?: [self client];"], @"input controller remembers latest event client for candidate positioning");
+        AssertTrue([controller containsString:@"id nextClient = sender ?: [self client];"] &&
+                   [controller containsString:@"clearTransientInputStateAfterClientChange"],
+                   @"input controller resets stale candidate state when the active IMK client changes");
         AssertTrue([controller containsString:@"- (BOOL)inputText:(NSString *)string client:(id)sender"], @"input controller handles IMK text-only input callbacks");
         NSString *inputTextFallbackSection = SubstringBetween(controller,
                                                               @"- (BOOL)inputText:(NSString *)string client:(id)sender",
@@ -432,6 +480,13 @@ int main(int argc, const char *argv[]) {
         AssertTrue(![controller containsString:@"_engine = [PurrTypeEngine sharedEngine];"], @"input controller does not synchronously build the full engine during controller initialization");
         AssertTrue([controller containsString:@"PurrTypePreferencesStore"], @"input controller delegates shared defaults access to the preferences store");
         AssertTrue(![controller containsString:@"NSUserDefaults"], @"input controller does not read or write preferences defaults directly");
+        AssertTrue([controller containsString:@"voiceFloatingButtonVisible"] &&
+                   [controller containsString:@"[self.preferences voiceFloatingButtonVisible]"] &&
+                   [controller containsString:@"preferencesSetVoiceFloatingButtonVisible"],
+                   @"input controller routes the floating voice button visibility setting through the preferences store");
+        AssertTrue([controller containsString:@"_voiceFloatingButton = [PurrTypeVoiceFloatingButton sharedButton]"] &&
+                   ![controller containsString:@"_voiceFloatingButton = [[PurrTypeVoiceFloatingButton alloc] init]"],
+                   @"input controller uses the shared voice floating button instead of creating app-specific panels");
         AssertTrue(![controller containsString:@"recentCommittedTextSegments"], @"input controller does not own learning-ranking rolling text state");
         AssertTrue([controller containsString:@"modeMenuImageForMode"], @"input controller attaches mode icons to menu rows");
         AssertTrue([controller containsString:@"beginCandidateAnchorSessionForClient"], @"input controller starts explicit candidate anchor sessions");
@@ -440,12 +495,17 @@ int main(int argc, const char *argv[]) {
         AssertTrue([activateServerSection containsString:@"[super activateServer:sender]"], @"input controller preserves IMK activation behavior");
         AssertTrue([activateServerSection containsString:@"rememberActiveInputClient"], @"input controller remembers the app client on activation");
         AssertTrue([activateServerSection containsString:@"startSecureInputMonitor"], @"input controller starts gated secure-input monitoring on activation");
+        AssertTrue([activateServerSection containsString:@"self.voiceFloatingButton.delegate = self"], @"active controller owns the shared floating voice button");
+        AssertTrue(![activateServerSection containsString:@"[self.voiceFloatingButton show]"], @"activation syncs voice button state without resetting its saved frame directly");
         NSString *deactivateServerSection = SubstringBetween(controller, @"- (void)deactivateServer:", @"- (void)hidePalettes");
         AssertTrue([deactivateServerSection containsString:@"stopSecureInputMonitor"], @"input controller stops secure-input monitoring on deactivate");
         AssertTrue([deactivateServerSection containsString:@"commitComposition"], @"input controller commits pending composition on deactivate");
         AssertTrue([deactivateServerSection containsString:@"resetComposition"], @"input controller clears candidate panel state on deactivate");
         AssertTrue([deactivateServerSection containsString:@"self.lastInputClient = nil"], @"input controller drops stale app client references on deactivate");
         AssertTrue([deactivateServerSection containsString:@"lastPrivacyLockBacktickTime = 0"], @"input controller resets transient shortcut state on deactivate");
+        AssertTrue([deactivateServerSection containsString:@"if (self.voiceFloatingButton.delegate == self)"] &&
+                   [deactivateServerSection containsString:@"[self.voiceFloatingButton hide]"],
+                   @"only the current floating button owner hides it during app deactivation");
         NSString *hidePalettesSection = SubstringBetween(controller, @"- (void)hidePalettes", @"- (NSUInteger)recognizedEvents");
         AssertTrue([hidePalettesSection containsString:@"candidateUpdateSerial += 1"], @"hidePalettes cancels delayed candidate panel updates");
         AssertTrue([hidePalettesSection containsString:@"clearAnchorSession"], @"hidePalettes clears candidate panel anchor state");
@@ -476,6 +536,30 @@ int main(int argc, const char *argv[]) {
         AssertTrue([controller containsString:@"[self scheduleCandidatePanelUpdate];"], @"association and punctuation candidates use scheduled positioning");
         AssertTrue([controller containsString:@"candidatePanelAnchorCharacterIndex"], @"input controller passes the composing character index to candidate positioning");
         AssertTrue([controller containsString:@"showPunctuationCandidatesForString"], @"input controller opens punctuation candidates");
+        AssertTrue([controller containsString:@"shouldBypassFinderNonTextInputForString"], @"input controller bypasses Finder non-text printable input");
+        NSString *finderBypassSection = SubstringBetween(controller,
+                                                         @"- (BOOL)shouldBypassFinderNonTextInputForString:",
+                                                         @"- (BOOL)hasTextInsertionContextForClient:");
+        AssertTrue([finderBypassSection containsString:@"hasActiveMarkedCompositionForFinderBypass"] &&
+                   ![finderBypassSection containsString:@"currentCandidates.count"] &&
+                   ![finderBypassSection containsString:@"associationModeActive"],
+                   @"Finder non-text bypass is not blocked by stale post-commit candidates from another app");
+        AssertTrue([inputTextSection containsString:@"clearTransientInputStateForFinderBypass"],
+                   @"Finder non-text bypass clears stale candidate panels before handing the key back to Finder");
+        AssertTrue([controller containsString:@"punctuationContextTextForClient"], @"input controller reads text before the caret for punctuation context");
+        AssertTrue([controller containsString:@"textEndsWithDecimalDigit"], @"input controller treats period after numbers as decimal input");
+        AssertTrue([controller containsString:@"textEndsWithChineseCharacter"], @"input controller promotes Chinese punctuation after Chinese text");
+        AssertTrue([controller containsString:@"lastTextContextFallbackText"] &&
+                   [controller containsString:@"recordPassthroughTextContextForString:string client:sender"] &&
+                   [controller containsString:@"textContextFallbackForClient:sender"],
+                   @"punctuation context falls back to the last pass-through printable key when apps do not expose text before the caret");
+        NSString *punctuationContextSection = SubstringBetween(controller,
+                                                              @"- (NSString *)punctuationContextTextForClient:(id)sender {",
+                                                              @"- (NSString *)textBeforeInsertionPointForClient:(id)sender maximumLength:");
+        AssertTrue([punctuationContextSection containsString:@"textContextFallbackForClient:sender"] &&
+                   [punctuationContextSection rangeOfString:@"textBeforeInsertionPointForClient"].location <
+                   [punctuationContextSection rangeOfString:@"textContextFallbackForClient:sender"].location,
+                   @"client text context stays preferred, with pass-through fallback only when the app provides no caret text");
         AssertTrue([controller containsString:@"punctuationAnchorText"], @"input controller keeps a transient marked-text anchor for punctuation candidates");
         AssertTrue([controller containsString:@"updatePunctuationCompositionForClient"], @"punctuation candidates update marked text before positioning");
         AssertTrue([controller containsString:@"self.punctuationCandidateTexts.count > 0 && self.punctuationAnchorText.length > 0"] &&
@@ -489,11 +573,52 @@ int main(int argc, const char *argv[]) {
                    @"input controller supports Pinyin Up/Down candidate selection and panel highlighting");
         AssertTrue([controller containsString:@"selectedIndex:[self candidatePanelSelectedIndexForCandidateTexts:candidateTexts]"],
                    @"candidate panel receives the active selected row from the input controller");
+        NSString *showVoiceCandidateSection = SubstringBetween(controller,
+                                                               @"- (void)showVoiceLiveCandidates:(NSArray<NSString *> *)candidateTexts nearClient:(id)sender {",
+                                                               @"- (NSNumber *)voiceCandidatePanelAnchorCharacterIndex {");
+        AssertTrue([showVoiceCandidateSection containsString:@"anchorCharacterIndex:anchorCharacterIndex"] &&
+                   [showVoiceCandidateSection containsString:@"usePreservedAnchor:YES"] &&
+                   [showVoiceCandidateSection containsString:@"nearScreenRect:self.voiceFloatingButton.screenFrame"],
+                   @"voice live candidate panel falls back from the marked text tail to preserved caret, then to the floating voice button");
+        NSString *voiceHomophoneCandidateSection = SubstringBetween(controller,
+                                                                    @"- (NSArray<NSString *> *)voiceHomophoneCandidateTextsForVisibleTranscript:(NSString *)visibleTranscript {",
+                                                                    @"- (void)scheduleVoiceLiveCandidates:");
+        AssertTrue([voiceHomophoneCandidateSection containsString:@"fallbackRecognizedCharacter"] &&
+                   [voiceHomophoneCandidateSection containsString:@"dictionaryCandidateTextsForCharacter"] &&
+                   [voiceHomophoneCandidateSection containsString:@"return @[fallbackRecognizedCharacter]"],
+                   @"voice live candidates merge Cantonese homophones with engine dictionary candidates and keep a visible fallback panel");
+        NSString *syncVoiceFloatingButtonSection = SubstringBetween(controller,
+                                                                    @"- (void)syncVoiceFloatingButtonState {",
+                                                                    @"- (void)startCantoneseVoiceInput:");
+        AssertTrue([syncVoiceFloatingButtonSection containsString:@"self.voiceFloatingButton.delegate != self"] &&
+                   [syncVoiceFloatingButtonSection containsString:@"!self.inputServerActive || !self.voiceFloatingButtonVisible"] &&
+                   [syncVoiceFloatingButtonSection containsString:@"[self.voiceFloatingButton hide]"] &&
+                   [syncVoiceFloatingButtonSection containsString:@"[self.voiceFloatingButton show]"],
+                   @"voice floating button visibility is applied immediately without disabling voice input itself");
+        AssertTrue([header containsString:@"+ (instancetype)sharedButton"] &&
+                   [voiceFloatingButton containsString:@"+ (instancetype)sharedButton"] &&
+                   [voiceFloatingButton containsString:@"dispatch_once"] &&
+                   [voiceFloatingButton containsString:@"MKVoiceFloatingButtonOriginKey"] &&
+                   [voiceFloatingButton containsString:@"hasAppliedInitialFrame"] &&
+                   [voiceFloatingButton containsString:@"lastAppliedSavedOriginString"] &&
+                   [voiceFloatingButton containsString:@"savedOriginChanged"] &&
+                   [voiceFloatingButton containsString:@"MKVoiceFloatingButtonOriginDidChangeNotification"] &&
+                   [voiceFloatingButton containsString:@"NSDistributedNotificationCenter"] &&
+                   [voiceFloatingButton containsString:@"postNotificationName:MKVoiceFloatingButtonOriginDidChangeNotification"] &&
+                   [voiceFloatingButton containsString:@"handleSavedOriginDidChange:"] &&
+                   [voiceFloatingButton containsString:@"if (!self.hasAppliedInitialFrame || savedOriginChanged)"],
+                   @"voice floating button uses one shared window and saved position across app-specific controller instances");
 
         NSString *inputBehavior = FileTextAtPath([root stringByAppendingPathComponent:@"src/PurrTypeInputBehavior.m"]);
         AssertTrue([inputBehavior containsString:@"MKInputBehaviorKeyCodeComma = 43"], @"preferences shortcut uses comma key");
         AssertTrue([inputBehavior containsString:@"punctuationCandidateDisplayTextsForString"], @"input behavior exposes punctuation candidate display rows");
         AssertTrue([inputBehavior containsString:@"shouldAutoCommitDefaultPunctuationForInputString"], @"input behavior exposes pending punctuation default-commit rules");
+        AssertTrue([inputBehavior containsString:@"preferChineseDefault"], @"input behavior supports context-sensitive Chinese punctuation ordering");
+        AssertTrue([inputBehavior containsString:@"shouldBypassFinderNonTextInputForBundleIdentifier"], @"input behavior owns Finder non-text bypass policy");
+        AssertTrue([inputBehavior containsString:@"MKTrailingHanSequence"] &&
+                   [inputBehavior containsString:@"hasNonChinesePrefixBeforeTail"] &&
+                   [inputBehavior containsString:@"MKVoiceCandidateChangedSegmentsFromNormalizedStrings"],
+                   @"voice candidate diff falls back to the latest Chinese segment after earlier English recognition drift");
         AssertTrue([inputBehavior containsString:@"@[@\".\", @\"。\", @\"．\", @\"・\", @\"…\"]"], @"period candidates follow open-table punctuation order");
         AssertTrue([inputBehavior containsString:@"@[@\"*\", @\"＊\", @\"†\", @\"‡\", @\"§\"]"], @"asterisk candidates include open-table reference marks");
         NSString *inputState = FileTextAtPath([root stringByAppendingPathComponent:@"src/PurrTypeInputState.m"]);
@@ -520,6 +645,12 @@ int main(int argc, const char *argv[]) {
         AssertTrue([candidatePanel containsString:@"resolveAnchorRect:&anchorRect"], @"custom candidate panel routes all candidate types through the same anchor resolver");
         AssertTrue([candidatePanel containsString:@"forClient:client"], @"custom candidate panel resolves anchors against the active client");
         AssertTrue([candidatePanel containsString:@"usePreservedAnchor:(BOOL)usePreservedAnchor"], @"custom candidate panel makes preserved-anchor reuse explicit");
+        AssertTrue([candidatePanel containsString:@"allowSelectedRangeFallback:(anchorCharacterIndex == nil)"],
+                   @"composition candidate panels do not fall back to selectedRange during app-switch caret lag");
+        AssertTrue([candidatePanel containsString:@"showCandidates:(NSArray<NSString *> *)candidateTexts nearScreenRect:(NSRect)screenRect"] &&
+                   [candidatePanel containsString:@"Screen fallbacks are non-text anchors"] &&
+                   ![candidatePanel containsString:@"mouseLocation"],
+                   @"custom candidate panel uses explicit screen-rect fallbacks without mouse or preserved-caret pollution");
         AssertTrue(![candidatePanel containsString:@"mouseLocation"], @"custom candidate panel does not fall back to mouse location when the caret anchor is unavailable");
         AssertTrue([candidatePanel containsString:@"beginAnchorSessionForClient"], @"custom candidate panel locks anchor sessions explicitly");
         AssertTrue(![candidatePanel containsString:@"NSScrollView"], @"custom candidate panel does not use a scrollbar");

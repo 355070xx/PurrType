@@ -152,6 +152,10 @@
 "Commits the typed code exactly as entered." = "按原樣提交已輸入的編碼。";
 "Esc" = "Esc";
 "Return" = "Return";
+"Decimal point after numbers" = "數字後直入小數點";
+"Typing . after a number inserts a decimal point instead of opening punctuation candidates." = "數字後輸入 . 會直接輸入小數點，不會打開標點候選。";
+"Chinese punctuation after Chinese text" = "中文字後中文標點優先";
+"When text before the caret is Chinese, punctuation candidates start with Chinese or full-width marks." = "游標前係中文字時，標點候選會先顯示中文或全形標點。";
 "Automatic" = "自動";
 "Keep URL / email / path in English" = "URL／電郵／路徑保留英文";
 "Directly switches to this mode." = "直接切換到此模式。";
@@ -242,3 +246,13 @@
 "After committing Chinese text, show likely next words." = "提交中文字後，顯示可能嘅下一個字詞。";
 "Continue after choosing related word" = "選完聯想詞後繼續提示";
 "Keep showing related words after selecting one." = "選擇一個聯想詞後，繼續顯示下一輪聯想。";
+"Voice Input" = "語音輸入";
+"Voice Input (Beta)" = "語音輸入 (Beta)";
+"Recognition locale" = "辨識地區";
+"Voice Input is a beta testing feature. Auto prefers Cantonese (Hong Kong), then Mandarin (Taiwan)." = "語音輸入係 Beta 測試功能；自動優先廣東話（香港），其次國語（台灣）。";
+"Auto prefers Cantonese (Hong Kong), then Mandarin (Taiwan)." = "自動會優先使用廣東話（香港），其次國語（台灣）。";
+"Floating mic button" = "浮動 Mic 按鈕";
+"Show the draggable voice button. The shortcut and menu still work when hidden." = "顯示可拖曳嘅語音按鈕；隱藏後仍可用快捷鍵或選單開始語音輸入。";
+"Auto" = "自動";
+"Cantonese (Hong Kong)" = "廣東話（香港）";
+"Mandarin (Taiwan)" = "國語（台灣）";

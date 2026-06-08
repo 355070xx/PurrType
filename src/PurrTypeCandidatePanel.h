@@ -35,6 +35,7 @@
              pageCount:(NSUInteger)pageCount
     usePreservedAnchor:(BOOL)usePreservedAnchor
          selectedIndex:(NSUInteger)selectedIndex;
+- (void)showCandidates:(NSArray<NSString *> *)candidateTexts nearScreenRect:(NSRect)screenRect;
 - (void)beginAnchorSessionForClient:(id)client;
 - (void)clearAnchorSession;
 - (void)hide;

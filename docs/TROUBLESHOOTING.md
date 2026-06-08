@@ -147,6 +147,28 @@ make reset-learning
 
 New Sucheng committed custom phrases are session-only and disappear after the input method process restarts.
 
+## Voice Input (Beta) Does Not Start
+
+Voice Input is a beta feature. It is optional and starts only from `Option+Z`, the PurrType
+menu, or the floating voice button. It is blocked when Privacy Lock is on or
+when macOS secure event input is active.
+
+Check macOS permissions:
+
+```text
+System Settings > Privacy & Security > Microphone
+System Settings > Privacy & Security > Speech Recognition
+```
+
+Ensure PurrType is allowed in both places, then stop and restart the input
+method if macOS does not apply the permission immediately:
+
+```sh
+make stop
+```
+
+Select PurrType again from the macOS input menu and retry `Option+Z`.
+
 ## Collect Non-Sensitive Diagnostics
 
 Capture recent process logs:
@@ -185,6 +207,7 @@ After selecting `PurrType`, test:
 - System Settings: one `PurrType` input source appears under Text Input; the PurrType menu switches internal modes.
 - Pinyin: `ni` then `1` commits a Traditional Chinese candidate such as `你`.
 - English: misspelled words are not auto-corrected; spelling suggestions only appear as optional candidates when enabled.
+- Voice Input: `Option+Z` starts Cantonese dictation in a normal text field and a second `Option+Z` commits or stops it.
 
 ## Release Artifact Checks
 
@@ -192,7 +215,7 @@ Unsigned local artifacts:
 
 ```sh
 make release-artifacts
-(cd build && shasum -a 256 -c PurrType-0.1.2-checksums.sha256)
+(cd build && shasum -a 256 -c PurrType-0.1.3-checksums.sha256)
 ```
 
 Source-first GitHub releases do not require Developer ID signing. Signed and notarized prebuilt binary artifacts require Developer ID identities and a notarytool keychain profile:
@@ -207,6 +230,6 @@ make release-signed \
 Verify the stapled signed DMG:
 
 ```sh
-xcrun stapler validate build/PurrType-0.1.2-signed.dmg
-spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.2-signed.dmg
+xcrun stapler validate build/PurrType-0.1.3-signed.dmg
+spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.3-signed.dmg
 ```

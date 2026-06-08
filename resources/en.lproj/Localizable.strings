@@ -152,6 +152,10 @@
 "Commits the typed code exactly as entered." = "Commits the typed code exactly as entered.";
 "Esc" = "Esc";
 "Return" = "Return";
+"Decimal point after numbers" = "Decimal point after numbers";
+"Typing . after a number inserts a decimal point instead of opening punctuation candidates." = "Typing . after a number inserts a decimal point instead of opening punctuation candidates.";
+"Chinese punctuation after Chinese text" = "Chinese punctuation after Chinese text";
+"When text before the caret is Chinese, punctuation candidates start with Chinese or full-width marks." = "When text before the caret is Chinese, punctuation candidates start with Chinese or full-width marks.";
 "Automatic" = "Automatic";
 "Keep URL / email / path in English" = "Keep URL / email / path in English";
 "Directly switches to this mode." = "Directly switches to this mode.";
@@ -242,3 +246,13 @@
 "After committing Chinese text, show likely next words." = "After committing Chinese text, show likely next words.";
 "Continue after choosing related word" = "Continue after choosing related word";
 "Keep showing related words after selecting one." = "Keep showing related words after selecting one.";
+"Voice Input" = "Voice Input";
+"Voice Input (Beta)" = "Voice Input (Beta)";
+"Recognition locale" = "Recognition locale";
+"Voice Input is a beta testing feature. Auto prefers Cantonese (Hong Kong), then Mandarin (Taiwan)." = "Voice Input is a beta testing feature. Auto prefers Cantonese (Hong Kong), then Mandarin (Taiwan).";
+"Auto prefers Cantonese (Hong Kong), then Mandarin (Taiwan)." = "Auto prefers Cantonese (Hong Kong), then Mandarin (Taiwan).";
+"Floating mic button" = "Floating mic button";
+"Show the draggable voice button. The shortcut and menu still work when hidden." = "Show the draggable voice button. The shortcut and menu still work when hidden.";
+"Auto" = "Auto";
+"Cantonese (Hong Kong)" = "Cantonese (Hong Kong)";
+"Mandarin (Taiwan)" = "Mandarin (Taiwan)";

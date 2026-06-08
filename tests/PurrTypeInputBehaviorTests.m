@@ -45,6 +45,52 @@ int main(int argc, const char *argv[]) {
         AssertTrue(![PurrTypeInputBehavior isPreferencesShortcutKeyCode:43 modifiers:NSEventModifierFlagCommand], @"Cmd+, is left for the Preferences helper app");
         AssertTrue(![PurrTypeInputBehavior isPreferencesShortcutKeyCode:18 modifiers:modeFlags], @"mode shortcuts are not preferences shortcuts");
         AssertTrue([[PurrTypeInputBehavior defaultSwitchInputModeShortcutSpec] isEqualToString:@"keycode:1:42"], @"Switch Input Mode defaults to Control+Backslash");
+        AssertTrue([[PurrTypeInputBehavior defaultVoiceInputShortcutSpec] isEqualToString:@"keycode:2:6"], @"Voice Input defaults to Option+Z");
+        AssertTrue([PurrTypeInputBehavior isVoiceInputShortcutKeyCode:6 modifiers:NSEventModifierFlagOption], @"Option+Z toggles voice input");
+        AssertTrue(![PurrTypeInputBehavior isVoiceInputShortcutKeyCode:6 modifiers:(NSEventModifierFlagOption | NSEventModifierFlagShift)], @"Option+Shift+Z does not toggle voice input");
+        AssertTrue([[PurrTypeInputBehavior displayNameForShortcutSpec:[PurrTypeInputBehavior defaultVoiceInputShortcutSpec]] isEqualToString:@"Option+Z"], @"Voice Input shortcut displays as Option+Z");
+        AssertTrue([[PurrTypeInputBehavior keyEquivalentForShortcutSpec:[PurrTypeInputBehavior defaultVoiceInputShortcutSpec]] isEqualToString:@"z"], @"Voice Input menu key equivalent is z");
+        AssertTrue([PurrTypeInputBehavior keyEquivalentModifierMaskForShortcutSpec:[PurrTypeInputBehavior defaultVoiceInputShortcutSpec]] == NSEventModifierFlagOption, @"Voice Input menu modifier is Option");
+        AssertTrue([[PurrTypeInputBehavior stableVoiceVisibleTranscriptForTranscript:@"今日天氣好好hi How are you"
+                                                                  previousTranscript:@"今日天氣好好hi how are y"] isEqualToString:@"今日天氣好好hi How are you"],
+                   @"Voice partial updates replace English case changes instead of appending duplicates");
+        AssertTrue([[PurrTypeInputBehavior stableVoiceVisibleTranscriptForTranscript:@"今日天氣好好hi How are you are y"
+                                                                  previousTranscript:@"今日天氣好好hi how are y"] isEqualToString:@"今日天氣好好hi How are you are y"],
+                   @"Voice partial updates with shared English prefixes stay a replacement, not a repeated phrase");
+        AssertTrue([[PurrTypeInputBehavior stableVoiceVisibleTranscriptForTranscript:@"hi how are you"
+                                                                  previousTranscript:@"今日天氣好好"] isEqualToString:@"今日天氣好好hi how are you"],
+                   @"Voice stabilization appends a Chinese-to-English continuation without inserting unrelated spaces");
+        AssertTrue([[PurrTypeInputBehavior stableVoiceVisibleTranscriptForTranscript:@"world"
+                                                                  previousTranscript:@"hello"] isEqualToString:@"hello world"],
+                   @"Voice stabilization keeps a space between disjoint English continuation segments");
+        AssertTrue([[PurrTypeInputBehavior stableVoiceVisibleTranscriptForTranscript:@"廣東話語音系統"
+                                                                  previousTranscript:@"測試廣東話"] isEqualToString:@"測試廣東話語音系統"],
+                   @"Voice stabilization still merges overlap continuations without duplicating shared Chinese text");
+        AssertTrue([[PurrTypeInputBehavior visibleVoiceTranscriptForRecognitionTranscript:@"廣東話語音輸入法測試hi how are you what are you doing中文輸入"
+                                                                          confirmedPrefix:@"廣東話語音輸入法測試hi How are you what are you doing"] isEqualToString:@"中文輸入"],
+                   @"Voice confirmed-prefix trimming ignores English case updates before the next Chinese segment");
+        AssertTrue([[PurrTypeInputBehavior voiceRecognitionTranscriptForVisibleTranscript:@"中文輸入"
+                                                                          confirmedPrefix:@"hi How are you what are you doing"
+                                                             fallbackRecognitionTranscript:@"中文輸入"] isEqualToString:@"hi How are you what are you doing中文輸入"],
+                   @"Voice latest recognition prefix follows the stabilized visible transcript across English-to-Chinese transitions");
+        NSArray<NSString *> *voiceChangedSegments = [PurrTypeInputBehavior voiceCandidateChangedSegmentsForVisibleTranscript:@"廣東話語音輸入法測試hi How are you what are you doing中文測試"
+                                                                                                       alternativeTranscript:@"廣東話語音輸入法測試hi how are you what are you doing中文輸入"
+                                                                                                        maximumChangedLength:12];
+        AssertTrue(voiceChangedSegments.count == 2 &&
+                   [voiceChangedSegments[0] isEqualToString:@"測試"] &&
+                   [voiceChangedSegments[1] isEqualToString:@"輸入"],
+                   @"Voice candidate diff ignores earlier English case changes and keeps the Chinese correction segment");
+        NSArray<NSString *> *voiceChineseTailChangedSegments = [PurrTypeInputBehavior voiceCandidateChangedSegmentsForVisibleTranscript:@"廣東話語音測試hi How are you hi are you K OK你知道嗎你"
+                                                                                                                  alternativeTranscript:@"廣東話語音測試hi how are you high are you okay你知道嗎妳"
+                                                                                                                   maximumChangedLength:12];
+        AssertTrue(voiceChineseTailChangedSegments.count == 2 &&
+                   [voiceChineseTailChangedSegments[0] isEqualToString:@"你"] &&
+                   [voiceChineseTailChangedSegments[1] isEqualToString:@"妳"],
+                   @"Voice candidate diff falls back to the latest Chinese segment when earlier English drift would hide the panel");
+        AssertTrue([PurrTypeInputBehavior voiceCandidateChangedSegmentsForVisibleTranscript:@"hi How are you"
+                                                                     alternativeTranscript:@"hi how are you"
+                                                                      maximumChangedLength:12].count == 0,
+                   @"Voice candidate diff does not show a panel for English case-only alternatives");
         AssertTrue([PurrTypeInputBehavior shortcutSpec:@"keycode:1:42" matchesKeyCode:42 modifiers:NSEventModifierFlagControl], @"custom Control+Backslash shortcut matches");
         AssertTrue([[PurrTypeInputBehavior shortcutSpecForKeyCode:42 modifiers:NSEventModifierFlagControl] isEqualToString:@"keycode:1:42"], @"recorder builds generic Control+Backslash shortcut");
         AssertTrue([PurrTypeInputBehavior shortcutSpecForKeyCode:42 modifiers:NSEventModifierFlagCommand] == nil, @"recorder rejects Command shortcuts to preserve app shortcuts");
@@ -239,6 +285,16 @@ int main(int argc, const char *argv[]) {
         AssertTrue(periodCandidates.count == 5, @"period opens half-width and open-table punctuation candidates");
         AssertTrue([periodCandidates[1] isEqualToString:@"2 。"], @"period includes Chinese full stop");
         AssertTrue([periodCandidates[4] isEqualToString:@"5 …"], @"period includes ellipsis");
+        NSArray<NSString *> *chineseDefaultPeriodCandidates =
+            [PurrTypeInputBehavior punctuationCandidateDisplayTextsForString:@"." preferChineseDefault:YES];
+        AssertTrue([chineseDefaultPeriodCandidates[0] isEqualToString:@"1 。"] &&
+                   [chineseDefaultPeriodCandidates[1] isEqualToString:@"2 ."],
+                   @"Chinese punctuation context promotes full stop before half-width period");
+        NSArray<NSString *> *chineseDefaultCommaCandidates =
+            [PurrTypeInputBehavior punctuationCandidateDisplayTextsForString:@"," preferChineseDefault:YES];
+        AssertTrue([chineseDefaultCommaCandidates[0] isEqualToString:@"1 ，"] &&
+                   [chineseDefaultCommaCandidates[1] isEqualToString:@"2 ,"],
+                   @"Chinese punctuation context promotes full-width comma before half-width comma");
         NSArray<NSString *> *quoteCandidates = [PurrTypeInputBehavior punctuationCandidateDisplayTextsForString:@"\""];
         AssertTrue(quoteCandidates.count == 5, @"double quote opens open-table quote candidates");
         AssertTrue([quoteCandidates[0] isEqualToString:@"1 \""], @"double quote keeps half-width option");
@@ -286,6 +342,46 @@ int main(int argc, const char *argv[]) {
                                                                                        keyCode:53
                                                                                 candidateCount:3],
                    @"Escape keeps cancelling pending punctuation");
+        AssertTrue([PurrTypeInputBehavior textEndsWithDecimalDigit:@"7"], @"ASCII digit context is decimal context");
+        AssertTrue([PurrTypeInputBehavior textEndsWithDecimalDigit:@"７"], @"full-width digit context is decimal context");
+        AssertTrue(![PurrTypeInputBehavior textEndsWithDecimalDigit:@"你"], @"Chinese text is not decimal context");
+        AssertTrue([PurrTypeInputBehavior textEndsWithChineseCharacter:@"你"], @"Chinese character context is detected");
+        AssertTrue(![PurrTypeInputBehavior textEndsWithChineseCharacter:@"7"], @"digit text is not Chinese context");
+        AssertTrue([PurrTypeInputBehavior shouldBypassFinderNonTextInputForBundleIdentifier:@"com.apple.finder"
+                                                                                inputString:@"f"
+                                                                    hasTextInsertionContext:NO
+                                                                       hasActiveComposition:NO],
+                   @"Finder non-text single-letter navigation bypasses the input method");
+        AssertTrue(![PurrTypeInputBehavior shouldBypassFinderNonTextInputForBundleIdentifier:@"com.apple.finder"
+                                                                                 inputString:@"f"
+                                                                     hasTextInsertionContext:YES
+                                                                        hasActiveComposition:NO],
+                   @"Finder text insertion contexts still use the input method");
+        AssertTrue(![PurrTypeInputBehavior shouldBypassFinderNonTextInputForBundleIdentifier:@"com.apple.finder"
+                                                                                 inputString:@"f"
+                                                                     hasTextInsertionContext:NO
+                                                                        hasActiveComposition:YES],
+                   @"Finder bypass does not interrupt an active composition");
+        AssertTrue(![PurrTypeInputBehavior shouldBypassFinderNonTextInputForBundleIdentifier:@"com.apple.TextEdit"
+                                                                                 inputString:@"f"
+                                                                     hasTextInsertionContext:NO
+                                                                        hasActiveComposition:NO],
+                   @"Finder bypass does not apply to other apps");
+        AssertTrue([PurrTypeInputBehavior shouldBypassFinderNonTextInputForBundleIdentifier:@"com.apple.finder"
+                                                                                inputString:@"."
+                                                                    hasTextInsertionContext:NO
+                                                                       hasActiveComposition:NO],
+                   @"Finder non-text punctuation also bypasses the input method");
+        AssertTrue([PurrTypeInputBehavior shouldBypassFinderNonTextInputForBundleIdentifier:@"com.apple.finder"
+                                                                                inputString:@"你"
+                                                                    hasTextInsertionContext:NO
+                                                                       hasActiveComposition:NO],
+                   @"Finder non-text single composed characters bypass the input method");
+        AssertTrue(![PurrTypeInputBehavior shouldBypassFinderNonTextInputForBundleIdentifier:@"com.apple.finder"
+                                                                                 inputString:@"\n"
+                                                                     hasTextInsertionContext:NO
+                                                                        hasActiveComposition:NO],
+                   @"Finder bypass does not claim control-key text callbacks");
 
         AssertTrue([PurrTypeInputBehavior isShiftOnlyLetterInputWithModifiers:NSEventModifierFlagShift], @"Shift-only input enters uppercase English");
         AssertTrue(![PurrTypeInputBehavior isShiftOnlyLetterInputWithModifiers:(NSEventModifierFlagShift | NSEventModifierFlagControl)], @"Control+Shift is not uppercase English");

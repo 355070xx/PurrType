@@ -222,6 +222,18 @@ int main(int argc, const char *argv[]) {
         AssertTrue(CandidatesContainText([engine candidatesForInput:@"qiu" limit:9 mode:MKInputModePinyin], @"秋"), @"Pinyin qiu returns dictionary candidates beyond the seed table");
         AssertTrue(CandidatesContainText([engine candidatesForInput:@"long" limit:9 mode:MKInputModePinyin], @"龍"), @"Pinyin long returns full dictionary Traditional candidates");
         AssertTrue(CandidatesContainText([engine candidatesForInput:@"zhongguoneidi" limit:9 mode:MKInputModePinyin], @"中國內地"), @"Pinyin supports exact multi-syllable dictionary phrases");
+        NSArray<NSString *> *saaiDictionaryCandidates = [engine dictionaryCandidateTextsForCharacter:@"晒" limit:5];
+        AssertTrue(saaiDictionaryCandidates.count >= 2 &&
+                   [saaiDictionaryCandidates.firstObject isEqualToString:@"晒"] &&
+                   [saaiDictionaryCandidates containsObject:@"曬"],
+                   @"voice dictionary fallback uses the full input dictionaries for common written variants");
+        NSArray<NSString *> *faatDictionaryCandidates = [engine dictionaryCandidateTextsForCharacter:@"發" limit:5];
+        AssertTrue(faatDictionaryCandidates.count >= 2 &&
+                   [faatDictionaryCandidates.firstObject isEqualToString:@"發"] &&
+                   [faatDictionaryCandidates containsObject:@"法"],
+                   @"voice dictionary fallback exposes broad same-pronunciation alternatives from the engine");
+        AssertTrue([engine dictionaryCandidateTextsForCharacter:@"AB" limit:5].count == 0,
+                   @"voice dictionary fallback rejects multi-character non-Han input");
         AssertTrue(!CandidatesContainText([engine candidatesForInput:@"ni" limit:9 mode:MKInputModeCangjie], @"你"), @"Cangjie ni does not return Pinyin 你");
         AssertTrue([engine candidatesForInput:@"hqi" limit:9 mode:MKInputModeEnglish].count == 0, @"English mode does not expose Chinese candidates");
         AssertTrue([engine hasCandidatesOrPrefixesForInput:@"hq" mode:MKInputModeCangjie], @"Cangjie prefix hq is recognized");

@@ -5,7 +5,7 @@
 Use the public DMG download to install PurrType. No Terminal commands are
 required:
 
-[Download PurrType 0.1.2 DMG](https://github.com/355070xx/PurrType/releases/download/v0.1.2/PurrType-0.1.2.dmg)
+[Download PurrType 0.1.3 DMG](https://github.com/355070xx/PurrType/releases/download/v0.1.3/PurrType-0.1.3.dmg)
 
 Do not download GitHub's auto-generated `Source code` zip/tar.gz files to
 install PurrType. Those files are source archives, not the installer.
@@ -13,7 +13,7 @@ install PurrType. Those files are source archives, not the installer.
 If macOS shows `"Install PurrType.pkg" Not Opened` or `Apple could not verify...`,
 follow the [install guide](INSTALL_GUIDE.md). Do not click `Move to Bin`.
 
-1. Download `PurrType-0.1.2.dmg` from the link above, then open it in Finder.
+1. Download `PurrType-0.1.3.dmg` from the link above, then open it in Finder.
 2. Double-click `Install PurrType.pkg`.
 3. Complete the macOS Installer flow.
 4. Quit and reopen System Settings if it was already open.
@@ -47,6 +47,13 @@ Quick Phrases are a free local feature. Add short codes in Preferences > Typing.
 Short codes must start with `;`, for example `;email`, and can be imported or
 exported as TXT. Basic backup/restore exports and restores local Quick Phrases
 data only.
+
+Voice Input is included as an optional user-started beta runtime feature.
+It uses macOS Speech, AVFoundation, bundled contextual phrases, a generated
+Apple Speech language model resource, and Apple Speech transcript alternatives. The
+public build does not include private accuracy boost flows, cloud STT credentials or
+endpoints, Pro/licensing surfaces, app-profile UI, or private voice accuracy
+corpora.
 
 ## Requirements
 
@@ -121,6 +128,11 @@ Current tests validate:
 - Local English spelling suggestion provider using macOS `NSSpellChecker`.
 - Quick Phrases store validation, TXT import/export, and basic backup/restore.
 - Input behavior regression for mode shortcuts, preferences shortcut, candidate paging, `0` raw-English candidate display, and Shift uppercase English.
+- Cantonese Voice Input controller normalization, locale selection fallback,
+  contextual phrases, generated language model attachment, and transcript
+  alternative candidate handling.
+- Public bundle guards for voice resources, microphone and Speech permission
+  strings, and exclusion of private/cloud voice materials.
 - One-hour equivalent typing simulation from `docs/typing/one_hour_typing_corpus.md`, including Sucheng candidate selection, candidate page turns, mixed English raw text, Cangjie replay, New Sucheng custom phrase session replay, preference toggle behavior, and exact output comparison.
 
 After installing a development or package build, verify that macOS Text Input Sources can see the input method:
@@ -234,8 +246,8 @@ make package
 This creates:
 
 ```text
-build/PurrType-0.1.2.pkg
-build/PurrType-0.1.2.dmg
+build/PurrType-0.1.3.pkg
+build/PurrType-0.1.3.dmg
 ```
 
 Before manually installing a test package, run the non-GUI release preflight:
@@ -270,17 +282,17 @@ To generate unsigned release artifacts plus SHA-256 checksums and provenance met
 
 ```sh
 make release-artifacts
-(cd build && shasum -a 256 -c PurrType-0.1.2-checksums.sha256)
+(cd build && shasum -a 256 -c PurrType-0.1.3-checksums.sha256)
 ```
 
 This writes:
 
 ```text
-build/PurrType-0.1.2.pkg
-build/Uninstall-PurrType-0.1.2.pkg
-build/PurrType-0.1.2.dmg
-build/PurrType-0.1.2-checksums.sha256
-build/PurrType-0.1.2-provenance.json
+build/PurrType-0.1.3.pkg
+build/Uninstall-PurrType-0.1.3.pkg
+build/PurrType-0.1.3.dmg
+build/PurrType-0.1.3-checksums.sha256
+build/PurrType-0.1.3-provenance.json
 ```
 
 The public checksum file verifies the downloadable DMG.
@@ -317,23 +329,23 @@ make release-signed \
 The signed release path is not required for source-only GitHub releases. It fails before modifying artifacts if the Developer ID identities or notarytool profile are missing. A successful signed binary release writes:
 
 ```text
-build/PurrType-0.1.2-signed.pkg
-build/Uninstall-PurrType-0.1.2-signed.pkg
-build/PurrType-0.1.2-signed.dmg
-build/PurrType-0.1.2-signed-checksums.sha256
-build/PurrType-0.1.2-signed-provenance.json
+build/PurrType-0.1.3-signed.pkg
+build/Uninstall-PurrType-0.1.3-signed.pkg
+build/PurrType-0.1.3-signed.dmg
+build/PurrType-0.1.3-signed-checksums.sha256
+build/PurrType-0.1.3-signed-provenance.json
 ```
 
 Verify the signed DMG:
 
 ```sh
-xcrun stapler validate build/PurrType-0.1.2-signed.dmg
-spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.2-signed.dmg
+xcrun stapler validate build/PurrType-0.1.3-signed.dmg
+spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.3-signed.dmg
 ```
 
 Use this path for normal testing:
 
-1. Open `build/PurrType-0.1.2.dmg`.
+1. Open `build/PurrType-0.1.3.dmg`.
 2. Double-click `Install PurrType.pkg`.
 3. Complete the installer.
 4. Quit and reopen System Settings if it was already open.

@@ -20,6 +20,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)preferencesSetSpellingSuggestionsEnabled:(BOOL)enabled;
 - (BOOL)preferencesSpacePagingEnabled;
 - (void)preferencesSetSpacePagingEnabled:(BOOL)enabled;
+- (BOOL)preferencesDecimalPointShortcutEnabled;
+- (void)preferencesSetDecimalPointShortcutEnabled:(BOOL)enabled;
+- (BOOL)preferencesChineseContextPunctuationEnabled;
+- (void)preferencesSetChineseContextPunctuationEnabled:(BOOL)enabled;
 - (NSUInteger)preferencesCandidatePageSize;
 - (void)preferencesSetCandidatePageSize:(NSUInteger)pageSize;
 - (NSString *)preferencesCandidatePanelOrientation;
@@ -45,6 +49,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)preferencesSetSwitchInputModeShortcut:(NSString *)shortcutSpec;
 - (NSString *)preferencesPrivacyLockShortcut;
 - (void)preferencesSetPrivacyLockShortcut:(NSString *)shortcutSpec;
+- (NSString *)preferencesVoiceRecognitionLocaleIdentifier;
+- (void)preferencesSetVoiceRecognitionLocaleIdentifier:(NSString *)localeIdentifier;
+- (BOOL)preferencesVoiceFloatingButtonVisible;
+- (void)preferencesSetVoiceFloatingButtonVisible:(BOOL)visible;
 - (NSDictionary<NSString *, NSString *> *)preferencesModeShortcutsByMode;
 - (void)preferencesSetModeShortcut:(NSString *)shortcutSpec forMode:(NSString *)mode;
 - (void)preferencesResetLearning;

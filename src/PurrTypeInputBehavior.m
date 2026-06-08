@@ -5,6 +5,7 @@
 static const NSInteger MKInputBehaviorKeyCodeComma = 43;
 static const NSInteger MKInputBehaviorKeyCodeBackslash = 42;
 static const NSInteger MKInputBehaviorKeyCodeBacktick = 50;
+static const NSInteger MKInputBehaviorKeyCodeZ = 6;
 static const NSInteger MKInputBehaviorKeyCodeReturn = 36;
 static const NSInteger MKInputBehaviorKeyCodeTab = 48;
 static const NSInteger MKInputBehaviorKeyCodeSpace = 49;
@@ -207,6 +208,166 @@ static NSString *MKKeyEquivalentForKeyCode(NSInteger keyCode) {
     return keys[@(keyCode)] ?: @"";
 }
 
+static BOOL MKStringIsSinglePrintableInput(NSString *string) {
+    if (string.length == 0) {
+        return NO;
+    }
+
+    NSCharacterSet *controlCharacters = [NSCharacterSet controlCharacterSet];
+    NSCharacterSet *newlines = [NSCharacterSet newlineCharacterSet];
+    __block NSUInteger composedCharacterCount = 0;
+    __block BOOL hasPrintableCharacter = NO;
+    [string enumerateSubstringsInRange:NSMakeRange(0, string.length)
+                               options:NSStringEnumerationByComposedCharacterSequences
+                            usingBlock:^(NSString *substring, NSRange substringRange, NSRange enclosingRange, BOOL *stop) {
+        (void)substringRange;
+        (void)enclosingRange;
+        composedCharacterCount += 1;
+        if (composedCharacterCount > 1) {
+            *stop = YES;
+            return;
+        }
+        if ([substring rangeOfCharacterFromSet:controlCharacters].location != NSNotFound ||
+            [substring rangeOfCharacterFromSet:newlines].location != NSNotFound) {
+            return;
+        }
+        hasPrintableCharacter = YES;
+    }];
+    return composedCharacterCount == 1 && hasPrintableCharacter;
+}
+
+static NSString *MKTrimmedInputBehaviorString(NSString *string) {
+    return [[string ?: @"" stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] copy];
+}
+
+static BOOL MKStringHasPrefixCaseInsensitive(NSString *string, NSString *prefix) {
+    if (string.length == 0 || prefix.length == 0 || prefix.length > string.length) {
+        return NO;
+    }
+    return [[string substringToIndex:prefix.length] compare:prefix
+                                                    options:NSCaseInsensitiveSearch | NSDiacriticInsensitiveSearch] == NSOrderedSame;
+}
+
+static NSUInteger MKCommonPrefixLengthCaseInsensitive(NSString *lhs, NSString *rhs) {
+    NSUInteger length = MIN(lhs.length, rhs.length);
+    NSUInteger index = 0;
+    while (index < length) {
+        NSString *lhsCharacter = [lhs substringWithRange:NSMakeRange(index, 1)];
+        NSString *rhsCharacter = [rhs substringWithRange:NSMakeRange(index, 1)];
+        if ([lhsCharacter compare:rhsCharacter
+                          options:NSCaseInsensitiveSearch | NSDiacriticInsensitiveSearch] != NSOrderedSame) {
+            break;
+        }
+        index += 1;
+    }
+    return index;
+}
+
+static NSUInteger MKCommonSuffixLengthCaseInsensitive(NSString *lhs, NSString *rhs, NSUInteger maximumLength) {
+    NSUInteger length = MIN(maximumLength, MIN(lhs.length, rhs.length));
+    NSUInteger index = 0;
+    while (index < length) {
+        NSString *lhsCharacter = [lhs substringWithRange:NSMakeRange(lhs.length - index - 1, 1)];
+        NSString *rhsCharacter = [rhs substringWithRange:NSMakeRange(rhs.length - index - 1, 1)];
+        if ([lhsCharacter compare:rhsCharacter
+                          options:NSCaseInsensitiveSearch | NSDiacriticInsensitiveSearch] != NSOrderedSame) {
+            break;
+        }
+        index += 1;
+    }
+    return index;
+}
+
+static NSString *MKTrailingHanSequence(NSString *string) {
+    NSString *normalized = MKTrimmedInputBehaviorString(string);
+    if (normalized.length == 0) {
+        return @"";
+    }
+    NSRange range = [normalized rangeOfString:@"\\p{Han}+$" options:NSRegularExpressionSearch];
+    if (range.location == NSNotFound || NSMaxRange(range) != normalized.length) {
+        return @"";
+    }
+    return [normalized substringWithRange:range];
+}
+
+static NSArray<NSString *> *MKVoiceCandidateChangedSegmentsFromNormalizedStrings(NSString *normalizedVisible,
+                                                                                NSString *normalizedAlternative,
+                                                                                NSUInteger maximumChangedLength,
+                                                                                BOOL rejectWholeTranscriptChange) {
+    if (normalizedVisible.length == 0 || normalizedAlternative.length == 0 ||
+        [normalizedVisible compare:normalizedAlternative
+                           options:NSCaseInsensitiveSearch | NSDiacriticInsensitiveSearch] == NSOrderedSame) {
+        return @[];
+    }
+
+    NSUInteger prefixLength = MKCommonPrefixLengthCaseInsensitive(normalizedVisible, normalizedAlternative);
+    NSUInteger visibleRemainingLength = normalizedVisible.length - prefixLength;
+    NSUInteger alternativeRemainingLength = normalizedAlternative.length - prefixLength;
+    NSUInteger suffixLimit = MIN(visibleRemainingLength, alternativeRemainingLength);
+    NSUInteger suffixLength = MKCommonSuffixLengthCaseInsensitive(normalizedVisible, normalizedAlternative, suffixLimit);
+    NSUInteger visibleChangedLength = normalizedVisible.length - prefixLength - suffixLength;
+    NSUInteger alternativeChangedLength = normalizedAlternative.length - prefixLength - suffixLength;
+
+    if (visibleChangedLength == 0 ||
+        alternativeChangedLength == 0 ||
+        visibleChangedLength > maximumChangedLength ||
+        alternativeChangedLength > maximumChangedLength ||
+        (rejectWholeTranscriptChange &&
+         visibleChangedLength == normalizedVisible.length &&
+         alternativeChangedLength == normalizedAlternative.length)) {
+        return @[];
+    }
+
+    NSString *visibleSegment = [normalizedVisible substringWithRange:NSMakeRange(prefixLength, visibleChangedLength)];
+    NSString *alternativeSegment = [normalizedAlternative substringWithRange:NSMakeRange(prefixLength, alternativeChangedLength)];
+    visibleSegment = MKTrimmedInputBehaviorString(visibleSegment);
+    alternativeSegment = MKTrimmedInputBehaviorString(alternativeSegment);
+    if (visibleSegment.length == 0 || alternativeSegment.length == 0 ||
+        [visibleSegment compare:alternativeSegment
+                        options:NSCaseInsensitiveSearch | NSDiacriticInsensitiveSearch] == NSOrderedSame) {
+        return @[];
+    }
+
+    return @[visibleSegment, alternativeSegment];
+}
+
+static NSUInteger MKSuffixPrefixOverlapLengthCaseInsensitive(NSString *suffixString, NSString *prefixString) {
+    NSUInteger maximumLength = MIN(suffixString.length, prefixString.length);
+    while (maximumLength > 0) {
+        NSString *suffixTail = [suffixString substringFromIndex:suffixString.length - maximumLength];
+        NSString *prefixHead = [prefixString substringToIndex:maximumLength];
+        if ([suffixTail compare:prefixHead
+                        options:NSCaseInsensitiveSearch | NSDiacriticInsensitiveSearch] == NSOrderedSame) {
+            return maximumLength;
+        }
+        maximumLength -= 1;
+    }
+    return 0;
+}
+
+static BOOL MKCharacterIsASCIIAlphanumeric(unichar character) {
+    return (character >= '0' && character <= '9') ||
+           (character >= 'A' && character <= 'Z') ||
+           (character >= 'a' && character <= 'z');
+}
+
+static NSString *MKVoiceTranscriptByAppendingTranscript(NSString *nextTranscript, NSString *previousTranscript) {
+    NSString *previous = MKTrimmedInputBehaviorString(previousTranscript);
+    NSString *next = MKTrimmedInputBehaviorString(nextTranscript);
+    if (previous.length == 0) {
+        return next ?: @"";
+    }
+    if (next.length == 0) {
+        return previous ?: @"";
+    }
+
+    unichar previousLast = [previous characterAtIndex:previous.length - 1];
+    unichar nextFirst = [next characterAtIndex:0];
+    NSString *separator = (MKCharacterIsASCIIAlphanumeric(previousLast) &&
+                           MKCharacterIsASCIIAlphanumeric(nextFirst)) ? @" " : @"";
+    return [previous stringByAppendingFormat:@"%@%@", separator, next];
+}
+
 @implementation PurrTypeInputBehavior
 
 + (NSUInteger)candidatePageSize {
@@ -309,6 +470,13 @@ static NSString *MKKeyEquivalentForKeyCode(NSInteger keyCode) {
             MKShortcutSpecKeyCodePrefix,
             (unsigned long)MKShortcutModifierBitControl,
             (long)MKInputBehaviorKeyCodeBackslash];
+}
+
++ (NSString *)defaultVoiceInputShortcutSpec {
+    return [NSString stringWithFormat:@"%@%lu:%ld",
+            MKShortcutSpecKeyCodePrefix,
+            (unsigned long)MKShortcutModifierBitOption,
+            (long)MKInputBehaviorKeyCodeZ];
 }
 
 + (NSString *)defaultModeShortcutSpecForMode:(MKInputMode)mode {
@@ -560,6 +728,10 @@ static NSString *MKKeyEquivalentForKeyCode(NSInteger keyCode) {
     };
     NSNumber *expectedKeyCode = keyCodes[spec];
     return expectedKeyCode != nil && expectedKeyCode.integerValue == keyCode;
+}
+
++ (BOOL)isVoiceInputShortcutKeyCode:(NSInteger)keyCode modifiers:(NSUInteger)flags {
+    return [self shortcutSpec:[self defaultVoiceInputShortcutSpec] matchesKeyCode:keyCode modifiers:flags];
 }
 
 + (BOOL)shortcutSpec:(NSString *)firstShortcutSpec conflictsWithShortcutSpec:(NSString *)secondShortcutSpec {
@@ -875,6 +1047,11 @@ static NSString *MKKeyEquivalentForKeyCode(NSInteger keyCode) {
 }
 
 + (NSArray<NSString *> *)punctuationCandidateDisplayTextsForString:(NSString *)string {
+    return [self punctuationCandidateDisplayTextsForString:string preferChineseDefault:NO];
+}
+
++ (NSArray<NSString *> *)punctuationCandidateDisplayTextsForString:(NSString *)string
+                                              preferChineseDefault:(BOOL)preferChineseDefault {
     if (string.length != 1) {
         return @[];
     }
@@ -929,6 +1106,50 @@ static NSString *MKKeyEquivalentForKeyCode(NSInteger keyCode) {
         [seenCandidates addObject:candidate];
     }
 
+    if (preferChineseDefault && uniqueCandidates.count > 1) {
+        NSDictionary<NSString *, NSString *> *preferredCandidateMap = @{
+            @"," : @"，",
+            @"." : @"。",
+            @"/" : @"／",
+            @";" : @"；",
+            @"'" : @"’",
+            @"[" : @"「",
+            @"]" : @"」",
+            @"\\" : @"＼",
+            @"`" : @"‘",
+            @"-" : @"－",
+            @"=" : @"＝",
+            @"<" : @"＜",
+            @">" : @"＞",
+            @"?" : @"？",
+            @":" : @"：",
+            @"\"" : @"“",
+            @"{" : @"｛",
+            @"}" : @"｝",
+            @"|" : @"｜",
+            @"~" : @"～",
+            @"!" : @"！",
+            @"@" : @"＠",
+            @"#" : @"＃",
+            @"$" : @"＄",
+            @"%" : @"％",
+            @"^" : @"︿",
+            @"&" : @"＆",
+            @"*" : @"＊",
+            @"(" : @"（",
+            @")" : @"）",
+            @"_" : @"＿",
+            @"+" : @"＋"
+        };
+        NSString *preferredCandidate = preferredCandidateMap[string];
+        NSUInteger preferredIndex = preferredCandidate.length > 0 ?
+            [uniqueCandidates indexOfObject:preferredCandidate] : NSNotFound;
+        if (preferredIndex != NSNotFound && preferredIndex > 0) {
+            [uniqueCandidates removeObjectAtIndex:preferredIndex];
+            [uniqueCandidates insertObject:preferredCandidate atIndex:0];
+        }
+    }
+
     NSMutableArray<NSString *> *displayTexts = [NSMutableArray arrayWithCapacity:uniqueCandidates.count];
     for (NSUInteger index = 0; index < uniqueCandidates.count; index += 1) {
         [displayTexts addObject:[NSString stringWithFormat:@"%lu %@", (unsigned long)(index + 1), uniqueCandidates[index]]];
@@ -973,6 +1194,137 @@ static NSString *MKKeyEquivalentForKeyCode(NSInteger keyCode) {
     }
 
     return YES;
+}
+
++ (BOOL)textEndsWithDecimalDigit:(NSString *)text {
+    if (text.length == 0) {
+        return NO;
+    }
+    return [text rangeOfString:@"\\p{Nd}$" options:NSRegularExpressionSearch].location != NSNotFound;
+}
+
++ (BOOL)textEndsWithChineseCharacter:(NSString *)text {
+    if (text.length == 0) {
+        return NO;
+    }
+    return [text rangeOfString:@"\\p{Han}$" options:NSRegularExpressionSearch].location != NSNotFound;
+}
+
++ (BOOL)shouldBypassFinderNonTextInputForBundleIdentifier:(NSString *)bundleIdentifier
+                                               inputString:(NSString *)string
+                                   hasTextInsertionContext:(BOOL)hasTextInsertionContext
+                                      hasActiveComposition:(BOOL)hasActiveComposition {
+    if (![bundleIdentifier isEqualToString:@"com.apple.finder"] ||
+        hasTextInsertionContext ||
+        hasActiveComposition) {
+        return NO;
+    }
+    return MKStringIsSinglePrintableInput(string);
+}
+
++ (NSString *)visibleVoiceTranscriptForRecognitionTranscript:(NSString *)recognitionTranscript
+                                             confirmedPrefix:(NSString *)confirmedPrefix {
+    NSString *normalizedTranscript = MKTrimmedInputBehaviorString(recognitionTranscript);
+    NSString *normalizedPrefix = MKTrimmedInputBehaviorString(confirmedPrefix);
+    if (normalizedTranscript.length == 0 || normalizedPrefix.length == 0) {
+        return normalizedTranscript ?: @"";
+    }
+
+    NSUInteger prefixLength = normalizedPrefix.length;
+    if (MKStringHasPrefixCaseInsensitive(normalizedTranscript, normalizedPrefix)) {
+        NSString *suffix = [normalizedTranscript substringFromIndex:prefixLength];
+        return [suffix stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    }
+
+    NSUInteger commonPrefixLength = MKCommonPrefixLengthCaseInsensitive(normalizedPrefix, normalizedTranscript);
+    NSUInteger minimumStableLength = MIN(prefixLength, 4);
+    if (commonPrefixLength >= minimumStableLength) {
+        NSString *suffix = [normalizedTranscript substringFromIndex:commonPrefixLength];
+        return [suffix stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    }
+
+    return normalizedTranscript;
+}
+
++ (NSString *)stableVoiceVisibleTranscriptForTranscript:(NSString *)transcript
+                                     previousTranscript:(NSString *)previousTranscript {
+    NSString *next = MKTrimmedInputBehaviorString(transcript);
+    NSString *previous = MKTrimmedInputBehaviorString(previousTranscript);
+    if (next.length == 0 || previous.length == 0) {
+        return next.length > 0 ? next : (previous ?: @"");
+    }
+
+    if ([next isEqualToString:previous] ||
+        MKStringHasPrefixCaseInsensitive(next, previous)) {
+        return next;
+    }
+    if (MKStringHasPrefixCaseInsensitive(previous, next)) {
+        return previous;
+    }
+
+    NSUInteger commonPrefixLength = MKCommonPrefixLengthCaseInsensitive(previous, next);
+    NSUInteger shorterLength = MIN(previous.length, next.length);
+    if (commonPrefixLength > 0 &&
+        (commonPrefixLength >= MIN(shorterLength, 4) ||
+         commonPrefixLength * 2 >= shorterLength)) {
+        return next;
+    }
+
+    NSUInteger overlapLength = MKSuffixPrefixOverlapLengthCaseInsensitive(previous, next);
+    if (overlapLength > 0 && overlapLength < next.length) {
+        NSString *nextSegment = [next substringFromIndex:overlapLength];
+        return MKVoiceTranscriptByAppendingTranscript(nextSegment, previous);
+    }
+    if (overlapLength == next.length) {
+        return previous;
+    }
+
+    return MKVoiceTranscriptByAppendingTranscript(next, previous);
+}
+
++ (NSString *)voiceRecognitionTranscriptForVisibleTranscript:(NSString *)visibleTranscript
+                                             confirmedPrefix:(NSString *)confirmedPrefix
+                                fallbackRecognitionTranscript:(NSString *)recognitionTranscript {
+    NSString *normalizedVisibleTranscript = MKTrimmedInputBehaviorString(visibleTranscript);
+    NSString *normalizedRecognitionTranscript = MKTrimmedInputBehaviorString(recognitionTranscript);
+    if (normalizedVisibleTranscript.length == 0) {
+        return normalizedRecognitionTranscript ?: @"";
+    }
+
+    NSString *normalizedConfirmedPrefix = MKTrimmedInputBehaviorString(confirmedPrefix);
+    if (normalizedConfirmedPrefix.length == 0) {
+        return normalizedVisibleTranscript;
+    }
+
+    return [self stableVoiceVisibleTranscriptForTranscript:normalizedVisibleTranscript
+                                        previousTranscript:normalizedConfirmedPrefix];
+}
+
++ (NSArray<NSString *> *)voiceCandidateChangedSegmentsForVisibleTranscript:(NSString *)visibleTranscript
+                                                     alternativeTranscript:(NSString *)alternativeTranscript
+                                                      maximumChangedLength:(NSUInteger)maximumChangedLength {
+    NSString *normalizedVisible = MKTrimmedInputBehaviorString(visibleTranscript);
+    NSString *normalizedAlternative = MKTrimmedInputBehaviorString(alternativeTranscript);
+    NSArray<NSString *> *changedSegments = MKVoiceCandidateChangedSegmentsFromNormalizedStrings(normalizedVisible,
+                                                                                               normalizedAlternative,
+                                                                                               maximumChangedLength,
+                                                                                               YES);
+    if (changedSegments.count == 2) {
+        return changedSegments;
+    }
+
+    NSString *visibleChineseTail = MKTrailingHanSequence(normalizedVisible);
+    NSString *alternativeChineseTail = MKTrailingHanSequence(normalizedAlternative);
+    BOOL hasNonChinesePrefixBeforeTail = (visibleChineseTail.length > 0 && visibleChineseTail.length < normalizedVisible.length) ||
+                                         (alternativeChineseTail.length > 0 && alternativeChineseTail.length < normalizedAlternative.length);
+    if (!hasNonChinesePrefixBeforeTail) {
+        return @[];
+    }
+
+    return MKVoiceCandidateChangedSegmentsFromNormalizedStrings(visibleChineseTail,
+                                                               alternativeChineseTail,
+                                                               maximumChangedLength,
+                                                               NO);
 }
 
 + (BOOL)isShiftOnlyLetterInputWithModifiers:(NSUInteger)flags {

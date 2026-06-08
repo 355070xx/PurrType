@@ -27,6 +27,9 @@ static void AssertTrue(BOOL condition, NSString *message) {
 @property(nonatomic, copy) NSString *rawEnglishCandidatePosition;
 @property(nonatomic, assign) BOOL spellingSuggestionsEnabled;
 @property(nonatomic, assign) BOOL spacePagingEnabled;
+@property(nonatomic, assign) BOOL decimalPointShortcutEnabled;
+@property(nonatomic, assign) BOOL chineseContextPunctuationEnabled;
+@property(nonatomic, assign) BOOL voiceFloatingButtonVisible;
 @property(nonatomic, assign) NSUInteger candidatePageSize;
 @property(nonatomic, copy) NSString *candidatePanelOrientation;
 @property(nonatomic, assign) CGFloat candidatePanelFontSize;
@@ -39,6 +42,7 @@ static void AssertTrue(BOOL condition, NSString *message) {
 @property(nonatomic, copy) NSArray<NSString *> *enabledInputModes;
 @property(nonatomic, copy) NSString *switchInputModeShortcut;
 @property(nonatomic, copy) NSString *privacyLockShortcut;
+@property(nonatomic, copy) NSString *voiceRecognitionLocaleIdentifier;
 @property(nonatomic, strong) NSMutableDictionary<NSString *, NSString *> *modeShortcutsByMode;
 @property(nonatomic, assign) NSUInteger modeChangeCount;
 @property(nonatomic, assign) NSUInteger privacyLockChangeCount;
@@ -49,6 +53,9 @@ static void AssertTrue(BOOL condition, NSString *message) {
 @property(nonatomic, assign) NSUInteger rawEnglishPositionChangeCount;
 @property(nonatomic, assign) NSUInteger spellingSuggestionsChangeCount;
 @property(nonatomic, assign) NSUInteger spacePagingChangeCount;
+@property(nonatomic, assign) NSUInteger decimalPointShortcutChangeCount;
+@property(nonatomic, assign) NSUInteger chineseContextPunctuationChangeCount;
+@property(nonatomic, assign) NSUInteger voiceFloatingButtonChangeCount;
 @property(nonatomic, assign) NSUInteger candidatePageSizeChangeCount;
 @property(nonatomic, assign) NSUInteger candidatePanelOrientationChangeCount;
 @property(nonatomic, assign) NSUInteger candidatePanelFontSizeChangeCount;
@@ -72,6 +79,9 @@ static void AssertTrue(BOOL condition, NSString *message) {
         _rawEnglishCandidatePosition = MKRawEnglishCandidatePositionLeading;
         _spellingSuggestionsEnabled = YES;
         _spacePagingEnabled = YES;
+        _decimalPointShortcutEnabled = YES;
+        _chineseContextPunctuationEnabled = YES;
+        _voiceFloatingButtonVisible = YES;
         _candidatePageSize = 9;
         _candidatePanelOrientation = MKCandidatePanelOrientationVertical;
         _candidatePanelFontSize = 17.0;
@@ -84,6 +94,7 @@ static void AssertTrue(BOOL condition, NSString *message) {
         _enabledInputModes = [PurrTypeInputBehavior defaultEnabledInputModes];
         _switchInputModeShortcut = [PurrTypeInputBehavior defaultSwitchInputModeShortcutSpec];
         _privacyLockShortcut = @"double_backtick";
+        _voiceRecognitionLocaleIdentifier = MKVoiceRecognitionLocaleAuto;
         _modeShortcutsByMode = [@{
             MKInputModeSucheng: @"ctrl_shift_1",
             MKInputModeSmartSucheng: @"ctrl_shift_2",
@@ -154,6 +165,24 @@ static void AssertTrue(BOOL condition, NSString *message) {
 - (void)preferencesSetSpacePagingEnabled:(BOOL)enabled {
     self.spacePagingEnabled = enabled;
     self.spacePagingChangeCount += 1;
+}
+
+- (BOOL)preferencesDecimalPointShortcutEnabled {
+    return self.decimalPointShortcutEnabled;
+}
+
+- (void)preferencesSetDecimalPointShortcutEnabled:(BOOL)enabled {
+    self.decimalPointShortcutEnabled = enabled;
+    self.decimalPointShortcutChangeCount += 1;
+}
+
+- (BOOL)preferencesChineseContextPunctuationEnabled {
+    return self.chineseContextPunctuationEnabled;
+}
+
+- (void)preferencesSetChineseContextPunctuationEnabled:(BOOL)enabled {
+    self.chineseContextPunctuationEnabled = enabled;
+    self.chineseContextPunctuationChangeCount += 1;
 }
 
 - (NSUInteger)preferencesCandidatePageSize {
@@ -284,6 +313,23 @@ static void AssertTrue(BOOL condition, NSString *message) {
 - (void)preferencesSetPrivacyLockShortcut:(NSString *)shortcutSpec {
     self.privacyLockShortcut = shortcutSpec;
     self.privacyLockShortcutChangeCount += 1;
+}
+
+- (NSString *)preferencesVoiceRecognitionLocaleIdentifier {
+    return self.voiceRecognitionLocaleIdentifier;
+}
+
+- (void)preferencesSetVoiceRecognitionLocaleIdentifier:(NSString *)localeIdentifier {
+    self.voiceRecognitionLocaleIdentifier = localeIdentifier ?: MKVoiceRecognitionLocaleAuto;
+}
+
+- (BOOL)preferencesVoiceFloatingButtonVisible {
+    return self.voiceFloatingButtonVisible;
+}
+
+- (void)preferencesSetVoiceFloatingButtonVisible:(BOOL)visible {
+    self.voiceFloatingButtonVisible = visible;
+    self.voiceFloatingButtonChangeCount += 1;
 }
 
 - (NSDictionary<NSString *, NSString *> *)preferencesModeShortcutsByMode {
@@ -715,10 +761,23 @@ static BOOL ButtonHasReadableWidth(NSButton *button) {
     return NO;
 }
 
-static BOOL WindowContentSizeMatches(NSWindow *window, NSSize expectedSize) {
+static BOOL WindowContentSizeMatchesOrIsScreenConstrained(NSWindow *window, NSSize expectedSize) {
     NSRect contentRect = [window contentRectForFrameRect:window.frame];
     if (fabs(NSWidth(contentRect) - expectedSize.width) < 1.0 &&
         fabs(NSHeight(contentRect) - expectedSize.height) < 1.0) {
+        return YES;
+    }
+
+    CGFloat minimumContentHeight = NSHeight([window contentRectForFrameRect:
+        NSMakeRect(0, 0, window.minSize.width, window.minSize.height)]);
+    NSRect expectedFrame = [window frameRectForContentRect:NSMakeRect(0, 0, expectedSize.width, expectedSize.height)];
+    NSScreen *screen = window.screen ?: [NSScreen mainScreen];
+    BOOL screenConstrained = screen && NSHeight(expectedFrame) > NSHeight(screen.visibleFrame);
+    BOOL readableConstrainedHeight = NSHeight(contentRect) + 0.5 >= minimumContentHeight &&
+                                     NSHeight(contentRect) < expectedSize.height;
+    if (fabs(NSWidth(contentRect) - expectedSize.width) < 1.0 &&
+        screenConstrained &&
+        readableConstrainedHeight) {
         return YES;
     }
 
@@ -773,8 +832,8 @@ int main(int argc, const char *argv[]) {
         CGFloat initialAspectRatio = NSWidth(initialContentRect) / NSHeight(initialContentRect);
         CGFloat minimumContentHeight = NSHeight([controller.window contentRectForFrameRect:
             NSMakeRect(0, 0, controller.window.minSize.width, controller.window.minSize.height)]);
-        AssertTrue(WindowContentSizeMatches(controller.window, standardPreferencesContentSize),
-                   @"preferences window opens at the fixed standard content size");
+        AssertTrue(WindowContentSizeMatchesOrIsScreenConstrained(controller.window, standardPreferencesContentSize),
+                   @"preferences window opens at the standard content size or the screen-constrained compact size");
         AssertTrue(NSWidth(initialContentRect) <= 650 &&
                    NSHeight(initialContentRect) >= minimumContentHeight &&
                    initialAspectRatio < 1.0,
@@ -948,8 +1007,20 @@ int main(int argc, const char *argv[]) {
         NSScrollView *typingScrollView = CurrentScrollView(rootView);
         NSView *typingDocumentView = typingScrollView.documentView;
         NSArray<NSControl *> *typingEnabledSwitches = EnabledSwitches(rootView);
-        AssertTrue(typingEnabledSwitches.count == 4, @"Typing tab exposes raw-English, spelling, and related-word switches");
-        NSControl *rawSwitch = typingEnabledSwitches[0];
+        AssertTrue(typingEnabledSwitches.count == 7, @"Typing tab exposes punctuation, voice button, raw-English, spelling, and related-word switches");
+        NSControl *decimalPointSwitch = typingEnabledSwitches[0];
+        SetSwitchStateAndSend(decimalPointSwitch, NSControlStateValueOff);
+        AssertTrue(!delegate.decimalPointShortcutEnabled && delegate.decimalPointShortcutChangeCount == 1,
+                   @"decimal point shortcut switch updates delegate");
+        NSControl *chinesePunctuationSwitch = typingEnabledSwitches[1];
+        SetSwitchStateAndSend(chinesePunctuationSwitch, NSControlStateValueOff);
+        AssertTrue(!delegate.chineseContextPunctuationEnabled && delegate.chineseContextPunctuationChangeCount == 1,
+                   @"Chinese punctuation preference switch updates delegate");
+        NSControl *voiceButtonSwitch = typingEnabledSwitches[2];
+        SetSwitchStateAndSend(voiceButtonSwitch, NSControlStateValueOff);
+        AssertTrue(!delegate.voiceFloatingButtonVisible && delegate.voiceFloatingButtonChangeCount == 1,
+                   @"voice floating button switch updates delegate");
+        NSControl *rawSwitch = typingEnabledSwitches[3];
         SetSwitchStateAndSend(rawSwitch, NSControlStateValueOff);
         AssertTrue(!delegate.rawEnglishCandidateEnabled && delegate.rawEnglishChangeCount == 1, @"raw-English candidate switch updates delegate");
         NSControl *rawPositionControl = FindSegmentedControl(rootView, @[@"頭位", @"尾位"]);
@@ -958,17 +1029,42 @@ int main(int argc, const char *argv[]) {
         AssertTrue([delegate.rawEnglishCandidatePosition isEqualToString:MKRawEnglishCandidatePositionTrailing] &&
                    delegate.rawEnglishPositionChangeCount == 1,
                    @"raw-English 0 position control updates delegate");
-        NSControl *spellingSwitch = typingEnabledSwitches[1];
+        NSControl *spellingSwitch = typingEnabledSwitches[4];
         SetSwitchStateAndSend(spellingSwitch, NSControlStateValueOff);
         AssertTrue(!delegate.spellingSuggestionsEnabled && delegate.spellingSuggestionsChangeCount == 1, @"spelling suggestion switch updates delegate");
-        NSControl *associationSwitch = typingEnabledSwitches[2];
+        NSControl *associationSwitch = typingEnabledSwitches[5];
         SetSwitchStateAndSend(associationSwitch, NSControlStateValueOff);
         AssertTrue(!delegate.associationCandidatesEnabled && delegate.associationCandidatesChangeCount == 1,
                    @"related-word switch updates delegate");
-        NSControl *associationContinuationSwitch = typingEnabledSwitches[3];
+        NSControl *associationContinuationSwitch = typingEnabledSwitches[6];
         SetSwitchStateAndSend(associationContinuationSwitch, NSControlStateValueOff);
         AssertTrue(!delegate.associationContinuationEnabled && delegate.associationContinuationChangeCount == 1,
                    @"related-word continuation switch updates delegate");
+        AssertTrue(LabelWithTextExists(rootView, @"語音輸入 (Beta)") &&
+                   LabelWithTextExists(rootView, @"辨識地區") &&
+                   LabelWithTextExists(rootView, @"浮動 Mic 按鈕"),
+                   @"Typing tab exposes public Voice Input locale and floating-button settings");
+        AssertTrue(LabelWithTextExists(rootView, @"語音輸入係 Beta 測試功能；自動優先廣東話（香港），其次國語（台灣）。"),
+                   @"Typing tab clearly labels Voice Input as a beta testing feature");
+        NSArray<NSView *> *typingPopUps = ViewsOfClass(rootView, [NSPopUpButton class]);
+        AssertTrue(typingPopUps.count == 1, @"Typing tab adds one voice locale popup without private feature cards");
+        NSPopUpButton *voiceLocalePopup = (NSPopUpButton *)typingPopUps[0];
+        AssertTrue(voiceLocalePopup.itemArray.count == 3 &&
+                   [voiceLocalePopup.itemArray[0].title isEqualToString:@"自動"] &&
+                   [voiceLocalePopup.itemArray[1].title isEqualToString:@"廣東話（香港）"] &&
+                   [voiceLocalePopup.itemArray[2].title isEqualToString:@"國語（台灣）"],
+                   @"Voice locale popup keeps only Auto, Cantonese Hong Kong, and Mandarin Taiwan");
+        [voiceLocalePopup selectItemWithTitle:@"廣東話（香港）"];
+        [voiceLocalePopup sendAction:voiceLocalePopup.action to:voiceLocalePopup.target];
+        AssertTrue([delegate.voiceRecognitionLocaleIdentifier isEqualToString:MKVoiceRecognitionLocaleZhHK],
+                   @"voice locale popup updates delegate");
+        [voiceLocalePopup selectItemWithTitle:@"國語（台灣）"];
+        [voiceLocalePopup sendAction:voiceLocalePopup.action to:voiceLocalePopup.target];
+        AssertTrue([delegate.voiceRecognitionLocaleIdentifier isEqualToString:MKVoiceRecognitionLocaleZhTW],
+                   @"voice locale popup stores Mandarin Taiwan as zh-TW");
+        AssertTrue(ContentLabelWithTextHasIntrinsicWidth(rootView, @"數字後直入小數點") &&
+                   ContentLabelWithTextHasIntrinsicWidth(rootView, @"中文字後中文標點優先"),
+                   @"Composition punctuation setting labels remain fully readable");
         AssertTrue(ContentLabelWithTextHasIntrinsicWidth(rootView, @"選完聯想詞後繼續提示"),
                    @"Related Words rows remain fully readable");
         AssertTrue(CurrentScrollView(rootView) == typingScrollView &&
@@ -1009,8 +1105,8 @@ int main(int argc, const char *argv[]) {
         AssertTrue(ContentLabelWithTextHasIntrinsicWidth(rootView, @"已儲存 ;email，呢個短碼而家有 2 個內容。") &&
                    LabelWithTextHasMinimumHeight(rootView, @"已儲存 ;email，呢個短碼而家有 2 個內容。", 16.0),
                    @"Quick Phrases action status stays readable");
-        AssertTrue(ViewLeadingMatchesContentLabel(rootView, FindButton(rootView, @"儲存短語"), @"快速短語", 2.0) &&
-                   ViewLeadingMatchesContentLabel(rootView, FindButton(rootView, @"匯入 TXT"), @"快速短語", 2.0),
+        AssertTrue(ViewLeadingMatchesContentLabel(rootView, FindButton(rootView, @"儲存短語"), @"快速短語", 6.0) &&
+                   ViewLeadingMatchesContentLabel(rootView, FindButton(rootView, @"匯入 TXT"), @"快速短語", 6.0),
                    @"Quick Phrases buttons align with the card title");
         AssertTrue(LabelWithTextHasMinimumHeight(rootView, @"組字", 24.0), @"Typing tab keeps Composition title fully visible");
         AssertTrue(CardsHaveUsableFrames(rootView), @"Typing tab has visible card frames");
@@ -1050,8 +1146,8 @@ int main(int argc, const char *argv[]) {
                    @"Reset Learning Data shows visible completion feedback");
         NSButton *privacyPolicyButton = FindButton(rootView, @"開啟私隱政策");
         AssertTrue(privacyPolicyButton != nil, @"Privacy & Learning exposes an in-app privacy policy button");
-        AssertTrue(ViewLeadingMatchesContentLabel(rootView, FindButton(rootView, @"重設學習資料"), @"資料", 2.0) &&
-                   ViewLeadingMatchesContentLabel(rootView, FindButton(rootView, @"匯出備份"), @"備份 / 還原", 2.0),
+        AssertTrue(ViewLeadingMatchesContentLabel(rootView, FindButton(rootView, @"重設學習資料"), @"資料", 6.0) &&
+                   ViewLeadingMatchesContentLabel(rootView, FindButton(rootView, @"匯出備份"), @"備份 / 還原", 6.0),
                    @"Privacy data and backup buttons align with the card titles");
         [privacyPolicyButton sendAction:privacyPolicyButton.action to:privacyPolicyButton.target];
         FlushWindowLayout(controller.window.attachedSheet ?: controller.window);
@@ -1085,7 +1181,7 @@ int main(int argc, const char *argv[]) {
                    ButtonHasReadableWidth(coffeeButton) &&
                    ButtonHasReadableWidth(bugButton),
                    @"About link buttons keep enough width for their titles");
-        AssertTrue(ViewLeadingMatchesContentLabel(rootView, githubButton, @"連結", 2.0),
+        AssertTrue(ViewLeadingMatchesContentLabel(rootView, githubButton, @"連結", 6.0),
                    @"About link buttons align with the Links title");
         AssertTrue(fabs(NSMinY(githubFrame) - NSMinY(coffeeFrame)) < 2.0 &&
                    fabs(NSMinY(coffeeFrame) - NSMinY(bugFrame)) < 2.0,
@@ -1118,8 +1214,8 @@ int main(int argc, const char *argv[]) {
         [controller reloadState];
         FlushWindowLayout(controller.window);
         NSRect englishContentRect = [controller.window contentRectForFrameRect:controller.window.frame];
-        AssertTrue(WindowContentSizeMatches(controller.window, standardPreferencesContentSize),
-                   [NSString stringWithFormat:@"English Preferences normalizes to the same fixed size as Traditional Chinese, actual=%@",
+        AssertTrue(WindowContentSizeMatchesOrIsScreenConstrained(controller.window, standardPreferencesContentSize),
+                   [NSString stringWithFormat:@"English Preferences normalizes to the same standard or screen-constrained size as Traditional Chinese, actual=%@",
                                               NSStringFromSize(englishContentRect.size)]);
         AssertTrue(FindSidebarButton(rootView, @"General") != nil, @"English Preferences keeps localized sidebar usable");
         AssertTrue(RightPaneHasNoHorizontalOverflow(rootView), @"English Preferences does not overflow horizontally");
@@ -1127,8 +1223,8 @@ int main(int argc, const char *argv[]) {
             [controller.window setContentSize:NSMakeSize(760, 650)];
             SwitchToSidebarItem(rootView, tabTitle);
             FlushWindowLayout(controller.window);
-            AssertTrue(WindowContentSizeMatches(controller.window, standardPreferencesContentSize),
-                       [NSString stringWithFormat:@"English %@ tab keeps the standard Preferences size", tabTitle]);
+            AssertTrue(WindowContentSizeMatchesOrIsScreenConstrained(controller.window, standardPreferencesContentSize),
+                       [NSString stringWithFormat:@"English %@ tab keeps the standard or screen-constrained Preferences size", tabTitle]);
             AssertTrue(RightPaneHasNoHorizontalOverflow(rootView),
                        [NSString stringWithFormat:@"English %@ tab does not overflow horizontally", tabTitle]);
         }

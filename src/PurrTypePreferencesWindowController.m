@@ -741,6 +741,10 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
 @property(nonatomic, strong) MKPreferencesSwitchControl *rawEnglishCandidateSwitch;
 @property(nonatomic, strong) MKPreferencesSegmentedControl *rawEnglishCandidatePositionSegmentedControl;
 @property(nonatomic, strong) MKPreferencesSwitchControl *spellingSuggestionsSwitch;
+@property(nonatomic, strong) MKPreferencesSwitchControl *decimalPointShortcutSwitch;
+@property(nonatomic, strong) MKPreferencesSwitchControl *chineseContextPunctuationSwitch;
+@property(nonatomic, strong) NSPopUpButton *voiceRecognitionLocalePopupButton;
+@property(nonatomic, strong) MKPreferencesSwitchControl *voiceFloatingButtonSwitch;
 @property(nonatomic, strong) MKPreferencesSegmentedControl *candidatePageSizeSegmentedControl;
 @property(nonatomic, strong) MKPreferencesSegmentedControl *preferencesLanguageSegmentedControl;
 @property(nonatomic, strong) NSTextField *learningStatusField;
@@ -1087,8 +1091,9 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     NSStackView *stack = view.subviews.firstObject;
     [self addCoverView:[self coverCardWithFilename:@"pref_cover_typing.png"
                                              title:[self localizedString:@"Typing"]]
-           toStack:stack];
+               toStack:stack];
     [self addContentView:[self compositionCard] toStack:stack];
+    [self addContentView:[self voiceInputCard] toStack:stack];
     [self addContentView:[self englishPassThroughCard] toStack:stack];
     [self addContentView:[self associationCard] toStack:stack];
     [self addContentView:[self quickPhrasesCard] toStack:stack];
@@ -1866,7 +1871,7 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     NSTextField *titleLabel = nil;
     MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Composition"]
                                                          symbol:@"text.cursor"
-                                                         height:154
+                                                         height:226
                                                      titleLabel:&titleLabel];
     NSStackView *stack = [self bodyStackInCard:card belowTitle:titleLabel];
     [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Escape cancels composition"]
@@ -1876,6 +1881,50 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Enter commits raw input"]
                                                  detail:nil
                                                 control:[self readOnlyChipWithText:[self localizedString:@"Return"]]
+                                                enabled:YES]];
+    self.decimalPointShortcutSwitch = [self switchControlWithState:[self.preferencesDelegate preferencesDecimalPointShortcutEnabled]
+                                                            action:@selector(decimalPointShortcutSwitchChanged:)];
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Decimal point after numbers"]
+                                                 detail:[self localizedString:@"Typing . after a number inserts a decimal point instead of opening punctuation candidates."]
+                                                control:self.decimalPointShortcutSwitch
+                                                enabled:YES]];
+    self.chineseContextPunctuationSwitch = [self switchControlWithState:[self.preferencesDelegate preferencesChineseContextPunctuationEnabled]
+                                                                 action:@selector(chineseContextPunctuationSwitchChanged:)];
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Chinese punctuation after Chinese text"]
+                                                 detail:[self localizedString:@"When text before the caret is Chinese, punctuation candidates start with Chinese or full-width marks."]
+                                                control:self.chineseContextPunctuationSwitch
+                                                enabled:YES]];
+    return card;
+}
+
+- (NSView *)voiceInputCard {
+    NSTextField *titleLabel = nil;
+    MKPreferencesCardView *card = [self preferenceCardWithTitle:[self localizedString:@"Voice Input (Beta)"]
+                                                         symbol:@"mic"
+                                                         height:206
+                                                     titleLabel:&titleLabel];
+    NSStackView *stack = [self bodyStackInCard:card belowTitle:titleLabel];
+    self.voiceRecognitionLocalePopupButton = [[NSPopUpButton alloc] initWithFrame:NSZeroRect pullsDown:NO];
+    self.voiceRecognitionLocalePopupButton.translatesAutoresizingMaskIntoConstraints = NO;
+    self.voiceRecognitionLocalePopupButton.controlSize = NSControlSizeRegular;
+    self.voiceRecognitionLocalePopupButton.font = MKFont(12, NSFontWeightRegular);
+    self.voiceRecognitionLocalePopupButton.target = self;
+    self.voiceRecognitionLocalePopupButton.action = @selector(voiceRecognitionLocalePopupChanged:);
+    [self configureVoiceRecognitionLocalePopup];
+    [self syncVoiceRecognitionLocalePopup];
+    [self.voiceRecognitionLocalePopupButton.widthAnchor constraintEqualToConstant:190].active = YES;
+    [self.voiceRecognitionLocalePopupButton.heightAnchor constraintEqualToConstant:28].active = YES;
+    NSStackView *localeControlStack = [self verticalStackWithSpacing:0];
+    [localeControlStack addArrangedSubview:self.voiceRecognitionLocalePopupButton];
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Recognition locale"]
+                                                 detail:[self localizedString:@"Voice Input is a beta testing feature. Auto prefers Cantonese (Hong Kong), then Mandarin (Taiwan)."]
+                                                control:localeControlStack
+                                                enabled:YES]];
+    self.voiceFloatingButtonSwitch = [self switchControlWithState:[self.preferencesDelegate preferencesVoiceFloatingButtonVisible]
+                                                           action:@selector(voiceFloatingButtonSwitchChanged:)];
+    [stack addArrangedSubview:[self settingRowWithTitle:[self localizedString:@"Floating mic button"]
+                                                 detail:[self localizedString:@"Show the draggable voice button. The shortcut and menu still work when hidden."]
+                                                control:self.voiceFloatingButtonSwitch
                                                 enabled:YES]];
     return card;
 }
@@ -2478,6 +2527,33 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
     return popup;
 }
 
+- (NSArray<NSDictionary<NSString *, NSString *> *> *)voiceRecognitionLocaleMenuItems {
+    return @[
+        @{@"title": [self localizedString:@"Auto"], @"value": MKVoiceRecognitionLocaleAuto},
+        @{@"title": [self localizedString:@"Cantonese (Hong Kong)"], @"value": MKVoiceRecognitionLocaleZhHK},
+        @{@"title": [self localizedString:@"Mandarin (Taiwan)"], @"value": MKVoiceRecognitionLocaleZhTW}
+    ];
+}
+
+- (void)configureVoiceRecognitionLocalePopup {
+    [self.voiceRecognitionLocalePopupButton removeAllItems];
+    for (NSDictionary<NSString *, NSString *> *item in [self voiceRecognitionLocaleMenuItems]) {
+        [self.voiceRecognitionLocalePopupButton addItemWithTitle:item[@"title"] ?: @""];
+        self.voiceRecognitionLocalePopupButton.lastItem.representedObject = item[@"value"] ?: MKVoiceRecognitionLocaleAuto;
+    }
+}
+
+- (void)syncVoiceRecognitionLocalePopup {
+    NSString *localeIdentifier = [self.preferencesDelegate preferencesVoiceRecognitionLocaleIdentifier] ?: MKVoiceRecognitionLocaleAuto;
+    for (NSMenuItem *item in self.voiceRecognitionLocalePopupButton.itemArray) {
+        if ([item.representedObject isEqualToString:localeIdentifier]) {
+            [self.voiceRecognitionLocalePopupButton selectItem:item];
+            return;
+        }
+    }
+    [self.voiceRecognitionLocalePopupButton selectItemAtIndex:0];
+}
+
 - (NSString *)localizedShortcutDisplayNameForSpec:(NSString *)shortcutSpec {
     NSString *displayName = [PurrTypeInputBehavior displayNameForShortcutSpec:shortcutSpec];
     if ([displayName isEqualToString:@"None"] || [displayName isEqualToString:@"Double `"]) {
@@ -2893,6 +2969,24 @@ static NSColor *MKPreferencesSecondaryTextColor(void) { return MKColorFromRGB(0x
 
 - (void)spellingSuggestionsSwitchChanged:(MKPreferencesSwitchControl *)sender {
     [self.preferencesDelegate preferencesSetSpellingSuggestionsEnabled:(sender.state == NSControlStateValueOn)];
+}
+
+- (void)decimalPointShortcutSwitchChanged:(MKPreferencesSwitchControl *)sender {
+    [self.preferencesDelegate preferencesSetDecimalPointShortcutEnabled:(sender.state == NSControlStateValueOn)];
+}
+
+- (void)chineseContextPunctuationSwitchChanged:(MKPreferencesSwitchControl *)sender {
+    [self.preferencesDelegate preferencesSetChineseContextPunctuationEnabled:(sender.state == NSControlStateValueOn)];
+}
+
+- (void)voiceRecognitionLocalePopupChanged:(NSPopUpButton *)sender {
+    NSString *localeIdentifier = sender.selectedItem.representedObject;
+    [self.preferencesDelegate preferencesSetVoiceRecognitionLocaleIdentifier:localeIdentifier ?: MKVoiceRecognitionLocaleAuto];
+    [self syncVoiceRecognitionLocalePopup];
+}
+
+- (void)voiceFloatingButtonSwitchChanged:(MKPreferencesSwitchControl *)sender {
+    [self.preferencesDelegate preferencesSetVoiceFloatingButtonVisible:(sender.state == NSControlStateValueOn)];
 }
 
 - (void)spaceKeySegmentChanged:(MKPreferencesSegmentedControl *)sender {

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.3
+
+- Adds Voice Input (Beta) with Apple Speech, a floating voice button, and locale choices for Auto, Cantonese (Hong Kong), and Mandarin (Taiwan).
+- Adds Voice Input candidate corrections from Apple Speech alternatives, Cantonese homophones, and the bundled input dictionaries.
+- Adds a Preferences switch to hide the floating voice button, and keeps the button position stable across app switches.
+- Stabilizes Voice Input partial transcripts so English-to-Chinese dictation does not append repeated text or lose the candidate panel.
+- Fixes punctuation so `.` after a number inserts a decimal point, and Chinese text prefers Chinese/full-width punctuation while keeping half-width alternatives selectable.
+- Adds Preferences toggles for decimal-point shortcut behavior and Chinese-context punctuation priority.
+- Fixes Finder browsing so printable keys pass through outside text fields, while rename/search text fields keep PurrType composition and candidates.
+- Fixes candidate panel anchoring after app switches and voice input fallback positioning.
+- Bumps release metadata and release-facing documentation to `0.1.3` / bundle version `103`.
+
 ## 0.1.2
 
 - Adds Quick Phrases: user-defined `;` short codes such as `;email` can expand to one or more saved local replacements.

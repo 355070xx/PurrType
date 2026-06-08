@@ -15,6 +15,7 @@
 - (NSString *)normalizedCandidatePanelOrientation:(NSString *)orientation;
 - (CGFloat)normalizedCandidatePanelFontSize:(CGFloat)fontSize;
 - (NSString *)normalizedCandidatePanelHighlightColor:(NSString *)highlightColor;
+- (NSString *)normalizedVoiceRecognitionLocaleIdentifier:(nullable NSString *)localeIdentifier;
 
 @end
 
@@ -153,6 +154,32 @@
 
 - (void)setSpacePagingEnabled:(BOOL)enabled {
     [self.defaults setBool:enabled forKey:MKUserDefaultSpacePagingEnabledKey];
+    [self.defaults synchronize];
+}
+
+- (BOOL)decimalPointShortcutEnabled {
+    id savedValue = [self.defaults objectForKey:MKUserDefaultDecimalPointShortcutEnabledKey];
+    if ([savedValue respondsToSelector:@selector(boolValue)]) {
+        return [savedValue boolValue];
+    }
+    return YES;
+}
+
+- (void)setDecimalPointShortcutEnabled:(BOOL)enabled {
+    [self.defaults setBool:enabled forKey:MKUserDefaultDecimalPointShortcutEnabledKey];
+    [self.defaults synchronize];
+}
+
+- (BOOL)chineseContextPunctuationEnabled {
+    id savedValue = [self.defaults objectForKey:MKUserDefaultChineseContextPunctuationEnabledKey];
+    if ([savedValue respondsToSelector:@selector(boolValue)]) {
+        return [savedValue boolValue];
+    }
+    return YES;
+}
+
+- (void)setChineseContextPunctuationEnabled:(BOOL)enabled {
+    [self.defaults setBool:enabled forKey:MKUserDefaultChineseContextPunctuationEnabledKey];
     [self.defaults synchronize];
 }
 
@@ -360,6 +387,29 @@
     [self.defaults synchronize];
 }
 
+- (NSString *)voiceRecognitionLocaleIdentifier {
+    return [self normalizedVoiceRecognitionLocaleIdentifier:[self.defaults stringForKey:MKUserDefaultVoiceRecognitionLocaleKey]];
+}
+
+- (void)setVoiceRecognitionLocaleIdentifier:(NSString *)localeIdentifier {
+    [self.defaults setObject:[self normalizedVoiceRecognitionLocaleIdentifier:localeIdentifier]
+                      forKey:MKUserDefaultVoiceRecognitionLocaleKey];
+    [self.defaults synchronize];
+}
+
+- (BOOL)voiceFloatingButtonVisible {
+    id savedValue = [self.defaults objectForKey:MKUserDefaultVoiceFloatingButtonVisibleKey];
+    if ([savedValue respondsToSelector:@selector(boolValue)]) {
+        return [savedValue boolValue];
+    }
+    return YES;
+}
+
+- (void)setVoiceFloatingButtonVisible:(BOOL)visible {
+    [self.defaults setBool:visible forKey:MKUserDefaultVoiceFloatingButtonVisibleKey];
+    [self.defaults synchronize];
+}
+
 - (NSDictionary<NSString *, NSString *> *)modeShortcutsByMode {
     NSArray<NSString *> *modes = @[MKInputModeSucheng, MKInputModeSmartSucheng, MKInputModeCangjie, MKInputModePinyin];
     NSMutableDictionary<NSString *, NSString *> *shortcuts = [NSMutableDictionary dictionaryWithCapacity:modes.count];
@@ -528,6 +578,17 @@
         }
     }
     return MKCandidatePanelHighlightRed;
+}
+
+- (NSString *)normalizedVoiceRecognitionLocaleIdentifier:(NSString *)localeIdentifier {
+    NSString *canonical = [[[localeIdentifier ?: @"" stringByReplacingOccurrencesOfString:@"_" withString:@"-"] lowercaseString] copy];
+    if ([canonical isEqualToString:@"zh-hk"]) {
+        return MKVoiceRecognitionLocaleZhHK;
+    }
+    if ([canonical isEqualToString:@"zh-tw"]) {
+        return MKVoiceRecognitionLocaleZhTW;
+    }
+    return MKVoiceRecognitionLocaleAuto;
 }
 
 @end

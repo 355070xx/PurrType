@@ -234,6 +234,7 @@ static NSColor *MKCandidatePanelColorFromCustomHighlight(NSString *highlightColo
 @property(nonatomic, assign) BOOL hasLastAnchorRect;
 @property(nonatomic, assign) NSRect lastAnchorRect;
 @property(nonatomic, weak) id lastAnchorClient;
+- (NSArray<NSValue *> *)anchorRangesForClient:(id)client allowSelectedRangeFallback:(BOOL)allowSelectedRangeFallback;
 @end
 
 @implementation PurrTypeCandidatePanel
@@ -383,6 +384,25 @@ static NSColor *MKCandidatePanelColorFromCustomHighlight(NSString *highlightColo
     [self.panel orderFrontRegardless];
 }
 
+- (void)showCandidates:(NSArray<NSString *> *)candidateTexts nearScreenRect:(NSRect)screenRect {
+    if (candidateTexts.count == 0 || ![self isUsableAnchorRect:screenRect]) {
+        [self hide];
+        return;
+    }
+
+    self.panelView.candidateTexts = [candidateTexts copy];
+    self.panelView.selectedIndex = 0;
+    self.panelView.pageIndicatorText = @"";
+    NSSize panelSize = [self preferredSizeForCandidates:candidateTexts pageIndicatorText:@""];
+    NSRect anchorRect = [self normalizedAnchorRect:screenRect];
+    // Screen fallbacks are non-text anchors and must not be reused as a preserved caret position.
+    NSRect frame = [self frameForPanelSize:panelSize anchorRect:anchorRect];
+    [self.panel setFrame:frame display:NO];
+    [self.panelView setFrame:NSMakeRect(0, 0, panelSize.width, panelSize.height)];
+    [self.panelView setNeedsDisplay:YES];
+    [self.panel orderFrontRegardless];
+}
+
 - (void)hide {
     [self.panel orderOut:nil];
 }
@@ -519,7 +539,8 @@ static NSColor *MKCandidatePanelColorFromCustomHighlight(NSString *highlightColo
         }
     }
 
-    NSArray<NSValue *> *ranges = [self anchorRangesForClient:client];
+    NSArray<NSValue *> *ranges = [self anchorRangesForClient:client
+                                  allowSelectedRangeFallback:(anchorCharacterIndex == nil)];
 
     if ([client respondsToSelector:@selector(firstRectForCharacterRange:actualRange:)]) {
         for (NSValue *rangeValue in ranges) {
@@ -564,6 +585,10 @@ static NSColor *MKCandidatePanelColorFromCustomHighlight(NSString *highlightColo
 }
 
 - (NSArray<NSValue *> *)anchorRangesForClient:(id)client {
+    return [self anchorRangesForClient:client allowSelectedRangeFallback:YES];
+}
+
+- (NSArray<NSValue *> *)anchorRangesForClient:(id)client allowSelectedRangeFallback:(BOOL)allowSelectedRangeFallback {
     NSMutableArray<NSValue *> *ranges = [NSMutableArray arrayWithCapacity:3];
 
     if ([client respondsToSelector:@selector(markedRange)]) {
@@ -574,6 +599,10 @@ static NSColor *MKCandidatePanelColorFromCustomHighlight(NSString *highlightColo
             [ranges addObject:[NSValue valueWithRange:markedRange]];
             return ranges;
         }
+    }
+
+    if (!allowSelectedRangeFallback) {
+        return ranges;
     }
 
     if ([client respondsToSelector:@selector(selectedRange)]) {

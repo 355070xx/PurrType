@@ -15,14 +15,14 @@ sh -n scripts/install-local.sh scripts/uninstall-local.sh scripts/uninstall-syst
   packaging/scripts/preinstall packaging/scripts/postinstall \
   packaging/uninstall-scripts/postinstall packaging/Uninstall-PurrType.command
 make release-preflight
-(cd build && shasum -a 256 -c PurrType-0.1.2-checksums.sha256)
+(cd build && shasum -a 256 -c PurrType-0.1.3-checksums.sha256)
 ```
 
 For signed releases, also run:
 
 ```sh
-xcrun stapler validate build/PurrType-0.1.2-signed.dmg
-spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.2-signed.dmg
+xcrun stapler validate build/PurrType-0.1.3-signed.dmg
+spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.3-signed.dmg
 ```
 
 Expected result:
@@ -42,7 +42,7 @@ Expected result:
 
 Install from the DMG:
 
-1. Open `build/PurrType-0.1.2.dmg`.
+1. Open `build/PurrType-0.1.3.dmg`.
 2. Confirm only `README.txt`, `Install PurrType.pkg`, and
    `Uninstall PurrType.pkg` are present at the DMG root.
 3. Double-click `Install PurrType.pkg`.
@@ -114,6 +114,7 @@ Test at least these host apps:
 | Safari text field | normal Chinese composition |
 | Terminal | command/path English pass-through and secure input prompts |
 | System Settings | input source add/select flow |
+| TextEdit or Notes | Voice Input (Beta) permission, marked text, candidate selection, and commit |
 
 ## Input Behavior
 
@@ -144,6 +145,19 @@ mode before running the typing cases.
 | cancel | type letters, press Escape | clears composition and hides candidates |
 | raw commit | type letters, press Enter | commits original letters |
 
+## Voice Input (Beta)
+
+Run these checks in a normal text field such as TextEdit or Notes:
+
+1. Confirm Preferences > Typing labels Voice Input as Beta, then press `Option+Z` or use the PurrType menu item `Start Voice Input`.
+2. Grant Microphone and Speech Recognition permission if macOS prompts.
+3. Speak a short Cantonese phrase and confirm live marked text appears near the caret.
+4. If the candidate panel shows alternatives, click or number-select a candidate and confirm it replaces the visible transcript.
+5. Press `Option+Z` again or use `Stop Voice Input` and confirm the latest visible transcript is committed.
+6. Open Preferences > Typing and change `Recognition locale` between `Auto`, `Cantonese (Hong Kong)`, and `Mandarin (Taiwan)`, then confirm voice input still starts.
+7. Enable Privacy Lock and confirm starting voice input is blocked.
+8. In a Terminal secure input prompt such as `sudo -v`, confirm voice input does not start and PurrType does not show marked text or candidates.
+
 ## Preferences And Privacy
 
 Open preferences:
@@ -156,10 +170,12 @@ Expected result:
 
 - Preferences window opens or refocuses
 - Sidebar shows exactly Input Modes, Typing, Privacy & Learning, and About
-- Preferences opens on Input Modes
+- Sidebar shows exactly General, Input Modes, Typing, Privacy & Learning, and About
+- Preferences opens on General
 - Input Modes tab switches default mode, candidate page size, and mode shortcuts
-- Typing tab switches raw-English candidate, `0` row position, and Space key behavior, manages
-  Quick Phrases, and shows protected English as a read-only note
+- Typing tab switches punctuation behavior, raw-English candidate, `0` row
+  position, Space key behavior, Recognition locale, and related-word behavior;
+  it also manages Quick Phrases and shows protected English as a read-only note
 - Privacy & Learning tab exposes New Sucheng learning, Privacy Lock shortcut,
   Privacy Lock, reset learning, and basic backup/restore
 - About tab exposes project links and version information

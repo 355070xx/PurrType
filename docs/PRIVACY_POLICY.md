@@ -4,7 +4,8 @@ Effective date: May 15, 2026
 
 PurrType is a local-first macOS input method. Its privacy model is simple:
 typing, candidate lookup, ranking, association suggestions, preferences, and
-New Sucheng learning are designed to run on the user's Mac.
+New Sucheng learning are designed to run on the user's Mac. Cantonese Voice
+Input is optional and runs only when the user starts it.
 
 ## Scope
 
@@ -28,8 +29,13 @@ PurrType does not require network access for:
 - Privacy Lock
 - preferences
 
-The current app does not implement telemetry, analytics, cloud sync, remote
-spell checking, remote AI suggestions, ads, or account login.
+Voice Input is currently a beta feature. It uses Apple's macOS Speech framework
+only after the user starts voice input. Depending on macOS, locale, and Apple Speech availability,
+speech recognition may be processed on device or by Apple's speech recognition
+service under the user's macOS Speech Recognition permission. PurrType does not implement telemetry,
+analytics, cloud sync, remote spell checking, remote AI suggestions, ads, or account login.
+It also does not implement its own cloud speech-to-text backend, private accuracy service,
+or remote voice correction service.
 
 The installer and uninstaller do not contact remote services. They use local
 macOS tools to copy or remove PurrType app bundles, register or unregister
@@ -48,9 +54,16 @@ app. This processing happens in memory and uses bundled local resources:
 - McBopomofo associated phrase data-derived association seeds
 - DATA.GOV.HK HKSCS overlay data
 - project-local phrase, association, pinyin seed, and compatibility tables
+- Cantonese Voice Input contextual phrases, a generated Apple Speech language
+  model resource, and Apple Speech transcript alternatives
 
 PurrType does not ask for Accessibility permission to inspect the current app,
 browser DOM, web forms, or password fields.
+
+When Cantonese Voice Input is started, PurrType requests microphone and Speech
+Recognition access through macOS, streams audio to Apple's Speech APIs for that
+session, receives transcripts, and displays or commits the resulting text. It
+does not record in the background.
 
 ## Data Stored On Disk
 
@@ -93,6 +106,9 @@ That file contains the short code and replacement text the user entered. Basic
 backup/restore and TXT import/export operate on this local Quick Phrases data
 only. They do not include other settings or unknown payloads.
 
+Cantonese Voice Input does not store audio recordings or voice transcripts on
+disk. The public build does not persist voice correction history.
+
 The macOS Installer may create or update local package receipts under macOS'
 standard receipt database. These receipts identify installed package IDs and are
 not PurrType typing data.
@@ -118,6 +134,10 @@ Terminal password prompts, PurrType bypasses IME composition and candidate UI,
 clears rolling context, and switches to a selectable ASCII / English input
 source. Standard GUI password fields still depend on the host app enabling
 secure input correctly.
+
+Cantonese Voice Input is blocked while Privacy Lock is enabled or secure event
+input is active. Starting normal keyboard input also stops an active voice
+session before processing the new keystroke.
 
 ## Logs And Reports
 

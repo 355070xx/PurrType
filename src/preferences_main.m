@@ -198,6 +198,24 @@
     [self.preferencesStore postPreferencesChangedNotification];
 }
 
+- (BOOL)preferencesDecimalPointShortcutEnabled {
+    return [self.preferencesStore decimalPointShortcutEnabled];
+}
+
+- (void)preferencesSetDecimalPointShortcutEnabled:(BOOL)enabled {
+    [self.preferencesStore setDecimalPointShortcutEnabled:enabled];
+    [self.preferencesStore postPreferencesChangedNotification];
+}
+
+- (BOOL)preferencesChineseContextPunctuationEnabled {
+    return [self.preferencesStore chineseContextPunctuationEnabled];
+}
+
+- (void)preferencesSetChineseContextPunctuationEnabled:(BOOL)enabled {
+    [self.preferencesStore setChineseContextPunctuationEnabled:enabled];
+    [self.preferencesStore postPreferencesChangedNotification];
+}
+
 - (NSUInteger)preferencesCandidatePageSize {
     return [self.preferencesStore candidatePageSize];
 }
@@ -308,6 +326,24 @@
 
 - (void)preferencesSetPrivacyLockShortcut:(NSString *)shortcutSpec {
     [self.preferencesStore setPrivacyLockShortcut:shortcutSpec];
+    [self.preferencesStore postPreferencesChangedNotification];
+}
+
+- (NSString *)preferencesVoiceRecognitionLocaleIdentifier {
+    return [self.preferencesStore voiceRecognitionLocaleIdentifier];
+}
+
+- (void)preferencesSetVoiceRecognitionLocaleIdentifier:(NSString *)localeIdentifier {
+    [self.preferencesStore setVoiceRecognitionLocaleIdentifier:localeIdentifier];
+    [self.preferencesStore postPreferencesChangedNotification];
+}
+
+- (BOOL)preferencesVoiceFloatingButtonVisible {
+    return [self.preferencesStore voiceFloatingButtonVisible];
+}
+
+- (void)preferencesSetVoiceFloatingButtonVisible:(BOOL)visible {
+    [self.preferencesStore setVoiceFloatingButtonVisible:visible];
     [self.preferencesStore postPreferencesChangedNotification];
 }
 

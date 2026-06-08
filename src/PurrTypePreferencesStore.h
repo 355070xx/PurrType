@@ -28,6 +28,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)setSpellingSuggestionsEnabled:(BOOL)enabled;
 - (BOOL)spacePagingEnabled;
 - (void)setSpacePagingEnabled:(BOOL)enabled;
+- (BOOL)decimalPointShortcutEnabled;
+- (void)setDecimalPointShortcutEnabled:(BOOL)enabled;
+- (BOOL)chineseContextPunctuationEnabled;
+- (void)setChineseContextPunctuationEnabled:(BOOL)enabled;
 - (NSUInteger)candidatePageSize;
 - (void)setCandidatePageSize:(NSUInteger)pageSize;
 - (NSString *)candidatePanelOrientation;
@@ -55,6 +59,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)setSwitchInputModeShortcut:(NSString *)shortcutSpec;
 - (NSString *)privacyLockShortcut;
 - (void)setPrivacyLockShortcut:(NSString *)shortcutSpec;
+- (NSString *)voiceRecognitionLocaleIdentifier;
+- (void)setVoiceRecognitionLocaleIdentifier:(NSString *)localeIdentifier;
+- (BOOL)voiceFloatingButtonVisible;
+- (void)setVoiceFloatingButtonVisible:(BOOL)visible;
 - (NSDictionary<NSString *, NSString *> *)modeShortcutsByMode;
 - (BOOL)setModeShortcut:(NSString *)shortcutSpec forMode:(MKInputMode)mode;
 

@@ -267,6 +267,24 @@ int main(int argc, const char *argv[]) {
         [panel showCandidates:rows nearClient:nil anchorCharacterIndex:nil pageIndex:0 pageCount:14];
         AssertTrue(!panel.isVisible, @"ordinary nil-client candidate panels hide instead of implicitly reusing a stale anchor");
 
+        CandidatePanelTestClient *screenLeftSelectedRangeClient = [[CandidatePanelTestClient alloc] init];
+        screenLeftSelectedRangeClient.markedRangeValue = NSMakeRange(NSNotFound, 0);
+        screenLeftSelectedRangeClient.selectedRangeValue = NSMakeRange(0, 0);
+        screenLeftSelectedRangeClient.selectedRect = NSMakeRect(0, NSMinY(preservedAssociationAnchor), 0, NSHeight(preservedAssociationAnchor));
+        [panel clearAnchorSession];
+        [panel showCandidates:rows nearClient:screenLeftSelectedRangeClient anchorCharacterIndex:@0];
+        AssertTrue(!panel.isVisible, @"composition panels wait for a marked-text anchor instead of jumping to a screen-left selectedRange after app switch");
+
+        [panel clearAnchorSession];
+        NSRect fallbackScreenRect = NSMakeRect(420, 360, 52, 52);
+        [panel showCandidates:rows nearScreenRect:fallbackScreenRect];
+        AssertTrue(panel.isVisible, @"custom candidate panel can use an explicit screen rect fallback anchor");
+        NSRect fallbackFrame = CandidatePanelFrame(panel);
+        AssertTrue(fabs(NSMinX(fallbackFrame) - ExpectedPanelXForAnchorRect(fallbackScreenRect, preferredSize)) < 0.5,
+                   @"screen-rect fallback anchor positions the custom panel beside the fallback rect");
+        [panel showCandidates:rows nearClient:nil anchorCharacterIndex:nil pageIndex:0 pageCount:14 usePreservedAnchor:YES];
+        AssertTrue(!panel.isVisible, @"screen-rect fallback does not seed a preserved text caret anchor");
+
         client.markedRangeValue = NSMakeRange(0, 0);
         client.selectedRangeValue = NSMakeRange(100, 0);
 

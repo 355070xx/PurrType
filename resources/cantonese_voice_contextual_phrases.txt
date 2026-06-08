@@ -1,0 +1,31 @@
+# Cantonese voice contextual phrases.
+# Keep this list brief and at or below 100 non-comment entries.
+PurrType
+PurrType Cantonese Voice Input
+Apple Speech
+English Assist
+Cantonese
+Cantonese Voice Input
+Voice Input
+Privacy Lock
+香港
+香港中文
+香港粵語
+廣東話
+粵語
+繁體中文
+語音輸入
+語音辨識
+輸入法
+速成
+新速成
+倉頡
+拼音
+候選字
+候選詞
+私隱鎖
+麥克風
+蘋果語音
+開啟語音
+停止語音
+打字

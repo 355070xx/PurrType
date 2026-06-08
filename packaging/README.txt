@@ -1,5 +1,11 @@
-PurrType
+PurrType 0.1.3
 ============
+
+Official release:
+https://github.com/355070xx/PurrType/releases/tag/v0.1.3
+
+Direct DMG download:
+https://github.com/355070xx/PurrType/releases/download/v0.1.3/PurrType-0.1.3.dmg
 
 Install:
 
@@ -28,6 +34,10 @@ preserves local PurrType preferences and New Sucheng learning data.
 After selecting PurrType from the macOS input menu, the default mode is Sucheng.
 Use the PurrType menu, mode shortcuts, or PurrType Preferences to switch between
 Sucheng, New Sucheng, Cangjie, and Pinyin.
+
+Voice Input is a beta testing feature. It starts only when you trigger it, uses
+Apple Speech and the microphone permission, and does not store audio or voice
+transcripts.
 
 Candidate keys:
 

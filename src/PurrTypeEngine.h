@@ -74,6 +74,7 @@ extern MKInputMode MKInputModeEnglish;
 - (BOOL)isLikelyRawToken:(NSString *)input mode:(MKInputMode)mode;
 - (NSString *)preferredSuchengCodeForText:(NSString *)text;
 - (NSString *)preferredCangjieCodeForText:(NSString *)text;
+- (NSArray<NSString *> *)dictionaryCandidateTextsForCharacter:(NSString *)character limit:(NSUInteger)limit;
 
 @property(nonatomic, assign, readonly) NSUInteger cangjieEntryCount;
 @property(nonatomic, assign, readonly) NSUInteger quickEntryCount;

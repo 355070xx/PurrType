@@ -149,6 +149,7 @@ static int MKCompareAssociationIndexBytes(const uint8_t *left,
 @property(nonatomic, strong) NSDictionary<NSString *, NSArray<NSString *> *> *candidateOrderOverrides;
 @property(nonatomic, strong) NSMutableDictionary<NSString *, NSString *> *preferredQuickCodeByText;
 @property(nonatomic, strong) NSMutableDictionary<NSString *, NSString *> *preferredCangjieCodeByText;
+@property(nonatomic, copy) NSDictionary<NSString *, NSArray<NSString *> *> *dictionaryPronunciationCandidateTextsByKey;
 @property(nonatomic, strong) NSMutableDictionary<NSString *, NSString *> *traditionalCompatibilityQuickCodeByText;
 @property(nonatomic, strong) NSMutableDictionary<NSString *, NSMutableDictionary<NSString *, NSNumber *> *> *learnedCandidateScores;
 @property(nonatomic, strong) NSMutableDictionary<NSString *, NSMutableDictionary<NSString *, NSNumber *> *> *learnedAssociationScores;
@@ -169,6 +170,7 @@ static int MKCompareAssociationIndexBytes(const uint8_t *left,
 @property(nonatomic, assign) BOOL quickDataLoaded;
 @property(nonatomic, assign) BOOL cangjieDataLoaded;
 @property(nonatomic, assign) BOOL pinyinDataLoaded;
+@property(nonatomic, assign) BOOL dictionaryPronunciationCandidateIndexBuilt;
 @property(nonatomic, assign) BOOL generatedAssociationDataLoaded;
 @property(nonatomic, assign) BOOL smartPhraseDataLoaded;
 @property(nonatomic, copy, nullable) NSString *learningPath;
@@ -197,6 +199,7 @@ static int MKCompareAssociationIndexBytes(const uint8_t *left,
                    includingSucheng:(BOOL)includingSucheng;
 - (void)ensureDataForMode:(MKInputMode)mode;
 - (void)ensureAllCandidateDataLoaded;
+- (void)ensureDictionaryPronunciationCandidateIndexBuilt;
 - (void)ensureQuickDataLoaded;
 - (void)ensureCangjieDataLoaded;
 - (void)ensurePinyinDataLoaded;
@@ -237,6 +240,23 @@ static int MKCompareAssociationIndexBytes(const uint8_t *left,
 - (MKCandidateTableIndex *)candidateIndexForSource:(NSString *)source;
 - (NSArray<NSString *> *)candidateIndexCodesForSource:(NSString *)source;
 - (NSArray<MKCandidate *> *)candidateBucketForCode:(NSString *)code source:(NSString *)source;
+- (void)addDictionaryCandidateText:(NSString *)text
+               pronunciationKey:(NSString *)pronunciationKey
+        charactersByPronunciation:(NSMutableDictionary<NSString *, NSMutableArray<NSString *> *> *)charactersByPronunciation
+ seenCharactersByPronunciation:(NSMutableDictionary<NSString *, NSMutableSet<NSString *> *> *)seenCharactersByPronunciation;
+- (NSString *)normalizedDictionaryFallbackCharacter:(NSString *)text;
+- (NSString *)dictionaryPronunciationKeyForCharacter:(NSString *)character;
+- (void)appendDictionaryCandidateTextsFromArray:(NSArray<NSString *> *)candidateTexts
+                               recognizedText:(NSString *)recognizedText
+                                     seenTexts:(NSMutableSet<NSString *> *)seenTexts
+                                        result:(NSMutableArray<NSString *> *)result
+                                         limit:(NSUInteger)limit;
+- (void)appendDictionaryCandidateTextsForCode:(NSString *)code
+                                         mode:(MKInputMode)mode
+                               recognizedText:(NSString *)recognizedText
+                                     seenTexts:(NSMutableSet<NSString *> *)seenTexts
+                                        result:(NSMutableArray<NSString *> *)result
+                                         limit:(NSUInteger)limit;
 - (NSArray<MKCandidate *> *)unifiedCandidateBucketForCode:(NSString *)code;
 - (BOOL)hasCandidatesOrPrefixesForCode:(NSString *)code source:(NSString *)source;
 - (BOOL)unifiedHasCandidatesOrPrefixesForCode:(NSString *)code;
@@ -941,6 +961,7 @@ forRecordAtIndex:(NSUInteger)recordIndex {
         _smartPhrasePrefixes = [NSMutableSet set];
         _learnedPhrasePrefixes = [NSMutableSet set];
         _preferredQuickCodeByText = [NSMutableDictionary dictionary];
+        _dictionaryPronunciationCandidateTextsByKey = @{};
         _learnedCandidateScores = [NSMutableDictionary dictionary];
         _learnedAssociationScores = [NSMutableDictionary dictionary];
         _learnedPhraseScores = [NSMutableDictionary dictionary];
@@ -1048,6 +1069,168 @@ forRecordAtIndex:(NSUInteger)recordIndex {
     [self ensurePinyinDataLoaded];
     [self ensureGeneratedAssociationDataLoaded];
     [self ensureSmartPhraseDataLoaded];
+}
+
+- (void)ensureDictionaryPronunciationCandidateIndexBuilt {
+    if (self.dictionaryPronunciationCandidateIndexBuilt) {
+        return;
+    }
+
+    [self ensureQuickDataLoaded];
+    [self ensureCangjieDataLoaded];
+    [self ensurePinyinDataLoaded];
+
+    NSMutableDictionary<NSString *, NSMutableArray<NSString *> *> *charactersByPronunciation = [NSMutableDictionary dictionary];
+    NSMutableDictionary<NSString *, NSMutableSet<NSString *> *> *seenCharactersByPronunciation = [NSMutableDictionary dictionary];
+    NSArray<NSString *> *sources = @[MKInputModeSucheng, MKInputModeCangjie, MKInputModePinyin];
+    for (NSString *source in sources) {
+        NSMutableSet<NSString *> *codeSet = [NSMutableSet setWithArray:[self candidateIndexCodesForSource:source]];
+        NSArray<NSString *> *overlayCodes = [self.indexBySource[source] allKeys] ?: @[];
+        [codeSet addObjectsFromArray:overlayCodes];
+
+        for (NSString *code in codeSet) {
+            NSArray<MKCandidate *> *bucket = [self candidateBucketForCode:code source:source];
+            for (MKCandidate *candidate in bucket) {
+                NSString *character = [self normalizedDictionaryFallbackCharacter:candidate.text];
+                NSString *pronunciationKey = [self dictionaryPronunciationKeyForCharacter:character];
+                if (character.length == 0 || pronunciationKey.length == 0) {
+                    continue;
+                }
+                [self addDictionaryCandidateText:character
+                                pronunciationKey:pronunciationKey
+                       charactersByPronunciation:charactersByPronunciation
+                    seenCharactersByPronunciation:seenCharactersByPronunciation];
+            }
+        }
+    }
+
+    NSMutableDictionary<NSString *, NSArray<NSString *> *> *index = [NSMutableDictionary dictionary];
+    for (NSString *pronunciationKey in charactersByPronunciation) {
+        NSArray<NSString *> *characters = charactersByPronunciation[pronunciationKey];
+        if (characters.count >= 2) {
+            index[pronunciationKey] = [characters copy];
+        }
+    }
+    self.dictionaryPronunciationCandidateTextsByKey = [index copy];
+    self.dictionaryPronunciationCandidateIndexBuilt = YES;
+}
+
+- (void)addDictionaryCandidateText:(NSString *)text
+                   pronunciationKey:(NSString *)pronunciationKey
+            charactersByPronunciation:(NSMutableDictionary<NSString *, NSMutableArray<NSString *> *> *)charactersByPronunciation
+     seenCharactersByPronunciation:(NSMutableDictionary<NSString *, NSMutableSet<NSString *> *> *)seenCharactersByPronunciation {
+    if (text.length == 0 || pronunciationKey.length == 0) {
+        return;
+    }
+
+    NSMutableArray<NSString *> *characters = charactersByPronunciation[pronunciationKey];
+    if (!characters) {
+        characters = [NSMutableArray array];
+        charactersByPronunciation[pronunciationKey] = characters;
+    }
+
+    NSMutableSet<NSString *> *seenCharacters = seenCharactersByPronunciation[pronunciationKey];
+    if (!seenCharacters) {
+        seenCharacters = [NSMutableSet set];
+        seenCharactersByPronunciation[pronunciationKey] = seenCharacters;
+    }
+
+    if ([seenCharacters containsObject:text]) {
+        return;
+    }
+    [seenCharacters addObject:text];
+    [characters addObject:text];
+}
+
+- (NSString *)normalizedDictionaryFallbackCharacter:(NSString *)text {
+    NSString *trimmed = [text ?: @"" stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (trimmed.length == 0 || ![self isCandidateTextDisplayable:trimmed]) {
+        return @"";
+    }
+
+    __block NSString *character = @"";
+    __block NSUInteger characterCount = 0;
+    [trimmed enumerateSubstringsInRange:NSMakeRange(0, trimmed.length)
+                                options:NSStringEnumerationByComposedCharacterSequences
+                             usingBlock:^(NSString *substring, NSRange substringRange, NSRange enclosingRange, BOOL *stop) {
+        (void)substringRange;
+        (void)enclosingRange;
+        character = substring ?: @"";
+        characterCount += 1;
+        if (characterCount > 1) {
+            *stop = YES;
+        }
+    }];
+
+    if (characterCount != 1 ||
+        character.length == 0 ||
+        ![character isEqualToString:trimmed] ||
+        [character rangeOfString:@"^\\p{Han}$" options:NSRegularExpressionSearch].location == NSNotFound) {
+        return @"";
+    }
+    return character;
+}
+
+- (NSString *)dictionaryPronunciationKeyForCharacter:(NSString *)character {
+    NSString *normalizedCharacter = [self normalizedDictionaryFallbackCharacter:character ?: @""];
+    if (normalizedCharacter.length == 0) {
+        return @"";
+    }
+
+    NSString *pronunciation = [normalizedCharacter stringByApplyingTransform:NSStringTransformMandarinToLatin reverse:NO];
+    if (pronunciation.length == 0) {
+        return @"";
+    }
+
+    NSString *folded = [pronunciation stringByFoldingWithOptions:(NSDiacriticInsensitiveSearch | NSCaseInsensitiveSearch)
+                                                         locale:nil];
+    NSCharacterSet *separatorSet = [[NSCharacterSet alphanumericCharacterSet] invertedSet];
+    NSArray<NSString *> *parts = [folded componentsSeparatedByCharactersInSet:separatorSet];
+    return [[parts componentsJoinedByString:@""] lowercaseString];
+}
+
+- (void)appendDictionaryCandidateTextsFromArray:(NSArray<NSString *> *)candidateTexts
+                                 recognizedText:(NSString *)recognizedText
+                                       seenTexts:(NSMutableSet<NSString *> *)seenTexts
+                                          result:(NSMutableArray<NSString *> *)result
+                                           limit:(NSUInteger)limit {
+    NSString *normalizedRecognizedText = [self normalizedDictionaryFallbackCharacter:recognizedText ?: @""];
+    for (NSString *candidateText in candidateTexts ?: @[]) {
+        if (result.count >= limit) {
+            return;
+        }
+        NSString *candidate = [self normalizedDictionaryFallbackCharacter:candidateText ?: @""];
+        if (candidate.length == 0 ||
+            ([candidate isEqualToString:normalizedRecognizedText] && [seenTexts containsObject:candidate]) ||
+            [seenTexts containsObject:candidate]) {
+            continue;
+        }
+        [seenTexts addObject:candidate];
+        [result addObject:candidate];
+    }
+}
+
+- (void)appendDictionaryCandidateTextsForCode:(NSString *)code
+                                         mode:(MKInputMode)mode
+                               recognizedText:(NSString *)recognizedText
+                                     seenTexts:(NSMutableSet<NSString *> *)seenTexts
+                                        result:(NSMutableArray<NSString *> *)result
+                                         limit:(NSUInteger)limit {
+    if (code.length == 0 || result.count >= limit) {
+        return;
+    }
+
+    NSUInteger fetchLimit = MAX(limit * 8, (NSUInteger)60);
+    NSArray<MKCandidate *> *candidates = [self candidatesForInput:code limit:fetchLimit mode:mode];
+    NSMutableArray<NSString *> *candidateTexts = [NSMutableArray arrayWithCapacity:candidates.count];
+    for (MKCandidate *candidate in candidates) {
+        [candidateTexts addObject:candidate.text ?: @""];
+    }
+    [self appendDictionaryCandidateTextsFromArray:candidateTexts
+                                   recognizedText:recognizedText
+                                         seenTexts:seenTexts
+                                            result:result
+                                             limit:limit];
 }
 
 - (void)ensureQuickDataLoaded {
@@ -1461,6 +1644,63 @@ forRecordAtIndex:(NSUInteger)recordIndex {
 
     NSString *cachedCode = self.preferredCangjieCodeByText[text];
     return cachedCode.length > 0 ? cachedCode : @"";
+}
+
+- (NSArray<NSString *> *)dictionaryCandidateTextsForCharacter:(NSString *)character limit:(NSUInteger)limit {
+    NSString *recognizedText = [self normalizedDictionaryFallbackCharacter:character ?: @""];
+    if (recognizedText.length == 0 || limit == 0) {
+        return @[];
+    }
+
+    NSMutableArray<NSString *> *result = [NSMutableArray arrayWithObject:recognizedText];
+    NSMutableSet<NSString *> *seenTexts = [NSMutableSet setWithObject:recognizedText];
+    NSString *pronunciationKey = [self dictionaryPronunciationKeyForCharacter:recognizedText];
+    if (pronunciationKey.length > 0) {
+        [self appendDictionaryCandidateTextsForCode:pronunciationKey
+                                               mode:MKInputModePinyin
+                                     recognizedText:recognizedText
+                                           seenTexts:seenTexts
+                                              result:result
+                                               limit:limit];
+    }
+
+    if (result.count < limit) {
+        NSString *quickCode = [self preferredSuchengCodeForText:recognizedText];
+        [self appendDictionaryCandidateTextsForCode:quickCode
+                                               mode:MKInputModeSucheng
+                                     recognizedText:recognizedText
+                                           seenTexts:seenTexts
+                                              result:result
+                                               limit:limit];
+    }
+
+    if (result.count < limit) {
+        NSString *cangjieCode = [self preferredCangjieCodeForText:recognizedText];
+        [self appendDictionaryCandidateTextsForCode:cangjieCode
+                                               mode:MKInputModeCangjie
+                                     recognizedText:recognizedText
+                                           seenTexts:seenTexts
+                                              result:result
+                                               limit:limit];
+    }
+
+    if (result.count < limit && pronunciationKey.length > 0) {
+        [self ensureDictionaryPronunciationCandidateIndexBuilt];
+        NSArray<NSString *> *pronunciationCandidates = self.dictionaryPronunciationCandidateTextsByKey[pronunciationKey] ?: @[];
+        [self appendDictionaryCandidateTextsFromArray:pronunciationCandidates
+                                       recognizedText:recognizedText
+                                             seenTexts:seenTexts
+                                                result:result
+                                                 limit:limit];
+    }
+
+    if (result.count < 2) {
+        return @[];
+    }
+    if (result.count > limit) {
+        return [result subarrayWithRange:NSMakeRange(0, limit)];
+    }
+    return [result copy];
 }
 
 - (BOOL)isProtectedSmartSuchengPhraseInput:(NSString *)input {

@@ -21,6 +21,7 @@ NS_ASSUME_NONNULL_BEGIN
                                   enabledModes:(nullable NSArray<NSString *> *)enabledModes;
 + (BOOL)isPreferencesShortcutKeyCode:(NSInteger)keyCode modifiers:(NSUInteger)flags;
 + (NSString *)defaultSwitchInputModeShortcutSpec;
++ (NSString *)defaultVoiceInputShortcutSpec;
 + (NSString *)defaultModeShortcutSpecForMode:(MKInputMode)mode;
 + (NSString *)defaultPrivacyLockShortcutSpec;
 + (NSArray<NSString *> *)availableModeShortcutSpecs;
@@ -33,6 +34,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (NSString *)keyEquivalentForShortcutSpec:(nullable NSString *)shortcutSpec;
 + (NSUInteger)keyEquivalentModifierMaskForShortcutSpec:(nullable NSString *)shortcutSpec;
 + (BOOL)shortcutSpec:(nullable NSString *)shortcutSpec matchesKeyCode:(NSInteger)keyCode modifiers:(NSUInteger)flags;
++ (BOOL)isVoiceInputShortcutKeyCode:(NSInteger)keyCode modifiers:(NSUInteger)flags;
 + (BOOL)shortcutSpec:(nullable NSString *)firstShortcutSpec conflictsWithShortcutSpec:(nullable NSString *)secondShortcutSpec;
 + (BOOL)isDoubleBacktickShortcutSpec:(nullable NSString *)shortcutSpec;
 + (BOOL)isBacktickKeyCode:(NSInteger)keyCode inputString:(nullable NSString *)string modifiers:(NSUInteger)flags;
@@ -85,10 +87,28 @@ NS_ASSUME_NONNULL_BEGIN
                               candidateCount:(NSUInteger)candidateCount;
 + (NSString *)rawEnglishCandidateDisplayTextForBuffer:(NSString *)buffer;
 + (NSArray<NSString *> *)punctuationCandidateDisplayTextsForString:(NSString *)string;
++ (NSArray<NSString *> *)punctuationCandidateDisplayTextsForString:(NSString *)string
+                                              preferChineseDefault:(BOOL)preferChineseDefault;
 + (nullable NSString *)punctuationTextForDisplayText:(NSString *)displayText;
 + (BOOL)shouldAutoCommitDefaultPunctuationForInputString:(nullable NSString *)string
                                                 keyCode:(NSInteger)keyCode
                                          candidateCount:(NSUInteger)candidateCount;
++ (BOOL)textEndsWithDecimalDigit:(nullable NSString *)text;
++ (BOOL)textEndsWithChineseCharacter:(nullable NSString *)text;
++ (BOOL)shouldBypassFinderNonTextInputForBundleIdentifier:(nullable NSString *)bundleIdentifier
+                                               inputString:(nullable NSString *)string
+                                   hasTextInsertionContext:(BOOL)hasTextInsertionContext
+                                      hasActiveComposition:(BOOL)hasActiveComposition;
++ (NSString *)visibleVoiceTranscriptForRecognitionTranscript:(nullable NSString *)recognitionTranscript
+                                             confirmedPrefix:(nullable NSString *)confirmedPrefix;
++ (NSString *)stableVoiceVisibleTranscriptForTranscript:(nullable NSString *)transcript
+                                     previousTranscript:(nullable NSString *)previousTranscript;
++ (NSString *)voiceRecognitionTranscriptForVisibleTranscript:(nullable NSString *)visibleTranscript
+                                             confirmedPrefix:(nullable NSString *)confirmedPrefix
+                                fallbackRecognitionTranscript:(nullable NSString *)recognitionTranscript;
++ (NSArray<NSString *> *)voiceCandidateChangedSegmentsForVisibleTranscript:(nullable NSString *)visibleTranscript
+                                                     alternativeTranscript:(nullable NSString *)alternativeTranscript
+                                                      maximumChangedLength:(NSUInteger)maximumChangedLength;
 + (BOOL)isShiftOnlyLetterInputWithModifiers:(NSUInteger)flags;
 + (BOOL)isAsciiCodeString:(NSString *)string;
 
