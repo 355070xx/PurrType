@@ -1,11 +1,11 @@
-PurrType 0.1.3
+PurrType 0.1.4
 ============
 
 Official release:
-https://github.com/355070xx/PurrType/releases/tag/v0.1.3
+https://github.com/355070xx/PurrType/releases/tag/v0.1.4
 
 Direct DMG download:
-https://github.com/355070xx/PurrType/releases/download/v0.1.3/PurrType-0.1.3.dmg
+https://github.com/355070xx/PurrType/releases/download/v0.1.4/PurrType-0.1.4.dmg
 
 Install:
 

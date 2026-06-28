@@ -215,7 +215,7 @@ Unsigned local artifacts:
 
 ```sh
 make release-artifacts
-(cd build && shasum -a 256 -c PurrType-0.1.3-checksums.sha256)
+(cd build && shasum -a 256 -c PurrType-0.1.4-checksums.sha256)
 ```
 
 Source-first GitHub releases do not require Developer ID signing. Signed and notarized prebuilt binary artifacts require Developer ID identities and a notarytool keychain profile:
@@ -230,6 +230,6 @@ make release-signed \
 Verify the stapled signed DMG:
 
 ```sh
-xcrun stapler validate build/PurrType-0.1.3-signed.dmg
-spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.3-signed.dmg
+xcrun stapler validate build/PurrType-0.1.4-signed.dmg
+spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.4-signed.dmg
 ```

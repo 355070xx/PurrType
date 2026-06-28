@@ -15,14 +15,14 @@ sh -n scripts/install-local.sh scripts/uninstall-local.sh scripts/uninstall-syst
   packaging/scripts/preinstall packaging/scripts/postinstall \
   packaging/uninstall-scripts/postinstall packaging/Uninstall-PurrType.command
 make release-preflight
-(cd build && shasum -a 256 -c PurrType-0.1.3-checksums.sha256)
+(cd build && shasum -a 256 -c PurrType-0.1.4-checksums.sha256)
 ```
 
 For signed releases, also run:
 
 ```sh
-xcrun stapler validate build/PurrType-0.1.3-signed.dmg
-spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.3-signed.dmg
+xcrun stapler validate build/PurrType-0.1.4-signed.dmg
+spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.4-signed.dmg
 ```
 
 Expected result:
@@ -42,7 +42,7 @@ Expected result:
 
 Install from the DMG:
 
-1. Open `build/PurrType-0.1.3.dmg`.
+1. Open `build/PurrType-0.1.4.dmg`.
 2. Confirm only `README.txt`, `Install PurrType.pkg`, and
    `Uninstall PurrType.pkg` are present at the DMG root.
 3. Double-click `Install PurrType.pkg`.

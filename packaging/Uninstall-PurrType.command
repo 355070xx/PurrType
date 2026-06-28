@@ -25,6 +25,7 @@ CONSOLE_USER="${SUDO_USER:-}"
 if [ -z "$CONSOLE_USER" ] || [ "$CONSOLE_USER" = "root" ]; then
   CONSOLE_USER=$(stat -f %Su /dev/console 2>/dev/null || true)
 fi
+CONSOLE_UID=$(id -u "$CONSOLE_USER" 2>/dev/null || stat -f %u /dev/console 2>/dev/null || true)
 
 console_user_home() {
   lookup_user="$1"
@@ -48,6 +49,17 @@ unregister_app() {
   app_path="$1"
   if [ -d "$app_path" ] && [ -x "$LSREGISTER" ]; then
     "$LSREGISTER" -u "$app_path" >/dev/null 2>&1 || true
+  fi
+}
+
+disable_input_source() {
+  app_path="$1"
+  executable="$app_path/Contents/MacOS/PurrType"
+  if [ -x "$executable" ]; then
+    "$executable" --disable-input-source >/dev/null 2>&1 || true
+    if [ -n "$CONSOLE_UID" ] && [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ]; then
+      launchctl asuser "$CONSOLE_UID" /usr/bin/sudo -u "$CONSOLE_USER" "$executable" --disable-input-source >/dev/null 2>&1 || true
+    fi
   fi
 }
 
@@ -81,6 +93,17 @@ echo "Stopping PurrType if it is running..."
 pkill -x PurrType 2>/dev/null || true
 pkill -x PurrTypePreferences 2>/dev/null || true
 
+if [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ]; then
+  USER_HOME=$(console_user_home "$CONSOLE_USER" || true)
+else
+  USER_HOME=""
+fi
+
+disable_input_source "/Library/Input Methods/PurrTypeIM.app"
+if [ -n "$USER_HOME" ]; then
+  disable_input_source "$USER_HOME/Library/Input Methods/PurrTypeIM.app"
+fi
+
 echo "Removing PurrType app bundles..."
 for app_path in \
   "/Library/Input Methods/PurrTypeIM.app" \
@@ -97,12 +120,6 @@ remove_path "/Library/Input Methods/PurrTypeIM.localized"
 remove_path "/Library/Input Methods/PurrTypeInput.app"
 remove_path "/Library/Application Support/PurrType/PurrTypeIM.app"
 rmdir "/Library/Application Support/PurrType" 2>/dev/null || true
-
-if [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ]; then
-  USER_HOME=$(console_user_home "$CONSOLE_USER" || true)
-else
-  USER_HOME=""
-fi
 
 if [ -n "$USER_HOME" ]; then
   USER_INPUT_METHODS="$USER_HOME/Library/Input Methods"
@@ -146,6 +163,10 @@ if [ "$PURGE_USER_DATA" -eq 1 ] && [ -n "$USER_HOME" ]; then
 fi
 
 gc_launchservices
+if [ -n "$CONSOLE_UID" ] && [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ]; then
+  launchctl asuser "$CONSOLE_UID" pkill -x TextInputMenuAgent || true
+fi
+pkill -x TextInputMenuAgent || true
 
 echo "PurrType uninstall complete."
 echo "Quit and reopen System Settings before checking Text Input sources."

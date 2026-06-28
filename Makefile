@@ -1,6 +1,6 @@
 BUNDLE_NAME := PurrTypeIM.app
 EXECUTABLE_NAME := PurrType
-VERSION := 0.1.3
+VERSION := 0.1.4
 BUNDLE_VERSION := $(shell printf "%s" "$(VERSION)" | awk -F. '{printf "%d", ($$1 * 10000) + ($$2 * 100) + $$3}')
 BUILD_DIR := build
 BUNDLE_DIR := $(BUILD_DIR)/$(BUNDLE_NAME)
@@ -503,6 +503,8 @@ package-smoke: package
 	pkgutil --expand-full "$(DMGROOT_DIR)/Uninstall PurrType.pkg" "$(PACKAGE_SMOKE_DIR)/uninstall-expanded"
 	test -s "$(PACKAGE_SMOKE_DIR)/uninstall-expanded/Scripts/postinstall"
 	grep -F "/Library/Input Methods/PurrTypeIM.app" "$(PACKAGE_SMOKE_DIR)/uninstall-expanded/Scripts/postinstall" >/dev/null
+	grep -F -- "--disable-input-source" "$(PACKAGE_SMOKE_DIR)/uninstall-expanded/Scripts/postinstall" >/dev/null
+	grep -F "pkill -x TextInputMenuAgent" "$(PACKAGE_SMOKE_DIR)/uninstall-expanded/Scripts/postinstall" >/dev/null
 	grep -F "pkgutil --forget" "$(PACKAGE_SMOKE_DIR)/uninstall-expanded/Scripts/postinstall" >/dev/null
 	! grep -F '$$USER_HOME/Library/Application Support/PurrType' "$(PACKAGE_SMOKE_DIR)/uninstall-expanded/Scripts/postinstall" >/dev/null
 	! grep -F '$$USER_HOME/Library/Preferences/org.purrtype.inputmethod.PurrTypeUnified.plist' "$(PACKAGE_SMOKE_DIR)/uninstall-expanded/Scripts/postinstall" >/dev/null

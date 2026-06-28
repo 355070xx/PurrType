@@ -5,7 +5,7 @@
 Use the public DMG download to install PurrType. No Terminal commands are
 required:
 
-[Download PurrType 0.1.3 DMG](https://github.com/355070xx/PurrType/releases/download/v0.1.3/PurrType-0.1.3.dmg)
+[Download PurrType 0.1.4 DMG](https://github.com/355070xx/PurrType/releases/download/v0.1.4/PurrType-0.1.4.dmg)
 
 Do not download GitHub's auto-generated `Source code` zip/tar.gz files to
 install PurrType. Those files are source archives, not the installer.
@@ -13,7 +13,7 @@ install PurrType. Those files are source archives, not the installer.
 If macOS shows `"Install PurrType.pkg" Not Opened` or `Apple could not verify...`,
 follow the [install guide](INSTALL_GUIDE.md). Do not click `Move to Bin`.
 
-1. Download `PurrType-0.1.3.dmg` from the link above, then open it in Finder.
+1. Download `PurrType-0.1.4.dmg` from the link above, then open it in Finder.
 2. Double-click `Install PurrType.pkg`.
 3. Complete the macOS Installer flow.
 4. Quit and reopen System Settings if it was already open.
@@ -246,8 +246,8 @@ make package
 This creates:
 
 ```text
-build/PurrType-0.1.3.pkg
-build/PurrType-0.1.3.dmg
+build/PurrType-0.1.4.pkg
+build/PurrType-0.1.4.dmg
 ```
 
 Before manually installing a test package, run the non-GUI release preflight:
@@ -282,17 +282,17 @@ To generate unsigned release artifacts plus SHA-256 checksums and provenance met
 
 ```sh
 make release-artifacts
-(cd build && shasum -a 256 -c PurrType-0.1.3-checksums.sha256)
+(cd build && shasum -a 256 -c PurrType-0.1.4-checksums.sha256)
 ```
 
 This writes:
 
 ```text
-build/PurrType-0.1.3.pkg
-build/Uninstall-PurrType-0.1.3.pkg
-build/PurrType-0.1.3.dmg
-build/PurrType-0.1.3-checksums.sha256
-build/PurrType-0.1.3-provenance.json
+build/PurrType-0.1.4.pkg
+build/Uninstall-PurrType-0.1.4.pkg
+build/PurrType-0.1.4.dmg
+build/PurrType-0.1.4-checksums.sha256
+build/PurrType-0.1.4-provenance.json
 ```
 
 The public checksum file verifies the downloadable DMG.
@@ -329,23 +329,23 @@ make release-signed \
 The signed release path is not required for source-only GitHub releases. It fails before modifying artifacts if the Developer ID identities or notarytool profile are missing. A successful signed binary release writes:
 
 ```text
-build/PurrType-0.1.3-signed.pkg
-build/Uninstall-PurrType-0.1.3-signed.pkg
-build/PurrType-0.1.3-signed.dmg
-build/PurrType-0.1.3-signed-checksums.sha256
-build/PurrType-0.1.3-signed-provenance.json
+build/PurrType-0.1.4-signed.pkg
+build/Uninstall-PurrType-0.1.4-signed.pkg
+build/PurrType-0.1.4-signed.dmg
+build/PurrType-0.1.4-signed-checksums.sha256
+build/PurrType-0.1.4-signed-provenance.json
 ```
 
 Verify the signed DMG:
 
 ```sh
-xcrun stapler validate build/PurrType-0.1.3-signed.dmg
-spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.3-signed.dmg
+xcrun stapler validate build/PurrType-0.1.4-signed.dmg
+spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.4-signed.dmg
 ```
 
 Use this path for normal testing:
 
-1. Open `build/PurrType-0.1.3.dmg`.
+1. Open `build/PurrType-0.1.4.dmg`.
 2. Double-click `Install PurrType.pkg`.
 3. Complete the installer.
 4. Quit and reopen System Settings if it was already open.

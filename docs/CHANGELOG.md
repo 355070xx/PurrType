@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4
+
+- Adds uninstall cleanup that deselects and disables the PurrType TIS input source before removing app bundles, reducing stale grey input-source rows after uninstall.
+- Refreshes the macOS Text Input menu agent after uninstall cleanup.
+- Bumps release metadata and release-facing documentation to `0.1.4` / bundle version `104`.
+
 ## 0.1.3
 
 - Adds Voice Input (Beta) with Apple Speech, a floating voice button, and locale choices for Auto, Cantonese (Hong Kong), and Mandarin (Taiwan).

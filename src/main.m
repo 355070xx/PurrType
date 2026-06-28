@@ -133,6 +133,22 @@ static int EnableSourceID(NSString *sourceID) {
     return 0;
 }
 
+static int DisableSourceID(NSString *sourceID) {
+    TISInputSourceRef source = CopyInputSourceWithIDIncludingInstalled(sourceID);
+    if (!source) {
+        return 0;
+    }
+
+    (void)TISDeselectInputSource(source);
+    OSStatus status = TISDisableInputSource(source);
+    CFRelease(source);
+    if (status != noErr) {
+        NSLog(@"PurrType disable-input-source failed id=%@ status=%d", sourceID ?: @"", (int)status);
+        return (int)status;
+    }
+    return 0;
+}
+
 static int EnableConfiguredInputSources(void) {
     int registerStatus = RegisterInputSource();
     if (registerStatus != 0) {
@@ -153,6 +169,10 @@ static int EnableInputSource(void) {
         return status;
     }
     return InspectInputSource();
+}
+
+static int DisableInputSource(void) {
+    return DisableSourceID(PrimaryInputSourceID());
 }
 
 static int SelectInputSource(void) {
@@ -188,6 +208,9 @@ int main(int argc, const char *argv[]) {
         }
         if (HasArgument(argc, argv, "--enable-input-source")) {
             return EnableInputSource();
+        }
+        if (HasArgument(argc, argv, "--disable-input-source")) {
+            return DisableInputSource();
         }
         if (HasArgument(argc, argv, "--select-input-source")) {
             return SelectInputSource();
