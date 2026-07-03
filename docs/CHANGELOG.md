@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5
+
+- Bounds uninstall cleanup commands so `Uninstall PurrType.pkg` cannot remain stuck on `Running package scripts...` if macOS input-source or LaunchServices cleanup hangs.
+- Keeps uninstall cleanup best-effort while still removing PurrType app bundles and package receipts.
+- Bumps release metadata and release-facing documentation to `0.1.5` / bundle version `105`.
+
 ## 0.1.4
 
 - Adds uninstall cleanup that deselects and disables the PurrType TIS input source before removing app bundles, reducing stale grey input-source rows after uninstall.

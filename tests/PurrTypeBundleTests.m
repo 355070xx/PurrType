@@ -100,6 +100,8 @@ int main(int argc, const char *argv[]) {
         AssertTrue([systemUninstall containsString:@"/Library/Application Support/PurrType/PurrTypeIM.app"], @"system uninstall removes the old misplaced Application Support input method bundle");
         AssertTrue([systemUninstall containsString:@"/Library/Input Methods/PurrTypeIM.app"], @"system uninstall removes the public app bundle");
         AssertTrue([systemUninstall containsString:@"--disable-input-source"], @"system uninstall disables the user's TIS input source before removing bundles");
+        AssertTrue([systemUninstall containsString:@"run_with_timeout"], @"system uninstall bounds external cleanup commands");
+        AssertTrue([systemUninstall containsString:@"HELPER_TIMEOUT_SECONDS"], @"system uninstall prevents the TIS helper from blocking uninstall indefinitely");
         AssertTrue([systemUninstall containsString:@"-gc"], @"system uninstall compacts LaunchServices after unregistering removed bundles");
         AssertTrue([systemUninstall containsString:@"pkill -x TextInputMenuAgent"], @"system uninstall refreshes the macOS input menu cache");
         NSString *dmgUninstall = FileTextAtPath([root stringByAppendingPathComponent:@"packaging/Uninstall-PurrType.command"]);
@@ -107,6 +109,8 @@ int main(int argc, const char *argv[]) {
         AssertTrue([dmgUninstall containsString:@"/Library/Application Support/PurrType/PurrTypeIM.app"], @"DMG uninstall removes the old misplaced Application Support input method bundle");
         AssertTrue([dmgUninstall containsString:@"/Library/Input Methods/PurrTypeIM.app"], @"DMG uninstall removes the public app bundle");
         AssertTrue([dmgUninstall containsString:@"--disable-input-source"], @"DMG command uninstall disables the user's TIS input source before removing bundles");
+        AssertTrue([dmgUninstall containsString:@"run_with_timeout"], @"DMG command uninstall bounds external cleanup commands");
+        AssertTrue([dmgUninstall containsString:@"HELPER_TIMEOUT_SECONDS"], @"DMG command uninstall prevents the TIS helper from blocking uninstall indefinitely");
         AssertTrue([dmgUninstall containsString:@"-gc"], @"DMG uninstall compacts LaunchServices after unregistering removed bundles");
         AssertTrue([dmgUninstall containsString:@"pkill -x TextInputMenuAgent"], @"DMG command uninstall refreshes the macOS input menu cache");
         NSString *dmgUninstallPackage = FileTextAtPath([root stringByAppendingPathComponent:@"packaging/uninstall-scripts/postinstall"]);
@@ -114,6 +118,8 @@ int main(int argc, const char *argv[]) {
         AssertTrue([dmgUninstallPackage containsString:@"/Library/Application Support/PurrType/PurrTypeIM.app"], @"DMG uninstall package removes the old misplaced Application Support input method bundle");
         AssertTrue([dmgUninstallPackage containsString:@"/Library/Input Methods/PurrTypeIM.app"], @"DMG uninstall package removes the public app bundle");
         AssertTrue([dmgUninstallPackage containsString:@"--disable-input-source"], @"DMG uninstall package disables the user's TIS input source before removing bundles");
+        AssertTrue([dmgUninstallPackage containsString:@"run_with_timeout"], @"DMG uninstall package bounds external cleanup commands so Installer cannot hang indefinitely");
+        AssertTrue([dmgUninstallPackage containsString:@"HELPER_TIMEOUT_SECONDS"], @"DMG uninstall package prevents the TIS helper from blocking uninstall indefinitely");
         AssertTrue([dmgUninstallPackage containsString:@"pkgutil --forget"], @"DMG uninstall package forgets PurrType package receipts");
         AssertTrue([dmgUninstallPackage containsString:@"pkill -x TextInputMenuAgent"], @"DMG uninstall package refreshes the macOS input menu cache");
         AssertTrue(![dmgUninstallPackage containsString:@"$USER_HOME/Library/Application Support/PurrType"], @"DMG uninstall package preserves user learning data");

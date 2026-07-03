@@ -26,6 +26,44 @@ if [ -z "$CONSOLE_USER" ] || [ "$CONSOLE_USER" = "root" ]; then
   CONSOLE_USER=$(stat -f %Su /dev/console 2>/dev/null || true)
 fi
 CONSOLE_UID=$(id -u "$CONSOLE_USER" 2>/dev/null || stat -f %u /dev/console 2>/dev/null || true)
+HELPER_TIMEOUT_SECONDS=10
+LSREGISTER_TIMEOUT_SECONDS=20
+FAST_TIMEOUT_SECONDS=5
+
+run_with_timeout() {
+  timeout_seconds="$1"
+  shift
+
+  "$@" &
+  command_pid=$!
+  (
+    sleep "$timeout_seconds"
+    if kill -0 "$command_pid" 2>/dev/null; then
+      pkill -TERM -P "$command_pid" 2>/dev/null || true
+      kill -TERM "$command_pid" 2>/dev/null || true
+      sleep 1
+      pkill -KILL -P "$command_pid" 2>/dev/null || true
+      kill -KILL "$command_pid" 2>/dev/null || true
+    fi
+  ) &
+  watchdog_pid=$!
+
+  if wait "$command_pid"; then
+    status=0
+  else
+    status=$?
+  fi
+
+  kill "$watchdog_pid" 2>/dev/null || true
+  wait "$watchdog_pid" 2>/dev/null || true
+  return "$status"
+}
+
+safe_run() {
+  timeout_seconds="$1"
+  shift
+  run_with_timeout "$timeout_seconds" "$@" >/dev/null 2>&1 || true
+}
 
 console_user_home() {
   lookup_user="$1"
@@ -48,7 +86,7 @@ console_user_home() {
 unregister_app() {
   app_path="$1"
   if [ -d "$app_path" ] && [ -x "$LSREGISTER" ]; then
-    "$LSREGISTER" -u "$app_path" >/dev/null 2>&1 || true
+    safe_run "$LSREGISTER_TIMEOUT_SECONDS" "$LSREGISTER" -u "$app_path"
   fi
 }
 
@@ -56,16 +94,16 @@ disable_input_source() {
   app_path="$1"
   executable="$app_path/Contents/MacOS/PurrType"
   if [ -x "$executable" ]; then
-    "$executable" --disable-input-source >/dev/null 2>&1 || true
+    safe_run "$HELPER_TIMEOUT_SECONDS" "$executable" --disable-input-source
     if [ -n "$CONSOLE_UID" ] && [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ]; then
-      launchctl asuser "$CONSOLE_UID" /usr/bin/sudo -u "$CONSOLE_USER" "$executable" --disable-input-source >/dev/null 2>&1 || true
+      safe_run "$HELPER_TIMEOUT_SECONDS" launchctl asuser "$CONSOLE_UID" /usr/bin/sudo -u "$CONSOLE_USER" "$executable" --disable-input-source
     fi
   fi
 }
 
 gc_launchservices() {
   if [ -x "$LSREGISTER" ]; then
-    "$LSREGISTER" -gc >/dev/null 2>&1 || true
+    safe_run "$LSREGISTER_TIMEOUT_SECONDS" "$LSREGISTER" -gc
   fi
 }
 
@@ -79,7 +117,7 @@ remove_path() {
 
 forget_receipt() {
   package_id="$1"
-  pkgutil --forget "$package_id" >/dev/null 2>&1 || true
+  safe_run "$FAST_TIMEOUT_SECONDS" pkgutil --forget "$package_id"
 }
 
 purge_user_data_for_home() {
@@ -164,9 +202,9 @@ fi
 
 gc_launchservices
 if [ -n "$CONSOLE_UID" ] && [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ]; then
-  launchctl asuser "$CONSOLE_UID" pkill -x TextInputMenuAgent || true
+  safe_run "$FAST_TIMEOUT_SECONDS" launchctl asuser "$CONSOLE_UID" pkill -x TextInputMenuAgent
 fi
-pkill -x TextInputMenuAgent || true
+safe_run "$FAST_TIMEOUT_SECONDS" pkill -x TextInputMenuAgent
 
 echo "PurrType uninstall complete."
 echo "Quit and reopen System Settings before checking Text Input sources."
