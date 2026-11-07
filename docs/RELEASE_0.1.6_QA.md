@@ -48,7 +48,8 @@ Apple notarization or Gatekeeper acceptance.
 The optional signed workflow now checks credentials before building and checks
 Gatekeeper acceptance after notarization, not before it. The missing-identity
 failure path and workflow ordering were checked. End-to-end Developer ID signing
-and notarization were not tested because no identities are available on this host.
+and notarization were not tested: a Developer ID Application identity exists, but
+the required Developer ID Installer certificate is unavailable on this host.
 
 ## Acceptance still pending
 
