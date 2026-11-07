@@ -1,6 +1,6 @@
 BUNDLE_NAME := PurrTypeIM.app
 EXECUTABLE_NAME := PurrType
-VERSION := 0.1.5
+VERSION := 0.1.6
 BUNDLE_VERSION := $(shell printf "%s" "$(VERSION)" | awk -F. '{printf "%d", ($$1 * 10000) + ($$2 * 100) + $$3}')
 BUILD_DIR := build
 BUNDLE_DIR := $(BUILD_DIR)/$(BUNDLE_NAME)
@@ -39,6 +39,11 @@ PACKAGE_SMOKE_APP := $(PACKAGE_SMOKE_DIR)/expanded/Payload/Library/Input Methods
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 SDK_PATH := $(shell xcrun --sdk macosx --show-sdk-path)
 MIN_MACOS := 12.0
+ARCHS := arm64 x86_64
+ARCH_FLAGS := $(foreach arch,$(ARCHS),-arch $(arch))
+TEST_ARCH ?= $(shell uname -m)
+# Building and unpacking artifacts must not alter the user's LaunchServices database.
+BUILD_LS_CLEANUP ?= 0
 DEVELOPER_ID_APPLICATION_IDENTITY ?=
 DEVELOPER_ID_INSTALLER_IDENTITY ?=
 NOTARY_KEYCHAIN_PROFILE ?= PurrTypeNotary
@@ -53,6 +58,7 @@ CANDIDATE_INDEXES := $(QUICK_CANDIDATE_INDEX) $(CANGJIE_CANDIDATE_INDEX) $(PINYI
 CANDIDATE_INDEX_SCRIPT := scripts/index-candidate-tables.rb
 
 OBJCFLAGS := -fobjc-arc -Wall -Wextra -ObjC -isysroot $(SDK_PATH) -mmacosx-version-min=$(MIN_MACOS)
+TEST_OBJCFLAGS := $(OBJCFLAGS) -arch $(TEST_ARCH) -DPURRTYPE_TESTING=1
 FRAMEWORKS := -framework Cocoa -framework InputMethodKit -framework Carbon -framework CoreImage -framework Speech -framework AVFoundation -framework AVFAudio
 ENGINE_TEST_FRAMEWORKS := -framework Foundation
 ENGINE_SOURCES := src/PurrTypeEngine.m
@@ -128,7 +134,7 @@ build: $(MACOS_DIR)/$(EXECUTABLE_NAME)
 clean-bundle:
 	rm -rf "$(BUNDLE_DIR)"
 
-$(MACOS_DIR)/$(EXECUTABLE_NAME): clean-bundle $(APP_SOURCES) $(PREFERENCES_APP_SOURCES) src/PurrTypeInputState.h src/PurrTypeInputBehavior.h src/PurrTypeEnglishSpellChecker.h src/PurrTypeQuickPhraseStore.h src/PurrTypeBackupStore.h src/PurrTypeCandidatePanel.h src/PurrTypeVoiceFloatingButton.h src/PurrTypePreferencesWindowController.h src/PurrTypePreferencesStore.h src/PurrTypePreferencesConstants.h src/PurrTypeSpeechInputController.h src/PurrTypeVoiceHomophoneStore.h resources/Info.plist resources/PurrTypePreferencesInfo.plist resources/Base.lproj/InfoPlist.strings resources/English.lproj/InfoPlist.strings resources/en.lproj/InfoPlist.strings resources/en.lproj/Localizable.strings resources/zh-Hant.lproj/InfoPlist.strings resources/zh-Hant.lproj/Localizable.strings resources/zh_TW.lproj/InfoPlist.strings resources/PurrType.png $(VOICE_FLOATING_BUTTON_RESOURCES) $(VOICE_CONTEXTUAL_PHRASE_RESOURCE) $(VOICE_HOMOPHONE_RESOURCE) $(VOICE_LANGUAGE_MODEL_RESOURCE) $(PREFERENCE_COVER_RESOURCES) LICENSE docs/CREDITS.md docs/PRIVACY_POLICY.md docs/LICENSE_AUDIT.md resources/pinyin_seed.tsv resources/pinyin_phrases.tsv resources/sucheng_order_guards.tsv resources/smart_phrases.tsv resources/association_phrases.tsv $(ASSOCIATION_GENERATED_INDEX) $(CANDIDATE_INDEXES) resources/traditional_compatibility.tsv resources/sucheng_first_pages.tsv scripts/generate-icon.sh scripts/pad-png-alpha.py third_party/rime-cangjie/LICENSE third_party/rime-cangjie/AUTHORS third_party/rime-pinyin/LICENSE third_party/rime-pinyin/AUTHORS third_party/mcbopomofo/LICENSE.txt third_party/ibus-table-chinese/LICENSE third_party/ibus-table-chinese/README.md third_party/hkscs/HKSCS2016.json third_party/hkscs/README.md third_party/hkscs/TERMS.md
+$(MACOS_DIR)/$(EXECUTABLE_NAME): clean-bundle $(APP_SOURCES) $(PREFERENCES_APP_SOURCES) src/PurrTypeInputState.h src/PurrTypeInputBehavior.h src/PurrTypeEnglishSpellChecker.h src/PurrTypeQuickPhraseStore.h src/PurrTypeBackupStore.h src/PurrTypeCandidatePanel.h src/PurrTypeVoiceFloatingButton.h src/PurrTypePreferencesWindowController.h src/PurrTypePreferencesStore.h src/PurrTypePreferencesConstants.h src/PurrTypeSpeechInputController.h src/PurrTypeVoiceHomophoneStore.h resources/Info.plist resources/PurrTypePreferencesInfo.plist resources/Base.lproj/InfoPlist.strings resources/English.lproj/InfoPlist.strings resources/en.lproj/InfoPlist.strings resources/en.lproj/Localizable.strings resources/zh-Hant.lproj/InfoPlist.strings resources/zh-Hant.lproj/Localizable.strings resources/zh_TW.lproj/InfoPlist.strings resources/PurrType.png $(VOICE_FLOATING_BUTTON_RESOURCES) $(VOICE_CONTEXTUAL_PHRASE_RESOURCE) $(VOICE_HOMOPHONE_RESOURCE) $(VOICE_LANGUAGE_MODEL_RESOURCE) $(PREFERENCE_COVER_RESOURCES) LICENSE docs/CREDITS.md docs/PRIVACY_POLICY.md docs/LICENSE_AUDIT.md resources/pinyin_seed.tsv resources/pinyin_phrases.tsv resources/sucheng_order_guards.tsv resources/smart_phrases.tsv resources/association_phrases.tsv $(ASSOCIATION_GENERATED_INDEX) $(CANDIDATE_INDEXES) resources/traditional_compatibility.tsv resources/sucheng_first_pages.tsv scripts/generate-icon.sh scripts/pad-png-alpha.py scripts/verify-universal-bundle.rb third_party/rime-cangjie/LICENSE third_party/rime-cangjie/AUTHORS third_party/rime-pinyin/LICENSE third_party/rime-pinyin/AUTHORS third_party/mcbopomofo/LICENSE.txt third_party/ibus-table-chinese/LICENSE third_party/ibus-table-chinese/README.md third_party/hkscs/HKSCS2016.json third_party/hkscs/README.md third_party/hkscs/TERMS.md
 	mkdir -p "$(MACOS_DIR)" "$(RESOURCES_DIR)/CandidateTables" "$(RESOURCES_DIR)/RimeCangjie" "$(RESOURCES_DIR)/RimePinyin" "$(RESOURCES_DIR)/IBusTableChinese" "$(RESOURCES_DIR)/HKSCS" "$(RESOURCES_DIR)/Legal" "$(PREFERENCES_MACOS_DIR)" "$(PREFERENCES_CONTENTS_DIR)/Resources" "$(PREFERENCES_CONTENTS_DIR)/Resources/PreferenceCovers"
 	cp resources/Info.plist "$(CONTENTS_DIR)/Info.plist"
 	mkdir -p "$(RESOURCES_DIR)/Base.lproj" "$(RESOURCES_DIR)/English.lproj" "$(RESOURCES_DIR)/en.lproj" "$(RESOURCES_DIR)/zh-Hant.lproj" "$(RESOURCES_DIR)/zh_TW.lproj"
@@ -169,65 +175,66 @@ $(MACOS_DIR)/$(EXECUTABLE_NAME): clean-bundle $(APP_SOURCES) $(PREFERENCES_APP_S
 	printf 'APPL????' > "$(CONTENTS_DIR)/PkgInfo"
 	cp "$(RESOURCES_DIR)/PurrType.icns" "$(PREFERENCES_CONTENTS_DIR)/Resources/PurrType.icns"
 	printf 'APPL????' > "$(PREFERENCES_CONTENTS_DIR)/PkgInfo"
-	clang $(OBJCFLAGS) $(PREFERENCES_APP_SOURCES) -framework Cocoa -framework CoreImage -o "$(PREFERENCES_MACOS_DIR)/$(PREFERENCES_EXECUTABLE_NAME)"
+	clang $(OBJCFLAGS) $(ARCH_FLAGS) $(PREFERENCES_APP_SOURCES) -framework Cocoa -framework CoreImage -o "$(PREFERENCES_MACOS_DIR)/$(PREFERENCES_EXECUTABLE_NAME)"
 	xattr -cr "$(PREFERENCES_BUNDLE_DIR)" 2>/dev/null || true
 	codesign --force --sign - "$(PREFERENCES_BUNDLE_DIR)"
-	clang $(OBJCFLAGS) $(APP_SOURCES) $(FRAMEWORKS) -o "$(MACOS_DIR)/$(EXECUTABLE_NAME)"
+	clang $(OBJCFLAGS) $(ARCH_FLAGS) $(APP_SOURCES) $(FRAMEWORKS) -o "$(MACOS_DIR)/$(EXECUTABLE_NAME)"
 	xattr -cr "$(BUNDLE_DIR)" 2>/dev/null || true
 	codesign --force --sign - "$(BUNDLE_DIR)"
-	if [ -x "$(LSREGISTER)" ] && [ -d "$(BUNDLE_DIR)" ]; then app="$$(cd "$(BUILD_DIR)" && pwd)/$(BUNDLE_NAME)"; "$(LSREGISTER)" -u "$$app" >/dev/null 2>&1 || true; "$(LSREGISTER)" -gc >/dev/null 2>&1 || true; fi
+	ruby scripts/verify-universal-bundle.rb "$(BUNDLE_DIR)" "$(MIN_MACOS)" "$(VERSION)" "$(BUNDLE_VERSION)"
+	if [ "$(BUILD_LS_CLEANUP)" = 1 ] && [ -x "$(LSREGISTER)" ] && [ -d "$(BUNDLE_DIR)" ]; then app="$$(cd "$(BUILD_DIR)" && pwd)/$(BUNDLE_NAME)"; "$(LSREGISTER)" -u "$$app" >/dev/null 2>&1 || true; "$(LSREGISTER)" -gc >/dev/null 2>&1 || true; fi
 
-test: $(TEST_SOURCES) $(STARTUP_BENCHMARK_SOURCES) $(INPUT_STATE_TEST_SOURCES) $(INPUT_BEHAVIOR_TEST_SOURCES) $(ENGLISH_SPELL_CHECKER_TEST_SOURCES) $(QUICK_PHRASE_STORE_TEST_SOURCES) $(BACKUP_STORE_TEST_SOURCES) $(CANDIDATE_PANEL_TEST_SOURCES) $(TYPING_SIMULATION_TEST_SOURCES) $(PREFERENCES_TEST_SOURCES) $(BUNDLE_TEST_SOURCES) $(SPEECH_INPUT_TEST_SOURCES) $(VOICE_HOMOPHONE_STORE_TEST_SOURCES) src/PurrTypeInputState.h src/PurrTypeInputBehavior.h src/PurrTypeEnglishSpellChecker.h src/PurrTypeQuickPhraseStore.h src/PurrTypeBackupStore.h src/PurrTypeCandidatePanel.h src/PurrTypeVoiceFloatingButton.h src/PurrTypePreferencesWindowController.h src/PurrTypePreferencesStore.h src/PurrTypeSpeechInputController.h src/PurrTypeVoiceHomophoneStore.h docs/typing/one_hour_typing_corpus.md resources/en.lproj/Localizable.strings resources/zh-Hant.lproj/Localizable.strings resources/pinyin_seed.tsv resources/pinyin_phrases.tsv resources/sucheng_order_guards.tsv resources/smart_phrases.tsv resources/association_phrases.tsv $(ASSOCIATION_GENERATED_INDEX) $(CANDIDATE_INDEXES) $(VOICE_FLOATING_BUTTON_RESOURCES) $(VOICE_CONTEXTUAL_PHRASE_RESOURCE) $(VOICE_HOMOPHONE_RESOURCE) resources/traditional_compatibility.tsv resources/sucheng_first_pages.tsv third_party/hkscs/HKSCS2016.json
+test: $(TEST_SOURCES) $(STARTUP_BENCHMARK_SOURCES) $(INPUT_STATE_TEST_SOURCES) $(INPUT_BEHAVIOR_TEST_SOURCES) $(ENGLISH_SPELL_CHECKER_TEST_SOURCES) $(QUICK_PHRASE_STORE_TEST_SOURCES) $(BACKUP_STORE_TEST_SOURCES) $(CANDIDATE_PANEL_TEST_SOURCES) $(TYPING_SIMULATION_TEST_SOURCES) $(PREFERENCES_TEST_SOURCES) $(BUNDLE_TEST_SOURCES) src/PurrTypePreferencesConstants.h $(SPEECH_INPUT_TEST_SOURCES) $(VOICE_HOMOPHONE_STORE_TEST_SOURCES) src/PurrTypeInputState.h src/PurrTypeInputBehavior.h src/PurrTypeEnglishSpellChecker.h src/PurrTypeQuickPhraseStore.h src/PurrTypeBackupStore.h src/PurrTypeCandidatePanel.h src/PurrTypeVoiceFloatingButton.h src/PurrTypePreferencesWindowController.h src/PurrTypePreferencesStore.h src/PurrTypeSpeechInputController.h src/PurrTypeVoiceHomophoneStore.h docs/typing/one_hour_typing_corpus.md resources/en.lproj/Localizable.strings resources/zh-Hant.lproj/Localizable.strings resources/pinyin_seed.tsv resources/pinyin_phrases.tsv resources/sucheng_order_guards.tsv resources/smart_phrases.tsv resources/association_phrases.tsv $(ASSOCIATION_GENERATED_INDEX) $(CANDIDATE_INDEXES) $(VOICE_FLOATING_BUTTON_RESOURCES) $(VOICE_CONTEXTUAL_PHRASE_RESOURCE) $(VOICE_HOMOPHONE_RESOURCE) resources/traditional_compatibility.tsv resources/sucheng_first_pages.tsv third_party/hkscs/HKSCS2016.json
 	mkdir -p "$(BUILD_DIR)"
-	clang $(OBJCFLAGS) $(TEST_SOURCES) $(ENGINE_TEST_FRAMEWORKS) -o "$(BUILD_DIR)/PurrTypeEngineTests"
+	clang $(TEST_OBJCFLAGS) $(TEST_SOURCES) $(ENGINE_TEST_FRAMEWORKS) -o "$(BUILD_DIR)/PurrTypeEngineTests"
 	"$(BUILD_DIR)/PurrTypeEngineTests"
-	clang $(OBJCFLAGS) $(STARTUP_BENCHMARK_SOURCES) $(ENGINE_TEST_FRAMEWORKS) -o "$(BUILD_DIR)/PurrTypeEngineStartupBenchmark"
+	clang $(TEST_OBJCFLAGS) $(STARTUP_BENCHMARK_SOURCES) $(ENGINE_TEST_FRAMEWORKS) -o "$(BUILD_DIR)/PurrTypeEngineStartupBenchmark"
 	"$(BUILD_DIR)/PurrTypeEngineStartupBenchmark"
-	clang $(OBJCFLAGS) -Isrc $(INPUT_STATE_TEST_SOURCES) -framework Foundation -o "$(BUILD_DIR)/PurrTypeInputStateTests"
+	clang $(TEST_OBJCFLAGS) -Isrc $(INPUT_STATE_TEST_SOURCES) -framework Foundation -o "$(BUILD_DIR)/PurrTypeInputStateTests"
 	"$(BUILD_DIR)/PurrTypeInputStateTests"
-	clang $(OBJCFLAGS) $(INPUT_BEHAVIOR_TEST_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeInputBehaviorTests"
+	clang $(TEST_OBJCFLAGS) $(INPUT_BEHAVIOR_TEST_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeInputBehaviorTests"
 	"$(BUILD_DIR)/PurrTypeInputBehaviorTests"
-	clang $(OBJCFLAGS) $(ENGLISH_SPELL_CHECKER_TEST_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeEnglishSpellCheckerTests"
+	clang $(TEST_OBJCFLAGS) $(ENGLISH_SPELL_CHECKER_TEST_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeEnglishSpellCheckerTests"
 	"$(BUILD_DIR)/PurrTypeEnglishSpellCheckerTests"
-	clang $(OBJCFLAGS) $(QUICK_PHRASE_STORE_TEST_SOURCES) -framework Foundation -o "$(BUILD_DIR)/PurrTypeQuickPhraseStoreTests"
+	clang $(TEST_OBJCFLAGS) $(QUICK_PHRASE_STORE_TEST_SOURCES) -framework Foundation -o "$(BUILD_DIR)/PurrTypeQuickPhraseStoreTests"
 	"$(BUILD_DIR)/PurrTypeQuickPhraseStoreTests"
-	clang $(OBJCFLAGS) $(BACKUP_STORE_TEST_SOURCES) -framework Foundation -o "$(BUILD_DIR)/PurrTypeBackupStoreTests"
+	clang $(TEST_OBJCFLAGS) $(BACKUP_STORE_TEST_SOURCES) -framework Foundation -o "$(BUILD_DIR)/PurrTypeBackupStoreTests"
 	"$(BUILD_DIR)/PurrTypeBackupStoreTests"
-	clang $(OBJCFLAGS) $(CANDIDATE_PANEL_TEST_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeCandidatePanelTests"
+	clang $(TEST_OBJCFLAGS) $(CANDIDATE_PANEL_TEST_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeCandidatePanelTests"
 	"$(BUILD_DIR)/PurrTypeCandidatePanelTests"
-	clang $(OBJCFLAGS) $(TYPING_SIMULATION_TEST_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeTypingSimulationTests"
+	clang $(TEST_OBJCFLAGS) $(TYPING_SIMULATION_TEST_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeTypingSimulationTests"
 	"$(BUILD_DIR)/PurrTypeTypingSimulationTests"
 	mkdir -p "$(BUILD_DIR)/en.lproj" "$(BUILD_DIR)/zh-Hant.lproj"
 	cp resources/en.lproj/Localizable.strings "$(BUILD_DIR)/en.lproj/Localizable.strings"
 	cp resources/zh-Hant.lproj/Localizable.strings "$(BUILD_DIR)/zh-Hant.lproj/Localizable.strings"
-	clang $(OBJCFLAGS) $(PREFERENCES_TEST_SOURCES) -framework Cocoa -framework CoreImage -o "$(BUILD_DIR)/PurrTypePreferencesTests"
+	clang $(TEST_OBJCFLAGS) $(PREFERENCES_TEST_SOURCES) -framework Cocoa -framework CoreImage -o "$(BUILD_DIR)/PurrTypePreferencesTests"
 	"$(BUILD_DIR)/PurrTypePreferencesTests"
-	clang $(OBJCFLAGS) $(BUNDLE_TEST_SOURCES) -framework Foundation -o "$(BUILD_DIR)/PurrTypeBundleTests"
+	clang $(TEST_OBJCFLAGS) $(BUNDLE_TEST_SOURCES) -framework Foundation -o "$(BUILD_DIR)/PurrTypeBundleTests"
 	"$(BUILD_DIR)/PurrTypeBundleTests"
-	clang $(OBJCFLAGS) -Isrc $(SPEECH_INPUT_TEST_SOURCES) -framework Foundation -framework Speech -framework AVFoundation -framework AVFAudio -o "$(BUILD_DIR)/PurrTypeSpeechInputControllerTests"
+	clang $(TEST_OBJCFLAGS) -Isrc $(SPEECH_INPUT_TEST_SOURCES) -framework Foundation -framework Speech -framework AVFoundation -framework AVFAudio -o "$(BUILD_DIR)/PurrTypeSpeechInputControllerTests"
 	"$(BUILD_DIR)/PurrTypeSpeechInputControllerTests"
-	clang $(OBJCFLAGS) -Isrc $(VOICE_HOMOPHONE_STORE_TEST_SOURCES) -framework Foundation -o "$(BUILD_DIR)/PurrTypeVoiceHomophoneStoreTests"
+	clang $(TEST_OBJCFLAGS) -Isrc $(VOICE_HOMOPHONE_STORE_TEST_SOURCES) -framework Foundation -o "$(BUILD_DIR)/PurrTypeVoiceHomophoneStoreTests"
 	"$(BUILD_DIR)/PurrTypeVoiceHomophoneStoreTests"
 
 $(VOICE_LANGUAGE_MODEL_RESOURCE): $(VOICE_LANGUAGE_MODEL_SCRIPT) $(VOICE_CONTEXTUAL_PHRASE_RESOURCE)
 	mkdir -p "$(BUILD_DIR)"
-	swift "$(VOICE_LANGUAGE_MODEL_SCRIPT)" "$(VOICE_CONTEXTUAL_PHRASE_RESOURCE)" "$@"
+	swift -module-cache-path "$(BUILD_DIR)/module-cache" "$(VOICE_LANGUAGE_MODEL_SCRIPT)" "$(VOICE_CONTEXTUAL_PHRASE_RESOURCE)" "$@"
 
 audit-full-bible: $(FULL_BIBLE_AUDIT_SOURCES) src/PurrTypeInputBehavior.h docs/typing/full_bible_typing_corpus.md resources/pinyin_seed.tsv resources/sucheng_order_guards.tsv resources/smart_phrases.tsv resources/association_phrases.tsv $(ASSOCIATION_GENERATED_INDEX) $(CANDIDATE_INDEXES) resources/traditional_compatibility.tsv resources/sucheng_first_pages.tsv
 	mkdir -p "$(BUILD_DIR)"
-	clang $(OBJCFLAGS) $(FULL_BIBLE_AUDIT_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeFullBibleTypingAudit"
+	clang $(TEST_OBJCFLAGS) $(FULL_BIBLE_AUDIT_SOURCES) -framework Cocoa -o "$(BUILD_DIR)/PurrTypeFullBibleTypingAudit"
 	"$(BUILD_DIR)/PurrTypeFullBibleTypingAudit"
 
 audit-sucheng-ranking: $(CLASSIC_SUCHENG_RANKING_AUDIT_SOURCES) resources/sucheng_first_pages.tsv resources/sucheng_order_guards.tsv $(QUICK_CANDIDATE_INDEX)
 	mkdir -p "$(BUILD_DIR)"
-	clang $(OBJCFLAGS) $(CLASSIC_SUCHENG_RANKING_AUDIT_SOURCES) $(ENGINE_TEST_FRAMEWORKS) -o "$(BUILD_DIR)/PurrTypeClassicSuchengRankingAudit"
+	clang $(TEST_OBJCFLAGS) $(CLASSIC_SUCHENG_RANKING_AUDIT_SOURCES) $(ENGINE_TEST_FRAMEWORKS) -o "$(BUILD_DIR)/PurrTypeClassicSuchengRankingAudit"
 	"$(BUILD_DIR)/PurrTypeClassicSuchengRankingAudit"
 
 audit-classic-sucheng-ranking: audit-sucheng-ranking
 
 audit-associations: $(ASSOCIATION_AUDIT_SOURCES) resources/association_phrases.tsv $(ASSOCIATION_GENERATED_TSV) $(ASSOCIATION_GENERATED_INDEX) $(CANDIDATE_INDEXES) resources/pinyin_seed.tsv resources/sucheng_order_guards.tsv
 	mkdir -p "$(BUILD_DIR)"
-	clang $(OBJCFLAGS) $(ASSOCIATION_AUDIT_SOURCES) $(ENGINE_TEST_FRAMEWORKS) -o "$(BUILD_DIR)/PurrTypeAssociationAudit"
+	clang $(TEST_OBJCFLAGS) $(ASSOCIATION_AUDIT_SOURCES) $(ENGINE_TEST_FRAMEWORKS) -o "$(BUILD_DIR)/PurrTypeAssociationAudit"
 	"$(BUILD_DIR)/PurrTypeAssociationAudit"
 
 audit-hkscs-coverage: scripts/audit-hkscs-coverage.rb third_party/hkscs/HKSCS2016.json third_party/ibus-table-chinese/cangjie5.txt third_party/ibus-table-chinese/quick-classic.txt third_party/rime-cangjie/cangjie5.base.dict.yaml third_party/rime-cangjie/cangjie5.extended.dict.yaml
@@ -318,15 +325,16 @@ package: build uninstall-package packaging/README.txt packaging/INSTALL_GUIDE.ht
 	xattr -cr "$(PKGROOT_DIR)" || true
 	xattr -dr com.apple.provenance "$(PKGROOT_DIR)" || true
 	find "$(PKGROOT_DIR)" -name '._*' -exec rm -f {} +
+	ruby scripts/verify-universal-bundle.rb "$(PKGROOT_DIR)/Library/Input Methods/$(BUNDLE_NAME)" "$(MIN_MACOS)" "$(VERSION)" "$(BUNDLE_VERSION)"
 	COPYFILE_DISABLE=1 pkgbuild --root "$(PKGROOT_DIR)" --identifier "$(PKG_ID)" --version "$(VERSION)" --scripts packaging/scripts --component-plist "$(COMPONENT_PLIST)" --install-location "/" "$(PKG_PATH)"
-	if [ -x "$(LSREGISTER)" ] && [ -d "$(PKGROOT_DIR)/Library/Input Methods/$(BUNDLE_NAME)" ]; then app="$$(cd "$(PKGROOT_DIR)/Library/Input Methods" && pwd)/$(BUNDLE_NAME)"; "$(LSREGISTER)" -u "$$app" >/dev/null 2>&1 || true; "$(LSREGISTER)" -gc >/dev/null 2>&1 || true; fi
+	if [ "$(BUILD_LS_CLEANUP)" = 1 ] && [ -x "$(LSREGISTER)" ] && [ -d "$(PKGROOT_DIR)/Library/Input Methods/$(BUNDLE_NAME)" ]; then app="$$(cd "$(PKGROOT_DIR)/Library/Input Methods" && pwd)/$(BUNDLE_NAME)"; "$(LSREGISTER)" -u "$$app" >/dev/null 2>&1 || true; "$(LSREGISTER)" -gc >/dev/null 2>&1 || true; fi
 	cp "$(PKG_PATH)" "$(DMGROOT_DIR)/Install PurrType.pkg"
 	cp "$(UNINSTALL_PKG_PATH)" "$(DMGROOT_DIR)/Uninstall PurrType.pkg"
 	cp packaging/README.txt "$(DMGROOT_DIR)/README.txt"
 	cp packaging/INSTALL_GUIDE.html "$(DMGROOT_DIR)/Install Guide.html"
 	cp $(INSTALL_GUIDE_IMAGES) "$(DMGROOT_DIR)/$(INSTALL_GUIDE_DMG_ASSET_DIR)/"
 	hdiutil create -volname "PurrType" -srcfolder "$(DMGROOT_DIR)" -ov -format UDZO "$(DMG_PATH)"
-	if [ -x "$(LSREGISTER)" ]; then for parent in "$(BUILD_DIR)" "$(PKGROOT_DIR)/Library/Input Methods"; do if [ -d "$$parent/$(BUNDLE_NAME)" ]; then app="$$(cd "$$parent" && pwd)/$(BUNDLE_NAME)"; "$(LSREGISTER)" -u "$$app" >/dev/null 2>&1 || true; fi; done; "$(LSREGISTER)" -gc >/dev/null 2>&1 || true; fi
+	if [ "$(BUILD_LS_CLEANUP)" = 1 ] && [ -x "$(LSREGISTER)" ]; then for parent in "$(BUILD_DIR)" "$(PKGROOT_DIR)/Library/Input Methods"; do if [ -d "$$parent/$(BUNDLE_NAME)" ]; then app="$$(cd "$$parent" && pwd)/$(BUNDLE_NAME)"; "$(LSREGISTER)" -u "$$app" >/dev/null 2>&1 || true; fi; done; "$(LSREGISTER)" -gc >/dev/null 2>&1 || true; fi
 	@echo "Package: $(PKG_PATH)"
 	@echo "DMG: $(DMG_PATH)"
 
@@ -337,7 +345,7 @@ checksums: package
 	@echo "Checksums: $(CHECKSUMS_PATH)"
 
 provenance: package
-	ruby scripts/write-release-provenance.rb "$(VERSION)" "$(PROVENANCE_PATH)" "$(PKG_PATH)" "$(UNINSTALL_PKG_PATH)" "$(DMG_PATH)"
+	ruby scripts/write-release-provenance.rb "$(VERSION)" "$(PROVENANCE_PATH)" "$(PKG_PATH)" "$(UNINSTALL_PKG_PATH)" "$(DMG_PATH)" "$(BUNDLE_DIR)"
 	@echo "Provenance: $(PROVENANCE_PATH)"
 
 check-signing-identities:
@@ -346,10 +354,14 @@ check-signing-identities:
 	security find-identity -v -p codesigning | grep -F "$(DEVELOPER_ID_APPLICATION_IDENTITY)" >/dev/null || (echo "Developer ID Application identity not found: $(DEVELOPER_ID_APPLICATION_IDENTITY)" >&2; exit 1)
 	security find-certificate -c "$(DEVELOPER_ID_INSTALLER_IDENTITY)" >/dev/null || (echo "Developer ID Installer certificate not found: $(DEVELOPER_ID_INSTALLER_IDENTITY)" >&2; exit 1)
 
+.PHONY: signing-preflight
+signing-preflight: check-signing-identities check-notary-profile
+
 check-notary-profile:
 	xcrun notarytool history --keychain-profile "$(NOTARY_KEYCHAIN_PROFILE)" >/dev/null
 
-signed-package: build packaging/README.txt packaging/scripts/preinstall packaging/scripts/postinstall $(COMPONENT_PLIST) check-signing-identities
+signed-package: signing-preflight packaging/README.txt packaging/scripts/preinstall packaging/scripts/postinstall $(COMPONENT_PLIST)
+	$(MAKE) build
 	rm -rf "$(PKGROOT_DIR)" "$(UNSIGNED_RELEASE_PKG_PATH)" "$(SIGNED_PKG_PATH)"
 	codesign --force --timestamp --options runtime --sign "$(DEVELOPER_ID_APPLICATION_IDENTITY)" "$(PREFERENCES_BUNDLE_DIR)"
 	codesign --force --timestamp --options runtime --sign "$(DEVELOPER_ID_APPLICATION_IDENTITY)" "$(BUNDLE_DIR)"
@@ -359,16 +371,18 @@ signed-package: build packaging/README.txt packaging/scripts/preinstall packagin
 	xattr -cr "$(PKGROOT_DIR)" || true
 	xattr -dr com.apple.provenance "$(PKGROOT_DIR)" || true
 	find "$(PKGROOT_DIR)" -name '._*' -exec rm -f {} +
+	ruby scripts/verify-universal-bundle.rb "$(PKGROOT_DIR)/Library/Input Methods/$(BUNDLE_NAME)" "$(MIN_MACOS)" "$(VERSION)" "$(BUNDLE_VERSION)"
 	COPYFILE_DISABLE=1 pkgbuild --root "$(PKGROOT_DIR)" --identifier "$(PKG_ID)" --version "$(VERSION)" --scripts packaging/scripts --component-plist "$(COMPONENT_PLIST)" --install-location "/" "$(UNSIGNED_RELEASE_PKG_PATH)"
 	productsign --sign "$(DEVELOPER_ID_INSTALLER_IDENTITY)" "$(UNSIGNED_RELEASE_PKG_PATH)" "$(SIGNED_PKG_PATH)"
-	spctl -a -vv -t install "$(SIGNED_PKG_PATH)"
+	pkgutil --check-signature "$(SIGNED_PKG_PATH)"
 	@echo "Signed package: $(SIGNED_PKG_PATH)"
 
-signed-uninstall-package: uninstall-package check-signing-identities
+signed-uninstall-package: signing-preflight
+	$(MAKE) uninstall-package
 	rm -f "$(UNSIGNED_UNINSTALL_PKG_PATH)" "$(SIGNED_UNINSTALL_PKG_PATH)"
 	cp "$(UNINSTALL_PKG_PATH)" "$(UNSIGNED_UNINSTALL_PKG_PATH)"
 	productsign --sign "$(DEVELOPER_ID_INSTALLER_IDENTITY)" "$(UNSIGNED_UNINSTALL_PKG_PATH)" "$(SIGNED_UNINSTALL_PKG_PATH)"
-	spctl -a -vv -t install "$(SIGNED_UNINSTALL_PKG_PATH)"
+	pkgutil --check-signature "$(SIGNED_UNINSTALL_PKG_PATH)"
 	@echo "Signed uninstall package: $(SIGNED_UNINSTALL_PKG_PATH)"
 
 signed-dmg: signed-package signed-uninstall-package packaging/README.txt packaging/INSTALL_GUIDE.html $(INSTALL_GUIDE_IMAGES) LICENSE docs/CREDITS.md docs/PRIVACY_POLICY.md docs/LICENSE_AUDIT.md docs/MANUAL_QA.md
@@ -382,24 +396,23 @@ signed-dmg: signed-package signed-uninstall-package packaging/README.txt packagi
 	hdiutil create -volname "PurrType" -srcfolder "$(DMGROOT_DIR)" -ov -format UDZO "$(SIGNED_DMG_PATH)"
 	codesign --force --timestamp --sign "$(DEVELOPER_ID_APPLICATION_IDENTITY)" "$(SIGNED_DMG_PATH)"
 	codesign --verify --verbose=2 "$(SIGNED_DMG_PATH)"
-	spctl -a -vv -t open --context context:primary-signature "$(SIGNED_DMG_PATH)"
 	@echo "Signed DMG: $(SIGNED_DMG_PATH)"
 
-notarize-dmg: signed-dmg check-notary-profile
+notarize-dmg: signed-dmg
 	xcrun notarytool submit "$(SIGNED_DMG_PATH)" --keychain-profile "$(NOTARY_KEYCHAIN_PROFILE)" --wait
 	xcrun stapler staple "$(SIGNED_DMG_PATH)"
 	xcrun stapler validate "$(SIGNED_DMG_PATH)"
 	spctl -a -vv -t open --context context:primary-signature "$(SIGNED_DMG_PATH)"
 	@echo "Notarized DMG: $(SIGNED_DMG_PATH)"
 
-release-signed: notarize-dmg signed-checksums signed-provenance
+release-signed: signed-checksums signed-provenance
 
 signed-checksums: notarize-dmg
 	cd "$(BUILD_DIR)" && shasum -a 256 "PurrType-$(VERSION)-signed.dmg" > "PurrType-$(VERSION)-signed-checksums.sha256"
 	@echo "Signed checksums: $(SIGNED_CHECKSUMS_PATH)"
 
 signed-provenance: notarize-dmg
-	ruby scripts/write-release-provenance.rb "$(VERSION)" "$(SIGNED_PROVENANCE_PATH)" "$(SIGNED_PKG_PATH)" "$(SIGNED_UNINSTALL_PKG_PATH)" "$(SIGNED_DMG_PATH)"
+	ruby scripts/write-release-provenance.rb "$(VERSION)" "$(SIGNED_PROVENANCE_PATH)" "$(SIGNED_PKG_PATH)" "$(SIGNED_UNINSTALL_PKG_PATH)" "$(SIGNED_DMG_PATH)" "$(BUNDLE_DIR)"
 	@echo "Signed provenance: $(SIGNED_PROVENANCE_PATH)"
 
 package-smoke: package
@@ -408,6 +421,9 @@ package-smoke: package
 	mkdir -p "$(PACKAGE_SMOKE_DIR)"
 	pkgutil --expand-full "$(PKG_PATH)" "$(PACKAGE_SMOKE_DIR)/expanded"
 	test -d "$(PACKAGE_SMOKE_APP)"
+	ruby scripts/verify-universal-bundle.rb "$(PACKAGE_SMOKE_APP)" "$(MIN_MACOS)" "$(VERSION)" "$(BUNDLE_VERSION)"
+	python3 tests/universal_bundle_test.py "$(PACKAGE_SMOKE_APP)"
+	python3 tests/packaging_lifecycle_test.py
 	test -x "$(PACKAGE_SMOKE_APP)/Contents/MacOS/$(EXECUTABLE_NAME)"
 	test -x "$(PACKAGE_SMOKE_APP)/Contents/Resources/$(PREFERENCES_BUNDLE_NAME)/Contents/MacOS/$(PREFERENCES_EXECUTABLE_NAME)"
 	test -s "$(PACKAGE_SMOKE_APP)/Contents/Resources/en.lproj/Localizable.strings"
@@ -510,7 +526,7 @@ package-smoke: package
 	grep -F "pkgutil --forget" "$(PACKAGE_SMOKE_DIR)/uninstall-expanded/Scripts/postinstall" >/dev/null
 	! grep -F '$$USER_HOME/Library/Application Support/PurrType' "$(PACKAGE_SMOKE_DIR)/uninstall-expanded/Scripts/postinstall" >/dev/null
 	! grep -F '$$USER_HOME/Library/Preferences/org.purrtype.inputmethod.PurrTypeUnified.plist' "$(PACKAGE_SMOKE_DIR)/uninstall-expanded/Scripts/postinstall" >/dev/null
-	if [ -x "$(LSREGISTER)" ]; then \
+	if [ "$(BUILD_LS_CLEANUP)" = 1 ] && [ -x "$(LSREGISTER)" ]; then \
 	  build_app="$$(cd "$(BUILD_DIR)" && pwd)/$(BUNDLE_NAME)"; \
 	  pkgroot_app="$$(cd "$(PKGROOT_DIR)/Library/Input Methods" && pwd)/$(BUNDLE_NAME)"; \
 	  smoke_app="$$(cd "$(PACKAGE_SMOKE_DIR)/expanded/Payload/Library/Input Methods" && pwd)/$(BUNDLE_NAME)"; \

@@ -13,8 +13,16 @@ concurrency:
 
 jobs:
   release-preflight:
-    name: Release preflight
-    runs-on: macos-latest
+    name: Release preflight (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
 
     steps:
@@ -23,19 +31,21 @@ jobs:
 
       - name: Show toolchain
         run: |
+          sudo xcode-select -s /Applications/Xcode_26.1.app/Contents/Developer
           sw_vers
           xcrun --show-sdk-path
           clang --version
           make --version
+          test "$(uname -m)" = "${{ matrix.arch }}"
 
       - name: Run release preflight
-        run: make release-preflight
+        run: make release-preflight TEST_ARCH=${{ matrix.arch }}
 
       - name: Upload release preflight artifacts
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: purrtype-release-preflight-${{ github.sha }}
+          name: purrtype-release-preflight-${{ matrix.arch }}-${{ github.sha }}
           path: |
             build/PurrType-*.pkg
             build/PurrType-*.dmg

@@ -4,7 +4,7 @@ The public repository should protect `main` before accepting outside changes.
 Apply these controls to `main` through branch protection or repository rulesets:
 
 - Require pull requests before merging.
-- Require the `Release preflight` status check from the `CI` workflow.
+- Require both `Release preflight (arm64)` and `Release preflight (x86_64)` status checks from the `CI` workflow.
 - Require the branch to be up to date before merging.
 - Block force pushes.
 - Block branch deletion.

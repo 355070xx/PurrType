@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.6
+
+- Builds the input method and embedded Preferences app as universal arm64 / x86_64 executables, targeting macOS 12.0.
+- Verifies both architectures, deployment targets, system dependencies and signatures before packaging and after payload extraction.
+- Records executable architecture information in release provenance, and runs CI on both Apple Silicon and Intel.
+- Rejects macOS versions older than 12 before installer cleanup.
+- Isolates test preferences and notifications from installed user data.
+- Moves Gatekeeper acceptance checks after notarization in the optional signed release workflow.
+- Intel hardware and macOS 12 runtime acceptance remain pending unless explicitly recorded in the release test report; compilation does not certify runtime compatibility.
+
 ## 0.1.5
 
 - Bounds uninstall cleanup commands so `Uninstall PurrType.pkg` cannot remain stuck on `Running package scripts...` if macOS input-source or LaunchServices cleanup hangs.
