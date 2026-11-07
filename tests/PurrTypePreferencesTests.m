@@ -1230,7 +1230,7 @@ int main(int argc, const char *argv[]) {
         }
 
         [controller close];
-        [defaults removeObjectForKey:MKUserDefaultPreferencesLanguageKey];
+        [defaults removePersistentDomainForName:MKUserDefaultsSuiteName];
         [defaults synchronize];
         [[NSFileManager defaultManager] removeItemAtPath:learningPath error:nil];
         [[NSFileManager defaultManager] removeItemAtPath:quickPhraseDirectory error:nil];

@@ -156,6 +156,25 @@ int main(int argc, const char *argv[]) {
 
         NSArray<NSString *> *lookupKeys = @[@"我", @"你", @"佢", @"可以", @"輸", @"神", @"耶", @"候", @"排", @"偏",
                                            @"重", @"今", @"日", @"中", @"文", @"入", @"法", @"設", @"定", @"問"];
+        for (MKInputMode mode in associationModes) {
+            for (NSString *key in lookupKeys) {
+                NSArray<MKCandidate *> *full = [engine associatedCandidatesForText:key limit:120 mode:mode];
+                for (NSNumber *requested in @[@0, @1, @9, @20]) {
+                    NSUInteger limit = requested.unsignedIntegerValue;
+                    NSArray<MKCandidate *> *prefix = [engine associatedCandidatesForText:key limit:limit mode:mode];
+                    AssertTrue(prefix.count == MIN(limit, full.count), @"fixed-order association limit returns the requested prefix size");
+                    for (NSUInteger index = 0; index < prefix.count; index += 1) {
+                        MKCandidate *actual = prefix[index];
+                        MKCandidate *expected = full[index];
+                        AssertTrue([actual.text isEqualToString:expected.text] &&
+                                   [actual.code isEqualToString:expected.code] &&
+                                   [actual.source isEqualToString:expected.source] &&
+                                   actual.weight == expected.weight && actual.sequence == expected.sequence,
+                                   @"association prefix preserves text, code, source, weight and sequence");
+                    }
+                }
+            }
+        }
         CFAbsoluteTime lookupStart = CFAbsoluteTimeGetCurrent();
         for (NSUInteger iteration = 0; iteration < 1000; iteration += 1) {
             for (NSString *key in lookupKeys) {

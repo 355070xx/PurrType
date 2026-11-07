@@ -29,10 +29,16 @@ static NSString *const MKUserDefaultSmartSuchengShortcutKey = @"PurrTypeShortcut
 static NSString *const MKUserDefaultCangjieShortcutKey = @"PurrTypeShortcutCangjie";
 static NSString *const MKUserDefaultPinyinShortcutKey = @"PurrTypeShortcutPinyin";
 static NSString *const MKUserDefaultLearningResetRequestKey = @"PurrTypeLearningResetRequest";
+#ifdef PURRTYPE_TESTING
+// Each test process uses its own defaults and distributed notification namespace.
+#define MKUserDefaultsSuiteName ([NSString stringWithFormat:@"org.purrtype.tests.%d", NSProcessInfo.processInfo.processIdentifier])
+#define MKPreferencesDidChangeNotification ([MKUserDefaultsSuiteName stringByAppendingString:@".preferencesDidChange"])
+#else
 static NSString *const MKPreferencesDidChangeNotification = @"org.purrtype.inputmethod.PurrTypeUnified.preferencesDidChange";
+static NSString *const MKUserDefaultsSuiteName = @"org.purrtype.inputmethod.PurrTypeUnified";
+#endif
 static NSString *const MKPreferencesResetLearningKey = @"resetLearning";
 static NSString *const MKPreferencesQuickPhrasesChangedKey = @"quickPhrasesChanged";
-static NSString *const MKUserDefaultsSuiteName = @"org.purrtype.inputmethod.PurrTypeUnified";
 static NSString *const MKPurrTypeGitHubURLString = @"https://github.com/355070xx/PurrType";
 static NSString *const MKPurrTypeBuyMeACoffeeURLString = @"https://buymeacoffee.com/mrz.final.v1_1_1_1.mov";
 static NSString *const MKPurrTypeBugReportURLString = @"https://github.com/355070xx/PurrType/issues/new/choose";

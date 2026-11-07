@@ -1,11 +1,18 @@
-PurrType 0.1.5
+PurrType 0.1.6
 ============
 
 Official release:
-https://github.com/355070xx/PurrType/releases/tag/v0.1.5
+https://github.com/355070xx/PurrType/releases/tag/v0.1.6
 
 Direct DMG download:
-https://github.com/355070xx/PurrType/releases/download/v0.1.5/PurrType-0.1.5.dmg
+https://github.com/355070xx/PurrType/releases/download/v0.1.6/PurrType-0.1.6.dmg
+
+Compatibility:
+
+This universal package includes native Intel (x86_64) and Apple Silicon (arm64)
+executables. Minimum deployment target: macOS 12 Monterey. Intel hardware and
+macOS 12 runtime acceptance remain pending; see the release test report.
+Speech Beta availability depends on macOS, locale, network and Apple Speech.
 
 Install:
 
@@ -14,6 +21,9 @@ Install:
 3. Quit and reopen System Settings if it was already open.
 4. Open System Settings > Keyboard > Text Input > Edit...
 5. Add input source: PurrType.
+
+On macOS 12 Monterey, use System Preferences > Keyboard > Input Sources > +
+to add PurrType instead of the newer System Settings path.
 
 No Terminal commands are required to install from this DMG.
 

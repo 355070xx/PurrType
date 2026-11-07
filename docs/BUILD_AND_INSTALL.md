@@ -5,7 +5,7 @@
 Use the public DMG download to install PurrType. No Terminal commands are
 required:
 
-[Download PurrType 0.1.5 DMG](https://github.com/355070xx/PurrType/releases/download/v0.1.5/PurrType-0.1.5.dmg)
+[Download PurrType 0.1.6 DMG](https://github.com/355070xx/PurrType/releases/download/v0.1.6/PurrType-0.1.6.dmg)
 
 Do not download GitHub's auto-generated `Source code` zip/tar.gz files to
 install PurrType. Those files are source archives, not the installer.
@@ -13,7 +13,7 @@ install PurrType. Those files are source archives, not the installer.
 If macOS shows `"Install PurrType.pkg" Not Opened` or `Apple could not verify...`,
 follow the [install guide](INSTALL_GUIDE.md). Do not click `Move to Bin`.
 
-1. Download `PurrType-0.1.5.dmg` from the link above, then open it in Finder.
+1. Download `PurrType-0.1.6.dmg` from the link above, then open it in Finder.
 2. Double-click `Install PurrType.pkg`.
 3. Complete the macOS Installer flow.
 4. Quit and reopen System Settings if it was already open.
@@ -57,7 +57,7 @@ corpora.
 
 ## Requirements
 
-- macOS
+- macOS 14 or later for building the Speech language-model asset; the distributed apps target macOS 12.0.
 - Xcode Command Line Tools
 - `clang`
 - `codesign`
@@ -83,7 +83,18 @@ The build creates:
 build/PurrTypeIM.app
 ```
 
-The bundle is ad-hoc signed for local testing.
+Both executables contain `arm64` and `x86_64` slices and target macOS 12.0.
+The bundle is ad-hoc signed for local testing. A successful build runs
+`scripts/verify-universal-bundle.rb` before packaging; `package-smoke` runs it
+again on the extracted package payload. No LaunchServices cleanup runs during
+artifact generation by default. Use `BUILD_LS_CLEANUP=1` only for explicit
+cleanup of temporary build registrations.
+
+Tests compile for the current CPU by default and use isolated preferences and
+notification domains. `make test TEST_ARCH=x86_64` on Apple Silicon needs an
+already-installed Rosetta runtime; it is translated execution, not Intel
+hardware acceptance. CI uses explicit ARM and Intel runner jobs with Xcode 26.1.
+See [0.1.6 test evidence and limitations](RELEASE_0.1.6_QA.md).
 
 To remove generated app bundles, packages, disk images, test binaries, and Finder metadata:
 
@@ -246,8 +257,8 @@ make package
 This creates:
 
 ```text
-build/PurrType-0.1.5.pkg
-build/PurrType-0.1.5.dmg
+build/PurrType-0.1.6.pkg
+build/PurrType-0.1.6.dmg
 ```
 
 Before manually installing a test package, run the non-GUI release preflight:
@@ -282,17 +293,17 @@ To generate unsigned release artifacts plus SHA-256 checksums and provenance met
 
 ```sh
 make release-artifacts
-(cd build && shasum -a 256 -c PurrType-0.1.5-checksums.sha256)
+(cd build && shasum -a 256 -c PurrType-0.1.6-checksums.sha256)
 ```
 
 This writes:
 
 ```text
-build/PurrType-0.1.5.pkg
-build/Uninstall-PurrType-0.1.5.pkg
-build/PurrType-0.1.5.dmg
-build/PurrType-0.1.5-checksums.sha256
-build/PurrType-0.1.5-provenance.json
+build/PurrType-0.1.6.pkg
+build/Uninstall-PurrType-0.1.6.pkg
+build/PurrType-0.1.6.dmg
+build/PurrType-0.1.6-checksums.sha256
+build/PurrType-0.1.6-provenance.json
 ```
 
 The public checksum file verifies the downloadable DMG.
@@ -329,23 +340,23 @@ make release-signed \
 The signed release path is not required for source-only GitHub releases. It fails before modifying artifacts if the Developer ID identities or notarytool profile are missing. A successful signed binary release writes:
 
 ```text
-build/PurrType-0.1.5-signed.pkg
-build/Uninstall-PurrType-0.1.5-signed.pkg
-build/PurrType-0.1.5-signed.dmg
-build/PurrType-0.1.5-signed-checksums.sha256
-build/PurrType-0.1.5-signed-provenance.json
+build/PurrType-0.1.6-signed.pkg
+build/Uninstall-PurrType-0.1.6-signed.pkg
+build/PurrType-0.1.6-signed.dmg
+build/PurrType-0.1.6-signed-checksums.sha256
+build/PurrType-0.1.6-signed-provenance.json
 ```
 
 Verify the signed DMG:
 
 ```sh
-xcrun stapler validate build/PurrType-0.1.5-signed.dmg
-spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.5-signed.dmg
+xcrun stapler validate build/PurrType-0.1.6-signed.dmg
+spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.6-signed.dmg
 ```
 
 Use this path for normal testing:
 
-1. Open `build/PurrType-0.1.5.dmg`.
+1. Open `build/PurrType-0.1.6.dmg`.
 2. Double-click `Install PurrType.pkg`.
 3. Complete the installer.
 4. Quit and reopen System Settings if it was already open.

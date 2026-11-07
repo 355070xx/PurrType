@@ -15,14 +15,14 @@ sh -n scripts/install-local.sh scripts/uninstall-local.sh scripts/uninstall-syst
   packaging/scripts/preinstall packaging/scripts/postinstall \
   packaging/uninstall-scripts/postinstall packaging/Uninstall-PurrType.command
 make release-preflight
-(cd build && shasum -a 256 -c PurrType-0.1.5-checksums.sha256)
+(cd build && shasum -a 256 -c PurrType-0.1.6-checksums.sha256)
 ```
 
 For signed releases, also run:
 
 ```sh
-xcrun stapler validate build/PurrType-0.1.5-signed.dmg
-spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.5-signed.dmg
+xcrun stapler validate build/PurrType-0.1.6-signed.dmg
+spctl -a -vv -t open --context context:primary-signature build/PurrType-0.1.6-signed.dmg
 ```
 
 Expected result:
@@ -42,7 +42,7 @@ Expected result:
 
 Install from the DMG:
 
-1. Open `build/PurrType-0.1.5.dmg`.
+1. Open `build/PurrType-0.1.6.dmg`.
 2. Confirm only `README.txt`, `Install PurrType.pkg`, and
    `Uninstall PurrType.pkg` are present at the DMG root.
 3. Double-click `Install PurrType.pkg`.
@@ -251,3 +251,19 @@ License/privacy materials result:
 Issues found:
 Decision:
 ```
+
+
+## Universal architecture acceptance (0.1.6)
+
+- Confirm `lipo -archs` reports both `arm64` and `x86_64` for the input method
+  and embedded Preferences executable, including the extracted final PKG.
+- On physical Intel hardware, test installation, all four modes, English,
+  candidate windows, Preferences, permission prompts, logout/login and removal.
+- Test minimum macOS 12 on supported Intel and Apple Silicon hardware. macOS 12/13
+  skip the custom Speech language model; basic recognition availability varies.
+- Test macOS 14+ speech with supported and unavailable locales, microphone and
+  Speech denial, no network, model preparation failure and normal dictation.
+- Cover upgrade from the previous version, reinstall, a stale user-level install,
+  and uninstallation while preserving preferences, learning and Quick Phrases.
+- Record hardware, OS and architecture. Rosetta and CI cannot certify physical
+  Intel GUI, audio or macOS 12 acceptance. See RELEASE_0.1.6_QA.md for actual results.

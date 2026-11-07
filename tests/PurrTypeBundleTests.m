@@ -318,7 +318,7 @@ int main(int argc, const char *argv[]) {
         AssertTrue([troubleshooting containsString:@"Manual Smoke Test Matrix"], @"troubleshooting documents manual GUI smoke test matrix");
         AssertTrue([troubleshooting containsString:@"make release-signed"], @"troubleshooting documents signed release verification path");
         NSString *branchProtection = FileTextAtPath([root stringByAppendingPathComponent:@"docs/BRANCH_PROTECTION.md"]);
-        AssertTrue([branchProtection containsString:@"Require the `Release preflight` status check"], @"branch protection policy requires CI release preflight");
+        AssertTrue([branchProtection containsString:@"Release preflight (arm64)"], @"branch protection policy requires CI release preflight");
         AssertTrue([branchProtection containsString:@"Block force pushes"], @"branch protection policy blocks force pushes");
         AssertTrue([branchProtection containsString:@"Block branch deletion"], @"branch protection policy blocks branch deletion");
         NSString *ciWorkflow = FileTextAtPath([root stringByAppendingPathComponent:@".github/workflows/ci.yml"]);

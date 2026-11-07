@@ -3,6 +3,16 @@ set -eu
 PATH=/usr/bin:/bin:/usr/sbin:/sbin
 export PATH
 
+# Reject unsupported systems before stopping or removing any existing copy.
+MACOS_MAJOR=$(/usr/bin/sw_vers -productVersion | cut -d. -f1)
+case "$MACOS_MAJOR" in
+  ''|*[!0-9]*) echo "Cannot determine the macOS version; PurrType requires macOS 12 or later." >&2; exit 1 ;;
+esac
+if [ "$MACOS_MAJOR" -lt 12 ]; then
+  echo "PurrType requires macOS 12 Monterey or later. No installed copy was removed." >&2
+  exit 1
+fi
+
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 CONSOLE_USER=$(stat -f %Su /dev/console 2>/dev/null || true)
 
