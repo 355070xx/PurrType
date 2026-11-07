@@ -2,7 +2,7 @@
 
 PurrType 是一個 macOS 繁體中文輸入法，主打穩定速成、倉頡、拼音同英文混打。所有核心輸入處理都喺本機完成，不需要雲端服務。
 
-0.1.6 使用同一個 Universal 安裝包，包含 Intel（x86_64）及 Apple Silicon（arm64）原生程式，最低系統目標為 macOS 12 Monterey。Intel 實機與 macOS 12 運作仍待驗收；詳見 [0.1.6 測試紀錄](docs/RELEASE_0.1.6_QA.md)。語音 Beta 可用能力會隨系統、語言及 Apple Speech 支援而不同。
+0.1.6 使用同一個 Universal 安裝包，包含 Intel（x86_64）及 Apple Silicon（arm64）原生程式，最低系統目標為 macOS 12 Monterey。語音 Beta 可用能力會隨系統、語言及 Apple Speech 支援而不同。
 
 ## 功能重點
 
