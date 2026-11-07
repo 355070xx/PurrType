@@ -14,6 +14,11 @@ This record distinguishes build checks, translated execution, CI and physical Ma
 - Final local `make release-preflight` completed successfully (exit 0).
 - All 13 native test/benchmark executables passed, including typing simulation,
   Preferences UI, bundle contracts and mocked Speech controller behavior.
+- Intel CI next exposed the original 5-second / 20,000 association lookup guard.
+  Fixed-order lookups now stop after filling the requested prefix instead of
+  allocating all unused candidates. Added cross-mode prefix parity assertions
+  for text, code, source, weight and sequence; learning-mode ranking is unchanged.
+  The original 5-second threshold remains mandatory.
 - Native Sucheng ranking, associations, full Bible typing, legacy parity and
   license audits passed.
 - Unsupported macOS (<12) is rejected before installer cleanup; verified with

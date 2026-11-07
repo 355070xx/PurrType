@@ -858,6 +858,12 @@ forRecordAtIndex:(NSUInteger)recordIndex {
         BOOL hasPersistedRank = NO;
         NSUInteger seedPosition = 0;
         for (NSString *candidateText in [self.engine fixedAssociationCandidatesForKey:key]) {
+            // Fixed-order modes cannot promote an unseen candidate. Once the
+            // visible prefix is full, avoid allocating the rest of the corpus.
+            // Learning modes still examine every seed before applying ranking.
+            if (!applyingLearning && candidates.count + seedCandidates.count >= limit) {
+                break;
+            }
             if ([seen containsObject:candidateText]) {
                 seedPosition += 1;
                 continue;
@@ -879,7 +885,9 @@ forRecordAtIndex:(NSUInteger)recordIndex {
                                                                 weight:(learnedScore > 0 ? 3000 + learnedScore : 2000) - (NSInteger)sequence
                                                               sequence:sequence];
             [seedCandidates addObject:candidate];
-            seedPositions[[NSValue valueWithNonretainedObject:candidate]] = @(seedPosition);
+            if (applyingLearning) {
+                seedPositions[[NSValue valueWithNonretainedObject:candidate]] = @(seedPosition);
+            }
             sequence += 1;
             seedPosition += 1;
         }
