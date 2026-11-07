@@ -26,6 +26,10 @@ This record distinguishes build checks, translated execution, CI and physical Ma
 - Rosetta x86_64: all 13 test/benchmark executables and the Sucheng ranking,
   association and full Bible typing audits passed. Test files were verified as
   x86_64-only executables running on the Apple Silicon host; this is not Intel hardware.
+- Live macOS spelling-service integration passed locally on native ARM and
+  Rosetta. Hosted Intel CI initially reported NSSpellServer timeouts; CI explicitly
+  skips only the live service probe when unavailable, while eligibility, filtering,
+  capitalization, deduplication and cache-limit assertions remain mandatory.
 - GitHub ARM and Intel CI: results available on the release commit's Actions page;
   CI is automated runner evidence, not physical Intel GUI/audio certification.
 

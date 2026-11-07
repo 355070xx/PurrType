@@ -39,6 +39,10 @@ jobs:
           test "$(uname -m)" = "${{ matrix.arch }}"
 
       - name: Run release preflight
+        env:
+          # Unit coverage is mandatory; only the external system service probe
+          # may be explicitly skipped when a hosted image cannot provide it.
+          PURRTYPE_ALLOW_UNAVAILABLE_SPELL_SERVICE: "1"
         run: make release-preflight TEST_ARCH=${{ matrix.arch }}
 
       - name: Upload release preflight artifacts
