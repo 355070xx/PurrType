@@ -2,7 +2,7 @@
 
 PurrType 是一個 macOS 繁體中文輸入法，主打穩定速成、倉頡、拼音同英文混打。所有核心輸入處理都喺本機完成，不需要雲端服務。
 
-0.1.6 使用同一個 Universal 安裝包，包含 Intel（x86_64）及 Apple Silicon（arm64）原生程式，最低系統目標為 macOS 12 Monterey。語音 Beta 可用能力會隨系統、語言及 Apple Speech 支援而不同。
+0.1.7 使用同一個 Universal 安裝包，包含 Intel（x86_64）及 Apple Silicon（arm64）原生程式，最低系統目標為 macOS 12 Monterey。語音 Beta 可用能力會隨系統、語言及 Apple Speech 支援而不同。0.1.7 的語音辨識提示只使用內置詞語；自訂快捷短語仍可用於本機鍵盤輸入，不會用作 Apple Speech 提示。
 
 ## 功能重點
 
@@ -44,7 +44,7 @@ PurrType 是一個 macOS 繁體中文輸入法，主打穩定速成、倉頡、�
 
 普通用戶直接下載 DMG：
 
-[Download PurrType 0.1.6 DMG](https://github.com/355070xx/PurrType/releases/download/v0.1.6/PurrType-0.1.6.dmg)
+[Download PurrType 0.1.7 DMG](https://github.com/355070xx/PurrType/releases/download/v0.1.7/PurrType-0.1.7.dmg)
 
 不要下載 GitHub 自動產生的 `Source code` zip/tar.gz；那是原始碼，不是安裝檔。
 
@@ -53,7 +53,7 @@ PurrType 是一個 macOS 繁體中文輸入法，主打穩定速成、倉頡、�
 
 安裝：
 
-1. 按上面連結下載 `PurrType-0.1.6.dmg`，然後用 Finder 打開。
+1. 按上面連結下載 `PurrType-0.1.7.dmg`，然後用 Finder 打開。
 2. Double-click `Install PurrType.pkg`.
 3. 完成 macOS Installer 流程。
 4. 如果 System Settings 已經開住，先 quit 再開返。

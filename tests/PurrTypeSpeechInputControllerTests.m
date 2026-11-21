@@ -1,5 +1,6 @@
 #import <Foundation/Foundation.h>
 #import "../src/PurrTypeSpeechInputController.h"
+#import "../src/PurrTypeQuickPhraseStore.h"
 
 static void AssertTrue(BOOL condition, NSString *message) {
     if (!condition) {
@@ -117,6 +118,21 @@ static NSString *FileTextAtPath(NSString *path) {
 
 @end
 
+// The CLI test binary has no app bundle. Use the real shipped resource reader
+// with the source-tree copy, while keeping the production start path and a fake
+// Speech runtime. No microphone or Apple service is used.
+@interface BundledHintTestController : PurrTypeSpeechInputController
+@end
+
+@implementation BundledHintTestController
++ (NSArray<NSString *> *)contextualStringsFromBundle:(NSBundle *)bundle {
+    (void)bundle;
+    NSString *root = [[NSFileManager defaultManager] currentDirectoryPath];
+    NSURL *resourceURL = [NSURL fileURLWithPath:[root stringByAppendingPathComponent:@"resources/cantonese_voice_contextual_phrases.txt"]];
+    return [self contextualStringsFromResourceURL:resourceURL];
+}
+@end
+
 int main(int argc, const char *argv[]) {
     (void)argc;
     (void)argv;
@@ -163,7 +179,6 @@ int main(int argc, const char *argv[]) {
         PurrTypeSpeechInputController *unsupportedManualController = [[PurrTypeSpeechInputController alloc] initWithRuntime:unsupportedManualRuntime];
         __block NSError *unsupportedManualError = nil;
         BOOL unsupportedManualStarted = [unsupportedManualController startWithLocaleSelectionIdentifier:@"zh-HK"
-                                                                                     contextualStrings:@[@"PurrType"]
                                                                                      transcriptHandler:nil
                                                                                           errorHandler:^(NSError *error) {
             unsupportedManualError = error;
@@ -217,7 +232,6 @@ int main(int argc, const char *argv[]) {
         heldPrepareRuntime.holdPrepareCompletion = YES;
         PurrTypeSpeechInputController *heldPrepareController = [[PurrTypeSpeechInputController alloc] initWithRuntime:heldPrepareRuntime];
         AssertTrue([heldPrepareController startWithLocaleSelectionIdentifier:@"zh-HK"
-                                                           contextualStrings:@[@"PurrType", @"Apple Speech"]
                                                      transcriptUpdateHandler:nil
                                                                 errorHandler:nil],
                    @"held prepare session enters start-in-progress state");
@@ -255,7 +269,6 @@ int main(int argc, const char *argv[]) {
         __block NSString *updatedTranscript = nil;
         __block NSArray<NSString *> *updatedAlternatives = nil;
         AssertTrue([updateController startWithLocaleSelectionIdentifier:@"zh-HK"
-                                                      contextualStrings:@[]
                                                 transcriptUpdateHandler:^(NSString *transcript, NSArray<NSString *> *alternativeTranscripts, BOOL isFinal) {
             (void)isFinal;
             updatedTranscript = transcript;
@@ -277,7 +290,6 @@ int main(int argc, const char *argv[]) {
         PurrTypeSpeechInputController *staleController = [[PurrTypeSpeechInputController alloc] initWithRuntime:staleRuntime];
         __block NSMutableArray<NSString *> *sessionScopedTranscripts = [NSMutableArray array];
         AssertTrue([staleController startWithLocaleSelectionIdentifier:@"zh-HK"
-                                                     contextualStrings:@[]
                                                transcriptUpdateHandler:^(NSString *transcript, NSArray<NSString *> *alternativeTranscripts, BOOL isFinal) {
             (void)alternativeTranscripts;
             [sessionScopedTranscripts addObject:[NSString stringWithFormat:@"%@:%@", isFinal ? @"final" : @"partial", transcript]];
@@ -285,7 +297,6 @@ int main(int argc, const char *argv[]) {
         PurrTypeSpeechInputTranscriptUpdateHandler staleTranscriptHandler = [staleRuntime.transcriptUpdateHandler copy];
         [staleController stop];
         AssertTrue([staleController startWithLocaleSelectionIdentifier:@"zh-HK"
-                                                     contextualStrings:@[]
                                                transcriptUpdateHandler:^(NSString *transcript, NSArray<NSString *> *alternativeTranscripts, BOOL isFinal) {
             (void)alternativeTranscripts;
             [sessionScopedTranscripts addObject:[NSString stringWithFormat:@"%@:%@", isFinal ? @"final" : @"partial", transcript]];
@@ -297,18 +308,30 @@ int main(int argc, const char *argv[]) {
                    @"current session transcript still reaches the handler after stale callback is ignored");
         [staleController stop];
 
+        NSString *syntheticUserPhrase = @"海邊紙船";
+        NSString *fixtureDirectory = [NSTemporaryDirectory() stringByAppendingPathComponent:
+            [NSString stringWithFormat:@"PurrTypeVoicePrivacy-%@", [NSUUID UUID].UUIDString]];
+        PurrTypeQuickPhraseStore *fixtureStore = [[PurrTypeQuickPhraseStore alloc] initWithDirectoryPath:fixtureDirectory];
+        NSError *fixtureError = nil;
+        PurrTypeQuickPhraseEntry *entry = [fixtureStore upsertTrigger:@";paperboat"
+                                                          replacement:syntheticUserPhrase
+                                                                label:@"Synthetic test"
+                                                              enabled:YES
+                                                                error:&fixtureError];
+        AssertTrue(entry != nil && [fixtureStore saveWithError:&fixtureError] && fixtureError == nil,
+                   @"an enabled synthetic short phrase can be saved in an isolated store");
+        PurrTypeQuickPhraseStore *reloadedFixture = [[PurrTypeQuickPhraseStore alloc] initWithDirectoryPath:fixtureDirectory];
+        AssertTrue([[reloadedFixture enabledEntryForTrigger:@";paperboat"].replacement isEqualToString:syntheticUserPhrase],
+                   @"local keyboard shortcut lookup still returns the saved synthetic text");
+
         FakeSpeechRuntime *manualLocaleRuntime = [[FakeSpeechRuntime alloc] init];
         manualLocaleRuntime.supportedLocaleIdentifiers = [NSSet setWithArray:@[@"zh-HK", @"zh-TW"]];
-        PurrTypeSpeechInputController *manualLocaleController = [[PurrTypeSpeechInputController alloc] initWithRuntime:manualLocaleRuntime];
-        NSArray<NSString *> *contextualStrings = @[@"PurrType", @"香港", @"PurrType"];
+        PurrTypeSpeechInputController *manualLocaleController = [[BundledHintTestController alloc] initWithRuntime:manualLocaleRuntime];
         BOOL manualLocaleStarted = [manualLocaleController startWithLocaleSelectionIdentifier:@"zh-TW"
-                                                                           contextualStrings:contextualStrings
                                                                            transcriptHandler:nil
                                                                                 errorHandler:nil];
         AssertTrue(manualLocaleStarted, @"manual supported locale starts recognition");
         AssertTrue([manualLocaleRuntime.startedLocaleIdentifier isEqualToString:@"zh-TW"], @"manual supported locale is passed to runtime");
-        AssertTrue([manualLocaleRuntime.startedContextualStrings isEqualToArray:@[@"PurrType", @"香港"]],
-                   @"contextual strings are capped and de-duplicated before runtime start");
 
         NSMutableArray<NSString *> *manyPhrases = [NSMutableArray array];
         [manyPhrases addObject:@"# comment"];
@@ -334,15 +357,15 @@ int main(int argc, const char *argv[]) {
                    [resourcePhrases containsObject:@"Privacy Lock"] &&
                    [resourcePhrases containsObject:@"香港"],
                    @"bundled contextual phrase resource includes product, user-facing feature, and Hong Kong terms");
-        NSArray<NSString *> *combinedPhrases = [PurrTypeSpeechInputController contextualStringsFromBundle:nil
-                                                                                         additionalStrings:@[@"用戶短語", @"用戶短語", @" "]];
-        NSUInteger userPhraseCount = 0;
-        for (NSString *phrase in combinedPhrases) {
-            if ([phrase isEqualToString:@"用戶短語"]) {
-                userPhraseCount += 1;
-            }
-        }
-        AssertTrue(userPhraseCount == 1, @"contextual strings include short user lexical hints once");
+        AssertTrue([manualLocaleRuntime.preparedContextualStrings isEqualToArray:resourcePhrases] &&
+                   [manualLocaleRuntime.startedContextualStrings isEqualToArray:resourcePhrases],
+                   @"both runtime stages receive only the expected bundled hints");
+        AssertTrue(![manualLocaleRuntime.preparedContextualStrings containsObject:syntheticUserPhrase] &&
+                   ![manualLocaleRuntime.startedContextualStrings containsObject:syntheticUserPhrase],
+                   @"the user-created replacement is not passed as a hint");
+        [manualLocaleController stop];
+        AssertTrue([[NSFileManager defaultManager] removeItemAtPath:fixtureDirectory error:nil],
+                   @"isolated synthetic phrase fixture is removed");
 
         AssertTrue([[PurrTypeSpeechInputController normalizedVoiceTranscriptForVoiceInput:nil] isEqualToString:@""],
                    @"nil voice transcript normalizes to empty string");

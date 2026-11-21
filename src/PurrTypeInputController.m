@@ -195,9 +195,6 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
 - (void)confirmVoiceTranscript:(id)sender;
 - (void)stopVoiceInputForReason:(NSString *)reason;
 - (void)commitCurrentVoiceTranscriptForReason:(NSString *)reason replacementText:(NSString *)replacementText client:(id)sender;
-- (NSArray<NSString *> *)voiceInputContextualStrings;
-- (NSArray<NSString *> *)voiceInputUserContextualStrings;
-- (NSString *)voiceInputContextualPhraseFromString:(NSString *)text;
 - (BOOL)isCurrentVoiceInputSessionIdentifier:(NSString *)sessionIdentifier;
 - (NSArray<NSString *> *)voiceLiveCandidateTextsForAlternatives:(NSArray<NSString *> *)alternativeTranscripts visibleTranscript:(NSString *)visibleTranscript;
 - (NSArray<NSString *> *)voiceHomophoneCandidateTextsForVisibleTranscript:(NSString *)visibleTranscript;
@@ -1338,12 +1335,10 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     self.voiceInputFinalTranscriptCommitted = NO;
     self.voiceInputSessionIdentifier = [NSUUID UUID].UUIDString;
 
-    NSArray<NSString *> *contextualStrings = [self voiceInputContextualStrings];
     [self syncVoiceFloatingButtonState];
     __weak PurrTypeInputController *weakSelf = self;
     NSString *activeSessionIdentifier = [self.voiceInputSessionIdentifier copy];
     BOOL requested = [self.speechInputController startWithLocaleSelectionIdentifier:self.voiceRecognitionLocaleIdentifier
-                                                                 contextualStrings:contextualStrings
                                                            transcriptUpdateHandler:^(NSString *transcript, NSArray<NSString *> *alternativeTranscripts, BOOL isFinal) {
         [weakSelf handleVoiceInputTranscript:transcript
                        alternativeTranscripts:alternativeTranscripts
@@ -1445,58 +1440,6 @@ static TISInputSourceRef MKCopySecureTextASCIIInputSource(void) {
     return self.inputState.buffer.length > 0 ||
            self.inputState.associationModeActive ||
            self.punctuationCandidateTexts.count > 0;
-}
-
-- (NSArray<NSString *> *)voiceInputContextualStrings {
-    return [PurrTypeSpeechInputController contextualStringsFromBundle:[NSBundle mainBundle]
-                                                    additionalStrings:[self voiceInputUserContextualStrings]];
-}
-
-- (NSArray<NSString *> *)voiceInputUserContextualStrings {
-    [self.quickPhraseStore reloadIfChangedWithError:nil];
-
-    NSMutableArray<NSString *> *phrases = [NSMutableArray array];
-    NSMutableSet<NSString *> *seenPhrases = [NSMutableSet set];
-    for (PurrTypeQuickPhraseEntry *entry in [self.quickPhraseStore entries]) {
-        if (!entry.isEnabled) {
-            continue;
-        }
-        NSString *phrase = [self voiceInputContextualPhraseFromString:entry.replacement];
-        if (phrase.length == 0 || [seenPhrases containsObject:phrase]) {
-            continue;
-        }
-        [phrases addObject:phrase];
-        [seenPhrases addObject:phrase];
-        if (phrases.count >= 12) {
-            break;
-        }
-    }
-    return [phrases copy];
-}
-
-- (NSString *)voiceInputContextualPhraseFromString:(NSString *)text {
-    NSString *phrase = [text ?: @"" stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    if (phrase.length == 0 ||
-        [phrase rangeOfCharacterFromSet:[NSCharacterSet newlineCharacterSet]].location != NSNotFound ||
-        [phrase rangeOfString:@"@"].location != NSNotFound ||
-        [phrase rangeOfString:@"://"].location != NSNotFound ||
-        [phrase rangeOfString:@"[\\p{Han}]" options:NSRegularExpressionSearch].location == NSNotFound) {
-        return nil;
-    }
-
-    __block NSUInteger composedCharacterCount = 0;
-    [phrase enumerateSubstringsInRange:NSMakeRange(0, phrase.length)
-                               options:NSStringEnumerationByComposedCharacterSequences
-                            usingBlock:^(NSString *substring, NSRange substringRange, NSRange enclosingRange, BOOL *stop) {
-        (void)substring;
-        (void)substringRange;
-        (void)enclosingRange;
-        composedCharacterCount += 1;
-        if (composedCharacterCount > 16) {
-            *stop = YES;
-        }
-    }];
-    return composedCharacterCount > 16 ? nil : phrase;
 }
 
 - (NSArray<NSString *> *)voiceLiveCandidateTextsForAlternatives:(NSArray<NSString *> *)alternativeTranscripts visibleTranscript:(NSString *)visibleTranscript {

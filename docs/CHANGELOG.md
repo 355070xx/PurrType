@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.7
+
+- Cantonese Voice Input supplies only app-bundled recognition hints to Apple Speech. User-created Quick Phrase replacements are no longer read or passed as recognition hints.
+- Keyboard Quick Phrase expansion, stored phrases and backups are unchanged. The privacy policy now distinguishes recognition hints from words spoken during an active Voice Input session.
+- Adds regression coverage for the Speech request and an isolated Quick Phrase store, using synthetic test data.
+- Keeps the Universal Intel/Apple Silicon installer and macOS 12 minimum target.
+
 ## 0.1.6
 
 - Builds the input method and embedded Preferences app as universal arm64 / x86_64 executables, targeting macOS 12.0.

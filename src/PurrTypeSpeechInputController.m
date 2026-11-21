@@ -477,13 +477,6 @@ static NSString *PurrTypeSpeechInputPermissionStatusDescription(PurrTypeSpeechIn
     return [self contextualStringsFromResourceURL:resourceURL];
 }
 
-+ (NSArray<NSString *> *)contextualStringsFromBundle:(NSBundle *)bundle
-                                   additionalStrings:(NSArray<NSString *> *)additionalStrings {
-    NSMutableArray<NSString *> *strings = [[self contextualStringsFromBundle:bundle] mutableCopy];
-    [strings addObjectsFromArray:additionalStrings ?: @[]];
-    return [self cappedContextualStringsFromStrings:strings ?: @[]];
-}
-
 + (NSArray<NSString *> *)contextualStringsFromResourceURL:(NSURL *)resourceURL {
     if (!resourceURL) {
         return @[];
@@ -540,13 +533,11 @@ static NSString *PurrTypeSpeechInputPermissionStatusDescription(PurrTypeSpeechIn
 - (BOOL)startWithTranscriptHandler:(PurrTypeSpeechInputTranscriptHandler)transcriptHandler
                       errorHandler:(PurrTypeSpeechInputErrorHandler)errorHandler {
     return [self startWithLocaleSelectionIdentifier:MKVoiceRecognitionLocaleAuto
-                                 contextualStrings:[[self class] contextualStringsFromBundle:[NSBundle mainBundle]]
                                  transcriptHandler:transcriptHandler
                                       errorHandler:errorHandler];
 }
 
 - (BOOL)startWithLocaleSelectionIdentifier:(NSString *)localeSelectionIdentifier
-                         contextualStrings:(NSArray<NSString *> *)contextualStrings
                          transcriptHandler:(PurrTypeSpeechInputTranscriptHandler)transcriptHandler
                               errorHandler:(PurrTypeSpeechInputErrorHandler)errorHandler {
     PurrTypeSpeechInputTranscriptUpdateHandler updateHandler = nil;
@@ -557,13 +548,11 @@ static NSString *PurrTypeSpeechInputPermissionStatusDescription(PurrTypeSpeechIn
         };
     }
     return [self startWithLocaleSelectionIdentifier:localeSelectionIdentifier
-                                 contextualStrings:contextualStrings
                            transcriptUpdateHandler:updateHandler
                                       errorHandler:errorHandler];
 }
 
 - (BOOL)startWithLocaleSelectionIdentifier:(NSString *)localeSelectionIdentifier
-                         contextualStrings:(NSArray<NSString *> *)contextualStrings
                    transcriptUpdateHandler:(PurrTypeSpeechInputTranscriptUpdateHandler)transcriptUpdateHandler
                               errorHandler:(PurrTypeSpeechInputErrorHandler)errorHandler {
     if (self.active || self.startInProgress) {
@@ -591,7 +580,8 @@ static NSString *PurrTypeSpeechInputPermissionStatusDescription(PurrTypeSpeechIn
     self.lastError = nil;
     self.activeLocaleIdentifier = localeIdentifier;
     self.activeLocaleSelectionIdentifier = normalizedLocaleSelection;
-    self.contextualStrings = [[self class] cappedContextualStringsFromStrings:contextualStrings ?: @[]];
+    // Recognition may use Apple's service. Only load app-bundled hints here.
+    self.contextualStrings = [[self class] contextualStringsFromBundle:[NSBundle mainBundle]];
     self.transcriptUpdateHandler = transcriptUpdateHandler;
     self.errorHandler = errorHandler;
     self.currentSessionIdentifier = [NSUUID UUID].UUIDString;

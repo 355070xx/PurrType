@@ -64,8 +64,6 @@ typedef void (^PurrTypeSpeechInputErrorHandler)(NSError *error);
 + (nullable NSString *)selectedLocaleIdentifierFromSupportedLocaleIdentifiers:(NSSet<NSString *> *)supportedLocaleIdentifiers
                                                     localeSelectionIdentifier:(nullable NSString *)localeSelectionIdentifier;
 + (NSArray<NSString *> *)contextualStringsFromBundle:(nullable NSBundle *)bundle;
-+ (NSArray<NSString *> *)contextualStringsFromBundle:(nullable NSBundle *)bundle
-                                   additionalStrings:(nullable NSArray<NSString *> *)additionalStrings;
 + (NSArray<NSString *> *)contextualStringsFromResourceURL:(nullable NSURL *)resourceURL;
 + (NSArray<NSString *> *)cappedContextualStringsFromStrings:(NSArray<NSString *> *)strings;
 + (NSString *)normalizedVoiceTranscriptForVoiceInput:(nullable NSString *)transcript;
@@ -73,11 +71,9 @@ typedef void (^PurrTypeSpeechInputErrorHandler)(NSError *error);
 - (BOOL)startWithTranscriptHandler:(nullable PurrTypeSpeechInputTranscriptHandler)transcriptHandler
                       errorHandler:(nullable PurrTypeSpeechInputErrorHandler)errorHandler;
 - (BOOL)startWithLocaleSelectionIdentifier:(nullable NSString *)localeSelectionIdentifier
-                         contextualStrings:(nullable NSArray<NSString *> *)contextualStrings
                          transcriptHandler:(nullable PurrTypeSpeechInputTranscriptHandler)transcriptHandler
                               errorHandler:(nullable PurrTypeSpeechInputErrorHandler)errorHandler;
 - (BOOL)startWithLocaleSelectionIdentifier:(nullable NSString *)localeSelectionIdentifier
-                         contextualStrings:(nullable NSArray<NSString *> *)contextualStrings
                    transcriptUpdateHandler:(nullable PurrTypeSpeechInputTranscriptUpdateHandler)transcriptUpdateHandler
                               errorHandler:(nullable PurrTypeSpeechInputErrorHandler)errorHandler;
 - (void)stop;

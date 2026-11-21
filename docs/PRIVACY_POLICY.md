@@ -62,8 +62,12 @@ browser DOM, web forms, or password fields.
 
 When Cantonese Voice Input is started, PurrType requests microphone and Speech
 Recognition access through macOS, streams audio to Apple's Speech APIs for that
-session, receives transcripts, and displays or commits the resulting text. It
-does not record in the background.
+session, receives transcripts, and displays or commits the resulting text.
+Recognition hints come only from resources bundled with PurrType. PurrType does
+not read or pass user-created Quick Phrase replacements to Apple Speech as hints.
+Quick Phrases remain available for local keyboard expansion. This does not
+change how Apple handles words you actually speak during an active session.
+PurrType does not record in the background.
 
 ## Data Stored On Disk
 

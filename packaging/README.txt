@@ -1,11 +1,11 @@
-PurrType 0.1.6
+PurrType 0.1.7
 ============
 
 Official release:
-https://github.com/355070xx/PurrType/releases/tag/v0.1.6
+https://github.com/355070xx/PurrType/releases/tag/v0.1.7
 
 Direct DMG download:
-https://github.com/355070xx/PurrType/releases/download/v0.1.6/PurrType-0.1.6.dmg
+https://github.com/355070xx/PurrType/releases/download/v0.1.7/PurrType-0.1.7.dmg
 
 Compatibility:
 
